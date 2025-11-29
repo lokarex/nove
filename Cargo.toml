@@ -8,4 +8,4 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/lokarex/nove"
 
 [dependencies]
-burn = { version = "0.19.1", features = ["wgpu"] }
+burn = { version = "0.19.1", features = ["train", "wgpu"], default-features = false }
