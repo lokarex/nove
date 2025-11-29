@@ -1,0 +1,11 @@
+[package]
+name = "nove"
+version = "0.1.0"
+edition = "2024"
+authors = ["lokarex <lokarex@outlook.com>"]
+description = "An easy-to-use, lightweight deep learning library wrapped around Burn Tensor."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/lokarex/nove"
+
+[dependencies]
+burn = { version = "0.19.1", features = ["wgpu"] }
