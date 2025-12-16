@@ -2,3 +2,6 @@
 
 mod shuffled_dataset;
 pub use shuffled_dataset::ShuffledDataset;
+
+mod persisted_dataset;
+pub use persisted_dataset::PersistedDataset;
