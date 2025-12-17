@@ -61,10 +61,10 @@ where
     /// * `file_path` - The path to the file to save to.
     pub fn save_as_file(&self, file_path: &str) {
         let mut file = File::create(file_path).unwrap();
+        let item_size = std::mem::size_of::<D::Item>();
         for i in 0..self.inner.unwrap().len() {
             file.seek(SeekFrom::End(0)).unwrap();
             let item = self.inner.unwrap().get(i).unwrap();
-            let item_size = std::mem::size_of::<D::Item>();
             let mut data = bincode::encode_to_vec(item, config::standard()).unwrap();
 
             // Force encode to fixed size, pad with 0 if necessary.
