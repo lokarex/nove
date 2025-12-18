@@ -7,8 +7,8 @@ use nove::dataset::Dataset;
 pub struct SimpleDataset {}
 impl Dataset for SimpleDataset {
     type Item = u64;
-    fn get(&self, index: u64) -> Option<Self::Item> {
-        Some(index)
+    fn get(&self, index: u64) -> Self::Item {
+        index
     }
     fn len(&self) -> u64 {
         100

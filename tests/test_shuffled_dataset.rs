@@ -15,7 +15,7 @@ fn test_shuffled_dataset_with_simple_dataset() {
     // Check the shuffled dataset without shuffling is the same as the original dataset.
     assert_eq!(shuffled_dataset.len(), 100);
     for i in 0..shuffled_dataset.len() {
-        assert_eq!(shuffled_dataset.get(i).unwrap(), i);
+        assert_eq!(shuffled_dataset.get(i), i);
     }
 
     // Shuffle the shuffled dataset with a seed.
@@ -28,6 +28,6 @@ fn test_shuffled_dataset_with_simple_dataset() {
     // Check the shuffled dataset is the same as the simulated dataset.
     assert_eq!(shuffled_dataset.len(), dataset.len() as u64);
     for i in 0..shuffled_dataset.len() {
-        assert_eq!(shuffled_dataset.get(i).unwrap(), dataset[i as usize]);
+        assert_eq!(shuffled_dataset.get(i), dataset[i as usize]);
     }
 }

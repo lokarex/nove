@@ -34,6 +34,6 @@ fn test_persisted_dataset_with_simple_dataset() {
     // Check the loaded dataset is the same as the original dataset.
     assert_eq!(loaded_dataset.len(), dataset.len());
     for i in 0..loaded_dataset.len() {
-        assert_eq!(loaded_dataset.get(i).unwrap(), i);
+        assert_eq!(loaded_dataset.get(i), i);
     }
 }

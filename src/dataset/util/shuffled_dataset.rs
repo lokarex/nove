@@ -49,7 +49,7 @@ impl<'a, D: Dataset> ShuffledDataset<'a, D> {
 impl<'a, D: Dataset> Dataset for ShuffledDataset<'a, D> {
     type Item = D::Item;
 
-    fn get(&self, index: u64) -> Option<Self::Item> {
+    fn get(&self, index: u64) -> Self::Item {
         self.inner.get(self.indices[index as usize])
     }
 

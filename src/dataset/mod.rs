@@ -11,7 +11,7 @@ pub mod util;
 /// * `Item` - The type of items in the dataset.
 ///
 /// # Required Methods
-/// * `get(index: u64) -> Option<Self::Item>` - Get the item at the given index.
+/// * `get(index: u64) -> Self::Item` - Get the item at the given index.
 /// * `len() -> u64` - Get the number of items in the dataset.
 ///
 /// # Provided Methods
@@ -26,8 +26,8 @@ pub trait Dataset {
     /// * `index` - The index of the item to get.
     ///
     /// # Returns
-    /// The item at the given index, or `None` if the index is out of bounds.
-    fn get(&self, index: u64) -> Option<Self::Item>;
+    /// The item at the given index.
+    fn get(&self, index: u64) -> Self::Item;
 
     /// Get the number of items in the dataset.
     ///

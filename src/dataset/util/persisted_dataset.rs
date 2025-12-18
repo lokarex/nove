@@ -64,7 +64,7 @@ where
         let item_size = std::mem::size_of::<D::Item>();
         for i in 0..self.inner.unwrap().len() {
             file.seek(SeekFrom::End(0)).unwrap();
-            let item = self.inner.unwrap().get(i).unwrap();
+            let item = self.inner.unwrap().get(i);
             let mut data = bincode::encode_to_vec(item, config::standard()).unwrap();
 
             // Force encode to fixed size, pad with 0 if necessary.
@@ -96,15 +96,15 @@ where
 {
     type Item = D::Item;
 
-    fn get(&self, index: u64) -> Option<Self::Item> {
-        if index >= self.len() {
-            return None;
-        }
-
+    fn get(&self, index: u64) -> Self::Item {
         // If the PersistedDataset is created from another dataset,
         // we just delegate the get call to the inner dataset.
         if let Some(inner) = self.inner {
             return inner.get(index);
+        }
+
+        if index < 0 || self.len() <= index {
+            panic!("Index {} is out of bounds", index);
         }
 
         // If the PersistedDataset is created from a file,
@@ -119,10 +119,10 @@ where
             let mut data = vec![0u8; std::mem::size_of::<D::Item>()];
             file.read_exact(&mut data).unwrap();
             let (item, _) = bincode::decode_from_slice(&data, config::standard()).unwrap();
-            return Some(item);
+            return item;
         }
 
-        return None;
+        panic!("The PersistedDataset is not created from a dataset or a file");
     }
 
     fn len(&self) -> u64 {
@@ -142,6 +142,6 @@ where
             return item_count;
         }
 
-        return 0;
+        panic!("The PersistedDataset is not created from a dataset or a file");
     }
 }
