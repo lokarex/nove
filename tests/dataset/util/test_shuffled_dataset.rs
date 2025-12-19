@@ -1,5 +1,4 @@
-mod simple_dataset;
-
+use crate::dataset::util::simple_dataset;
 use nove::dataset::{Dataset, util::ShuffledDataset};
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 use simple_dataset::SimpleDataset;

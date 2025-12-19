@@ -1,5 +1,4 @@
-mod simple_dataset;
-
+use crate::dataset::util::simple_dataset;
 use nove::dataset::{Dataset, util::PersistedDataset};
 use simple_dataset::SimpleDataset;
 use tempfile::TempDir;

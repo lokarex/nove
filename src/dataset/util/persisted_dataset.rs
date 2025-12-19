@@ -103,7 +103,7 @@ where
             return inner.get(index);
         }
 
-        if index < 0 || self.len() <= index {
+        if self.len() <= index {
             panic!("Index {} is out of bounds", index);
         }
 
