@@ -21,11 +21,11 @@ fn test_shuffled_dataset_with_simple_dataset() {
     shuffled_dataset.shuffle(42);
 
     // Create a simulated dataset.
-    let mut dataset: Vec<u64> = (0..shuffled_dataset.len()).collect();
+    let mut dataset: Vec<usize> = (0..shuffled_dataset.len()).collect();
     dataset.shuffle(&mut StdRng::seed_from_u64(42));
 
     // Check the shuffled dataset is the same as the simulated dataset.
-    assert_eq!(shuffled_dataset.len(), dataset.len() as u64);
+    assert_eq!(shuffled_dataset.len(), dataset.len() as usize);
     for i in 0..shuffled_dataset.len() {
         assert_eq!(shuffled_dataset.get(i), dataset[i as usize]);
     }

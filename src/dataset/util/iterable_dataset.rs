@@ -17,8 +17,8 @@ use crate::dataset::Dataset;
 /// * `len` - The number of items in the dataset.
 pub struct IterableDataset<'a, D: Dataset> {
     inner: &'a dyn Dataset<Item = D::Item>,
-    index: u64,
-    len: u64,
+    index: usize,
+    len: usize,
 }
 
 impl<'a, D: Dataset> IterableDataset<'a, D> {
@@ -41,11 +41,11 @@ impl<'a, D: Dataset> IterableDataset<'a, D> {
 impl<'a, D: Dataset> Dataset for IterableDataset<'a, D> {
     type Item = D::Item;
 
-    fn get(&self, index: u64) -> Self::Item {
+    fn get(&self, index: usize) -> Self::Item {
         self.inner.get(index)
     }
 
-    fn len(&self) -> u64 {
+    fn len(&self) -> usize {
         self.len
     }
 }

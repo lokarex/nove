@@ -17,7 +17,7 @@ use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 /// * `indices` - The shuffled indices of the inner dataset.
 pub struct ShuffledDataset<'a, D: Dataset> {
     inner: &'a dyn Dataset<Item = D::Item>,
-    indices: Vec<u64>,
+    indices: Vec<usize>,
 }
 
 impl<'a, D: Dataset> ShuffledDataset<'a, D> {
@@ -41,19 +41,20 @@ impl<'a, D: Dataset> ShuffledDataset<'a, D> {
     ///
     /// # Arguments
     /// * `seed` - The seed to use for shuffling.
-    pub fn shuffle(&mut self, seed: u64) {
-        self.indices.shuffle(&mut StdRng::seed_from_u64(seed));
+    pub fn shuffle(&mut self, seed: usize) {
+        self.indices
+            .shuffle(&mut StdRng::seed_from_u64(seed as u64));
     }
 }
 
 impl<'a, D: Dataset> Dataset for ShuffledDataset<'a, D> {
     type Item = D::Item;
 
-    fn get(&self, index: u64) -> Self::Item {
+    fn get(&self, index: usize) -> Self::Item {
         self.inner.get(self.indices[index as usize])
     }
 
-    fn len(&self) -> u64 {
-        self.indices.len() as u64
+    fn len(&self) -> usize {
+        self.indices.len() as usize
     }
 }

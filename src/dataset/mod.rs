@@ -11,8 +11,8 @@ pub mod util;
 /// * `Item` - The type of items in the dataset.
 ///
 /// # Required Methods
-/// * `get(index: u64) -> Self::Item` - Get the item at the given index.
-/// * `len() -> u64` - Get the number of items in the dataset.
+/// * `get(index: usize) -> Self::Item` - Get the item at the given index.
+/// * `len() -> usize` - Get the number of items in the dataset.
 ///
 /// # Provided Methods
 /// * `is_empty() -> bool` - Check if the dataset is empty.
@@ -27,13 +27,13 @@ pub trait Dataset {
     ///
     /// # Returns
     /// The item at the given index.
-    fn get(&self, index: u64) -> Self::Item;
+    fn get(&self, index: usize) -> Self::Item;
 
     /// Get the number of items in the dataset.
     ///
     /// # Returns
     /// The number of items in the dataset.
-    fn len(&self) -> u64;
+    fn len(&self) -> usize;
 
     /// Check if the dataset is empty.
     ///

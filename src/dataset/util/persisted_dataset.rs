@@ -96,7 +96,7 @@ where
 {
     type Item = D::Item;
 
-    fn get(&self, index: u64) -> Self::Item {
+    fn get(&self, index: usize) -> Self::Item {
         // If the PersistedDataset is created from another dataset,
         // we just delegate the get call to the inner dataset.
         if let Some(inner) = self.inner {
@@ -104,7 +104,7 @@ where
         }
 
         if self.len() <= index {
-            panic!("Index {} is out of bounds", index);
+            panic!("Index {} is out of bounds.", index);
         }
 
         // If the PersistedDataset is created from a file,
@@ -112,7 +112,7 @@ where
         if let Some(file) = &self.dataset_file {
             let mut file = file.try_clone().unwrap();
             file.seek(SeekFrom::Start(
-                index * std::mem::size_of::<D::Item>() as u64,
+                index as u64 * std::mem::size_of::<D::Item>() as u64,
             ))
             .unwrap();
 
@@ -122,10 +122,10 @@ where
             return item;
         }
 
-        panic!("The PersistedDataset is not created from a dataset or a file");
+        panic!("The PersistedDataset is not created from a dataset or a file.");
     }
 
-    fn len(&self) -> u64 {
+    fn len(&self) -> usize {
         // If the PersistedDataset is created from another dataset,
         // we just delegate the len call to the inner dataset.
         if let Some(inner) = self.inner {
@@ -136,12 +136,12 @@ where
         // we calculate the item count from the file size.
         if let Some(file) = &self.dataset_file {
             let file_size = file.metadata().unwrap().len();
-            let item_size = std::mem::size_of::<D::Item>() as u64;
-            let item_count = file_size / item_size;
+            let item_size = std::mem::size_of::<D::Item>();
+            let item_count = file_size / item_size as u64;
 
-            return item_count;
+            return item_count as usize;
         }
 
-        panic!("The PersistedDataset is not created from a dataset or a file");
+        panic!("The PersistedDataset is not created from a dataset or a file.");
     }
 }
