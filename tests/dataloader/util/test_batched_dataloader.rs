@@ -16,17 +16,19 @@ fn test_batched_dataloader() {
 
     // Prepare the batch size, device, process function and collate function.
     let batch_size = 12;
-    let device = Device::DefaultDevice;
-    let process_fn =
-        |x: usize| -> Tensor<1, Int> { Tensor::<1, Int>::from_data([x as i32], &device) };
+    let process_fn = |x: usize, device: &Device| -> Tensor<1, Int> {
+        Tensor::<1, Int>::from_data([x as i32], device)
+    };
     let collate_fn = |x: Vec<Tensor<1, Int>>| -> Tensor<2, Int> { Tensor::<1, Int>::stack(x, 0) };
+    let device = Device::DefaultDevice;
 
-    // Create a batched dataloader.
+    // Create a basic dataloader.
     let mut dataloader: BasicDataloader<SimpleDataset, Tensor<1, Int>, Tensor<2, Int>, _, _> =
         BasicDataloader::from_dataset(&dataset)
             .with_batch_size(batch_size)
             .with_process_fn(process_fn)
-            .with_collate_fn(collate_fn);
+            .with_collate_fn(collate_fn)
+            .with_device(&device);
 
     // Calculate the expected shapes of the batches.
     let mut shapes = vec![Shape::new([batch_size, 1]); dataset.len() / batch_size];
