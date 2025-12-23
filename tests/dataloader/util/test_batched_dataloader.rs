@@ -3,8 +3,7 @@ use std::{array, vec};
 use nove::{
     dataloader::{Dataloader, util::BasicDataloader},
     dataset::Dataset,
-    device::Device,
-    tensor::{Shape, Tensor, kind::Int},
+    tensor::{Device, Shape, Tensor, kind::I32},
 };
 
 use crate::dataset::util::simple_dataset::{self, SimpleDataset};
@@ -16,14 +15,14 @@ fn test_batched_dataloader() {
 
     // Prepare the batch size, device, process function and collate function.
     let batch_size = 12;
-    let process_fn = |x: usize, device: &Device| -> Tensor<1, Int> {
-        Tensor::<1, Int>::from_data([x as i32], device)
+    let process_fn = |x: usize, device: &Device| -> Tensor<1, I32> {
+        Tensor::<1, I32>::from_data([x as i32], device)
     };
-    let collate_fn = |x: Vec<Tensor<1, Int>>| -> Tensor<2, Int> { Tensor::<1, Int>::stack(x, 0) };
-    let device = Device::DefaultDevice;
+    let collate_fn = |x: Vec<Tensor<1, I32>>| -> Tensor<2, I32> { Tensor::<2, I32>::stack(x, 0) };
+    let device = Device::default_device();
 
     // Create a basic dataloader.
-    let mut dataloader: BasicDataloader<SimpleDataset, Tensor<1, Int>, Tensor<2, Int>, _, _> =
+    let mut dataloader: BasicDataloader<SimpleDataset, Tensor<1, I32>, Tensor<2, I32>, _, _> =
         BasicDataloader::from_dataset(&dataset)
             .with_batch_size(batch_size)
             .with_process_fn(process_fn)
@@ -55,8 +54,7 @@ fn test_batched_dataloader() {
 
         // Check the data of the batch.
         batch
-            .to_data()
-            .bytes
+            .get_bytes()
             .chunks_exact(std::mem::size_of::<i32>())
             .for_each(|chunk| {
                 let bytes = array::from_fn(|i| chunk[i]);

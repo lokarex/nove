@@ -1,6 +1,6 @@
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 
-use crate::{dataloader::Dataloader, dataset::Dataset, device::Device};
+use crate::{dataloader::Dataloader, dataset::Dataset, tensor::Device};
 
 /// The `BasicDataloader` struct provides a basic data loader to
 /// shuffle the dataset, load the data, process the data, and collate the

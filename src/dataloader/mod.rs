@@ -1,7 +1,7 @@
 //! The `dataloader` module defines the `Dataloader` trait and provides some
 //! implemented data loader.
 
-use crate::device::Device;
+use crate::tensor::Device;
 
 pub mod util;
 
