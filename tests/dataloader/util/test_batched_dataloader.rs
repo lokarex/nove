@@ -1,9 +1,9 @@
-use std::{array, vec};
+use std::vec;
 
 use nove::{
     dataloader::{Dataloader, util::BasicDataloader},
     dataset::Dataset,
-    tensor::{Device, Shape, Tensor, kind::I32},
+    tensor::{Device, Shape, Tensor},
 };
 
 use crate::dataset::util::simple_dataset::{self, SimpleDataset};
@@ -15,14 +15,14 @@ fn test_batched_dataloader() {
 
     // Prepare the batch size, device, process function and collate function.
     let batch_size = 12;
-    let process_fn = |x: usize, device: &Device| -> Tensor<1, I32> {
-        Tensor::<1, I32>::from_data([x as i32], device)
+    let process_fn = |x: usize, device: &Device| -> Tensor {
+        Tensor::from_array(&[x as i64], device, false).unwrap()
     };
-    let collate_fn = |x: Vec<Tensor<1, I32>>| -> Tensor<2, I32> { Tensor::<2, I32>::stack(x, 0) };
-    let device = Device::default_device();
+    let collate_fn = |x: Vec<Tensor>| -> Tensor { Tensor::stack(&x.as_slice(), 0).unwrap() };
+    let device = Device::get_cuda_if_available(0);
 
     // Create a basic dataloader.
-    let mut dataloader: BasicDataloader<SimpleDataset, Tensor<1, I32>, Tensor<2, I32>, _, _> =
+    let mut dataloader: BasicDataloader<SimpleDataset, Tensor, Tensor, _, _> =
         BasicDataloader::from_dataset(&dataset)
             .with_batch_size(batch_size)
             .with_process_fn(process_fn)
@@ -30,16 +30,16 @@ fn test_batched_dataloader() {
             .with_device(&device);
 
     // Calculate the expected shapes of the batches.
-    let mut shapes = vec![Shape::new([batch_size, 1]); dataset.len() / batch_size];
+    let mut shapes = vec![Shape::from_dims(&[batch_size, 1]); dataset.len() / batch_size];
     if dataset.len() % batch_size != 0 {
-        shapes.push(Shape::new([dataset.len() % batch_size, 1]));
+        shapes.push(Shape::from_dims(&[dataset.len() % batch_size, 1]));
     }
 
     // Record the number of cycles.
     let mut counter = 0;
 
     // Record the number of datas.
-    let mut index: i32 = 0;
+    let mut index: i64 = 0;
 
     loop {
         // Get the next batch.
@@ -50,15 +50,15 @@ fn test_batched_dataloader() {
         let batch = batch.unwrap();
 
         // Check the shape of the batch.
-        assert_eq!(batch.shape(), shapes[counter]);
+        assert_eq!(batch.get_shape().unwrap(), shapes[counter]);
 
         // Check the data of the batch.
         batch
-            .get_bytes()
-            .chunks_exact(std::mem::size_of::<i32>())
+            .to_vec::<i64>()
+            .unwrap()
+            .chunks_exact(1)
             .for_each(|chunk| {
-                let bytes = array::from_fn(|i| chunk[i]);
-                let data = i32::from_le_bytes(bytes);
+                let data = chunk[0];
 
                 assert_eq!(data, index);
                 index += 1;
