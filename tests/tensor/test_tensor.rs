@@ -244,7 +244,7 @@ fn test_backward() {
     // Test backward operation with a grad enabled tensor.
     let t1 = Tensor::from_array(&[1.0f64, 2.0f64, 3.0f64], &device, true).unwrap();
     let t2 = Tensor::from_array(&[4.0f64, 5.0f64, 6.0f64], &device, true).unwrap();
-    let mut t3 = t1.add(&t2).unwrap();
+    let t3 = t1.add(&t2).unwrap();
 
     t3.backward().unwrap();
     assert_eq!(

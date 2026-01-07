@@ -494,7 +494,7 @@ impl Tensor {
     /// # Returns
     /// * `Ok(())` - The tensor's gradient is successfully backpropagated.
     /// * `Err(TensorError)` - The error when backpropagating the tensor's gradient.
-    pub fn backward(&mut self) -> Result<(), TensorError> {
+    pub fn backward(&self) -> Result<(), TensorError> {
         // Get grad_store
         let grad_store = {
             let inner = self.data.inner.read().unwrap();
