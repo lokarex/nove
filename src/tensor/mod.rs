@@ -8,5 +8,7 @@ mod tensor;
 pub use tensor::Tensor;
 pub use tensor::TensorError;
 
+mod conversion;
+
 mod dtype;
 pub use dtype::DType;

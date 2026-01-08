@@ -43,8 +43,8 @@ impl<T> From<std::sync::PoisonError<T>> for TensorError {
 }
 
 /// Inner representation of tensor data.
-#[derive(Clone)]
-enum TensorInner {
+#[derive(Clone, Debug)]
+pub(crate) enum TensorInner {
     Tensor(candle_core::Tensor),
     Var(candle_core::Var),
 }
@@ -55,10 +55,11 @@ enum TensorInner {
 /// * `inner` - The inner representation of the tensor data.
 /// * `parents` - The list of parent tensors used to backpropagate gradients.
 /// * `grad` - The gradient of the tensor data.
-pub struct TensorData {
-    inner: RwLock<TensorInner>,
-    parents: RwLock<Vec<Tensor>>,
-    grad: RwLock<Option<candle_core::Tensor>>,
+#[derive(Debug)]
+pub(crate) struct TensorData {
+    pub(crate) inner: RwLock<TensorInner>,
+    pub(crate) parents: RwLock<Vec<Tensor>>,
+    pub(crate) grad: RwLock<Option<candle_core::Tensor>>,
 }
 
 /// The tensor struct.
@@ -68,93 +69,14 @@ pub struct TensorData {
 ///
 /// # Fields
 /// * `data` - The data structure of the tensor.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Tensor {
-    data: Arc<TensorData>,
+    pub(crate) data: Arc<TensorData>,
 }
 
 impl AsRef<Tensor> for Tensor {
     fn as_ref(&self) -> &Self {
         self
-    }
-}
-
-impl Tensor {
-    /// Create a new tensor from an array.
-    ///
-    /// # Arguments
-    /// * `array` - The array to create the tensor from.
-    /// * `device` - The device to place the tensor on.
-    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
-    ///
-    /// # Returns
-    /// * `Ok(tensor)` - The created tensor if successful.
-    /// * `Err(TensorError)` - The error when creating the tensor.
-    pub fn from_array<A>(array: A, device: &Device, grad_enabled: bool) -> Result<Self, TensorError>
-    where
-        A: candle_core::NdArray,
-    {
-        let inner = match grad_enabled {
-            true => TensorInner::Var(candle_core::Var::new(array, &device)?),
-            false => TensorInner::Tensor(candle_core::Tensor::new(array, &device)?),
-        };
-
-        let grad = match &inner {
-            TensorInner::Var(var) => Some(var.zeros_like()?),
-            TensorInner::Tensor(_) => None,
-        };
-
-        Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(inner),
-                parents: RwLock::new(vec![]),
-                grad: RwLock::new(grad),
-            }),
-        })
-    }
-
-    /// Convert the tensor to a scalar.
-    ///
-    /// # Returns
-    /// * `Ok(scalar)` - The scalar value if the tensor is a scalar.
-    /// * `Err(TensorError)` - The error when converting the tensor to a scalar.
-    pub fn to_scalar<S>(&self) -> Result<S, TensorError>
-    where
-        S: candle_core::WithDType,
-    {
-        let inner = self.data.inner.read()?;
-        let scalar = match &*inner {
-            TensorInner::Tensor(tensor) => {
-                let squeezed = tensor.squeeze(0)?;
-                squeezed.to_scalar::<S>()?
-            }
-            TensorInner::Var(var) => {
-                let squeezed = var.squeeze(0)?;
-                squeezed.to_scalar::<S>()?
-            }
-        };
-
-        Ok(scalar)
-    }
-
-    /// Convert the tensor to a one-dimensional vector.
-    ///
-    /// # Notes
-    /// * The tensor could be any shape, and it will be flattened to a one-dimensional vector.
-    ///
-    /// # Returns
-    /// * `Ok(vec)` - The vector value if the tensor can be converted to a vector.
-    /// * `Err(TensorError)` - The error when converting the tensor to a vector.
-    pub fn to_vec<S>(&self) -> Result<Vec<S>, TensorError>
-    where
-        S: candle_core::WithDType,
-    {
-        let inner = self.data.inner.read()?;
-        let vec = match &*inner {
-            TensorInner::Tensor(tensor) => tensor.flatten_all()?.to_vec1::<S>()?,
-            TensorInner::Var(var) => var.flatten_all()?.to_vec1::<S>()?,
-        };
-        Ok(vec)
     }
 }
 
