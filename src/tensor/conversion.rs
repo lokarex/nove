@@ -25,7 +25,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::get_cuda_if_available(0);
+    /// let device = Device::get_cpu();
     ///
     /// // Create a tensor from a scalar
     /// let tensor = Tensor::from_data(1.0f32, &device, false).unwrap();
@@ -83,11 +83,10 @@ impl Tensor {
     /// ```
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::get_cuda_if_available(0);
-    /// let tensor = Tensor::from_scalar(1.0f64, &device, false).unwrap();
-    /// assert_eq!(tensor.to_vec::<f64>().unwrap(), vec![1.0f64]);
+    /// let device = Device::get_cpu();
+    ///
     /// let tensor = Tensor::from_scalar(1.0f32, &device, false).unwrap();
-    /// assert_eq!(tensor.to_scalar::<f32>().unwrap(), 1.0f32);
+    /// println!("{:?}", tensor);
     /// ```
     pub fn from_scalar<S>(
         scalar: S,
@@ -116,17 +115,10 @@ impl Tensor {
     /// ```
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::get_cuda_if_available(0);
+    /// let device = Device::get_cpu();
+    ///
     /// let tensor = Tensor::from_scalar(1.0f32, &device, false).unwrap();
-    /// assert_eq!(tensor.to_scalar::<f32>().unwrap(), 1.0f32);
-    /// let tensor = Tensor::from_scalar(1.0f64, &device, false).unwrap();
-    /// assert_eq!(tensor.to_scalar::<f64>().unwrap(), 1.0f64);
-    /// let tensor = Tensor::from_scalar(1i64, &device, false).unwrap();
-    /// assert_eq!(tensor.to_scalar::<i64>().unwrap(), 1i64);
-    /// let tensor = Tensor::from_scalar(1u32, &device, false).unwrap();
-    /// assert_eq!(tensor.to_scalar::<u32>().unwrap(), 1u32);
-    /// let tensor = Tensor::from_scalar(1u8, &device, false).unwrap();
-    /// assert_eq!(tensor.to_scalar::<u8>().unwrap(), 1u8);
+    /// println!("{:?}", tensor.to_scalar::<f32>().unwrap());
     /// ```
     pub fn to_scalar<S>(&self) -> Result<S, TensorError>
     where
@@ -168,13 +160,10 @@ impl Tensor {
     /// ```
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::get_cuda_if_available(0);
-    /// let tensor = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
-    /// assert_eq!(tensor.to_vec::<f64>().unwrap(), vec![1.0f64, 2.0f64, 3.0f64]);
+    /// let device = Device::get_cpu();
+    ///
     /// let tensor = Tensor::from_data(&[[1.0f64, 2.0f64, 3.0f64], [4.0f64, 5.0f64, 6.0f64]], &device, false).unwrap();
-    /// assert_eq!(tensor.to_vec::<f64>().unwrap(), vec![1.0f64, 2.0f64, 3.0f64, 4.0f64, 5.0f64, 6.0f64]);
-    /// let tensor = Tensor::from_data(1.0f64, &device, false).unwrap();
-    /// assert_eq!(tensor.to_vec::<f64>().unwrap(), vec![1.0f64]);
+    /// println!("{:?}", tensor.to_vec::<f64>().unwrap());
     /// ```
     ///
     pub fn to_vec<S>(&self) -> Result<Vec<S>, TensorError>

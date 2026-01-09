@@ -2,7 +2,7 @@ use nove::tensor::{Device, Shape, Tensor, TensorError};
 
 #[test]
 fn test_to_scalar() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     // Test to_scalar with a 1D array.
     let t = Tensor::from_data(&[1.23456f64], &device, false).unwrap();
@@ -16,12 +16,13 @@ fn test_to_scalar() {
 
 #[test]
 fn test_to_vec() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     let t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
     assert_eq!(t.to_vec::<f64>().unwrap(), vec![1.0f64, 2.0f64, 3.0f64]);
 }
 
+#[cfg(feature = "cuda")]
 #[test]
 fn test_to_device() {
     let device1 = Device::get_cpu();
@@ -33,7 +34,7 @@ fn test_to_device() {
 
 #[test]
 fn test_to_dtype() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     let mut t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
     assert_eq!(t.to_vec::<f64>().unwrap(), vec![1.0f64, 2.0f64, 3.0f64]);
@@ -44,7 +45,7 @@ fn test_to_dtype() {
 
 #[test]
 fn test_get_dtype() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     let t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
     assert_eq!(t.get_dtype().unwrap(), candle_core::DType::F64);
@@ -52,7 +53,7 @@ fn test_get_dtype() {
 
 #[test]
 fn test_get_shape() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     let t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
     assert_eq!(t.get_shape().unwrap(), Shape::from(&[3]));
@@ -68,7 +69,7 @@ fn test_get_shape() {
 
 #[test]
 fn test_get_dim_num() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     let t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
     assert_eq!(t.get_dim_num().unwrap(), 1);
@@ -84,7 +85,7 @@ fn test_get_dim_num() {
 
 #[test]
 fn test_add() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     // Test add operation with two grad disabled tensors.
     let t1 = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
@@ -120,7 +121,7 @@ fn test_add() {
 
 #[test]
 fn test_stack() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     // Test stack operation with two grad disabled 1D tensors.
     let t1 = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
@@ -155,7 +156,7 @@ fn test_stack() {
 
 #[test]
 fn test_set_grad_enabled() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     let mut t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
 
@@ -186,7 +187,7 @@ fn test_set_grad_enabled() {
 
 #[test]
 fn test_set_grad() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     let mut t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, true).unwrap();
 
@@ -201,7 +202,7 @@ fn test_set_grad() {
 
 #[test]
 fn test_backward() {
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     // Test backward operation with a grad enabled tensor.
     let t1 = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, true).unwrap();

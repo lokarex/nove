@@ -19,7 +19,7 @@ fn test_batched_dataloader() {
         Tensor::from_data(&[x as i64], device, false).unwrap()
     };
     let collate_fn = |x: Vec<Tensor>| -> Tensor { Tensor::stack(&x.as_slice(), 0).unwrap() };
-    let device = Device::get_cuda_if_available(0);
+    let device = Device::get_cpu();
 
     // Create a basic dataloader.
     let mut dataloader: BasicDataloader<SimpleDataset, Tensor, Tensor, _, _> =
