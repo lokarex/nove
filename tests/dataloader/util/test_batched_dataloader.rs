@@ -16,7 +16,7 @@ fn test_batched_dataloader() {
     // Prepare the batch size, device, process function and collate function.
     let batch_size = 12;
     let process_fn = |x: usize, device: &Device| -> Tensor {
-        Tensor::from_array(&[x as i64], device, false).unwrap()
+        Tensor::from_data(&[x as i64], device, false).unwrap()
     };
     let collate_fn = |x: Vec<Tensor>| -> Tensor { Tensor::stack(&x.as_slice(), 0).unwrap() };
     let device = Device::get_cuda_if_available(0);
