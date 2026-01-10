@@ -11,7 +11,7 @@ pub enum DeviceError {
 }
 
 /// The type of the device.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum DeviceTpye {
     Cpu,
     #[cfg(feature = "cuda")]
@@ -26,7 +26,7 @@ enum DeviceTpye {
 /// * `inner` - The inner device from candle.
 /// * `device_type` - The type of the device.
 /// * `index` - The index of the device.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Device {
     inner: candle_core::Device,
     device_type: DeviceTpye,

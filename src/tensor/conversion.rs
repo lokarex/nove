@@ -58,6 +58,7 @@ impl Tensor {
         Ok(Self {
             data: Arc::new(TensorData {
                 inner: RwLock::new(inner),
+                device: RwLock::new(device.clone()),
                 parents: RwLock::new(vec![]),
                 grad: RwLock::new(grad),
             }),

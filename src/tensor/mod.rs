@@ -9,6 +9,7 @@ pub use tensor::Tensor;
 pub use tensor::TensorError;
 
 mod conversion;
+mod property;
 
 mod dtype;
 pub use dtype::DType;

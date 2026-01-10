@@ -26,6 +26,9 @@ pub enum TensorError {
     #[error("Tensor is already of dtype")]
     AlreadyDtype,
 
+    #[error("Tensor is already on device")]
+    AlreadyOnDevice,
+
     #[error("RwLock poisoned: {0}")]
     RwLockPoisoned(String),
 
@@ -34,11 +37,39 @@ pub enum TensorError {
 
     #[error("DType mismatch: expected {0:?}, found {1:?}")]
     DTypeMismatch(DType, DType),
+
+    #[error("Device mismatch: expected {0:?}, found {1:?}")]
+    DeviceMismatch(Device, Device),
 }
 
 impl<T> From<std::sync::PoisonError<T>> for TensorError {
     fn from(error: std::sync::PoisonError<T>) -> Self {
         TensorError::RwLockPoisoned(error.to_string())
+    }
+}
+
+impl PartialEq for TensorError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (TensorError::GradientDisabled, TensorError::GradientDisabled) => true,
+            (TensorError::GradientStoreMissing, TensorError::GradientStoreMissing) => true,
+            (TensorError::NoTensorGradient, TensorError::NoTensorGradient) => true,
+            (TensorError::AlreadyGradientEnabled, TensorError::AlreadyGradientEnabled) => true,
+            (TensorError::AlreadyGradientDisabled, TensorError::AlreadyGradientDisabled) => true,
+            (TensorError::AlreadyDtype, TensorError::AlreadyDtype) => true,
+            (TensorError::AlreadyOnDevice, TensorError::AlreadyOnDevice) => true,
+            (TensorError::RwLockPoisoned(a), TensorError::RwLockPoisoned(b)) => a == b,
+            (TensorError::ShapeMismatch(a1, b1), TensorError::ShapeMismatch(a2, b2)) => {
+                a1 == a2 && b1 == b2
+            }
+            (TensorError::DTypeMismatch(a1, b1), TensorError::DTypeMismatch(a2, b2)) => {
+                a1 == a2 && b1 == b2
+            }
+            (TensorError::DeviceMismatch(a1, b1), TensorError::DeviceMismatch(a2, b2)) => {
+                a1 == a2 && b1 == b2
+            }
+            _ => false,
+        }
     }
 }
 
@@ -58,6 +89,7 @@ pub(crate) enum TensorInner {
 #[derive(Debug)]
 pub(crate) struct TensorData {
     pub(crate) inner: RwLock<TensorInner>,
+    pub(crate) device: RwLock<Device>,
     pub(crate) parents: RwLock<Vec<Tensor>>,
     pub(crate) grad: RwLock<Option<candle_core::Tensor>>,
 }
@@ -77,125 +109,6 @@ pub struct Tensor {
 impl AsRef<Tensor> for Tensor {
     fn as_ref(&self) -> &Self {
         self
-    }
-}
-
-impl Tensor {
-    /// Move the tensor to the specified device.
-    ///
-    /// # Arguments
-    /// * `device` - The device to move the tensor to.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the tensor is successfully moved to the device.
-    /// * `Err(TensorError)` - The error when moving the tensor to the device.
-    pub fn to_device(&mut self, device: &Device) -> Result<(), TensorError> {
-        // Move the inner to the device
-        let mut inner = self.data.inner.write()?;
-        match &mut *inner {
-            TensorInner::Tensor(tensor) => {
-                *tensor = tensor.to_device(device)?;
-            }
-            TensorInner::Var(var) => {
-                *var = candle_core::Var::from_tensor(&var.to_device(device)?)?;
-            }
-        }
-
-        // Move the gradient to the device
-        let mut grad = self.data.grad.write()?;
-        if let Some(grad) = grad.as_mut() {
-            *grad = grad.to_device(device)?;
-        }
-
-        // Clear the parents
-        let mut parents = self.data.parents.write()?;
-        parents.clear();
-        Ok(())
-    }
-
-    /// Convert the tensor to the specified dtype.
-    ///
-    /// # Arguments
-    /// * `dtype` - The dtype to convert the tensor to.
-    ///
-    /// # Notes
-    /// * If the tensor is already of the specified dtype, an error is returned.
-    /// * The gradient (if present) is also converted to the same dtype to maintain consistency.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the tensor is successfully converted to the dtype.
-    /// * `Err(TensorError)` - The error when converting the tensor to the dtype.
-    pub fn to_dtype(&mut self, dtype: DType) -> Result<(), TensorError> {
-        // Check current dtype first to avoid unnecessary conversion
-        let current_dtype = {
-            let inner = self.data.inner.read()?;
-            match &*inner {
-                TensorInner::Tensor(tensor) => tensor.dtype(),
-                TensorInner::Var(var) => var.dtype(),
-            }
-        };
-
-        // If already the target dtype, return error
-        if current_dtype == dtype {
-            return Err(TensorError::AlreadyDtype);
-        }
-
-        // Convert the inner to the dtype
-        let mut inner = self.data.inner.write()?;
-        match &mut *inner {
-            TensorInner::Tensor(tensor) => {
-                *tensor = tensor.to_dtype(dtype)?;
-            }
-            TensorInner::Var(var) => {
-                *var = candle_core::Var::from_tensor(&var.to_dtype(dtype)?)?;
-            }
-        }
-
-        // Convert the gradient to the dtype
-        let mut grad = self.data.grad.write()?;
-        if let Some(grad) = grad.as_mut() {
-            *grad = grad.to_dtype(dtype)?;
-        }
-
-        Ok(())
-    }
-
-    /// Get the dtype of the tensor.
-    ///
-    /// # Returns
-    /// * `Ok(dtype)` - The dtype of the tensor.
-    /// * `Err(TensorError)` - The error when getting the dtype of the tensor.
-    pub fn get_dtype(&self) -> Result<DType, TensorError> {
-        let inner = self.data.inner.read()?;
-        let dtype = match &*inner {
-            TensorInner::Tensor(tensor) => tensor.dtype(),
-            TensorInner::Var(var) => var.dtype(),
-        };
-        Ok(dtype)
-    }
-
-    /// Get the shape of the tensor.
-    ///
-    /// # Returns
-    /// * `Ok(shape)` - The shape of the tensor.
-    /// * `Err(TensorError)` - The error when getting the shape of the tensor.
-    pub fn get_shape(&self) -> Result<Shape, TensorError> {
-        let inner = self.data.inner.read()?;
-        let shape = match &*inner {
-            TensorInner::Tensor(tensor) => tensor.shape(),
-            TensorInner::Var(var) => var.shape(),
-        };
-        Ok(Shape::from(shape))
-    }
-
-    /// Get the number of dimensions of the tensor.
-    ///
-    /// # Returns
-    /// * `Ok(dim_num)` - The number of dimensions of the tensor.
-    /// * `Err(TensorError)` - The error when getting the number of dimensions of the tensor.
-    pub fn get_dim_num(&self) -> Result<usize, TensorError> {
-        let shape = self.get_shape()?;
-        Ok(shape.rank())
     }
 }
 
@@ -221,6 +134,9 @@ impl Tensor {
             TensorInner::Var(var) => var,
         };
 
+        // Get the device from the first tensor
+        let device = self.data.device.read()?.clone();
+
         // Create the inner tensor
         let new_inner = TensorInner::Tensor(inner1_tensor.add(inner2_tensor)?);
 
@@ -230,6 +146,7 @@ impl Tensor {
         Ok(Self {
             data: Arc::new(TensorData {
                 inner: RwLock::new(new_inner),
+                device: RwLock::new(device),
                 parents: RwLock::new(parents),
                 grad: RwLock::new(None),
             }),
@@ -264,6 +181,12 @@ impl Tensor {
         // Stack the inner tensors
         let new_inner_tensor = candle_core::Tensor::stack(&inner_tensors, dim)?;
 
+        // Get the device from the first tensor
+        let device = tensors
+            .first()
+            .map(|t| t.as_ref().data.device.read().unwrap().clone())
+            .unwrap();
+
         // Create the new inner
         let new_inner = TensorInner::Tensor(new_inner_tensor);
 
@@ -276,6 +199,7 @@ impl Tensor {
         Ok(Self {
             data: Arc::new(TensorData {
                 inner: RwLock::new(new_inner),
+                device: RwLock::new(device),
                 parents: RwLock::new(parents),
                 grad: RwLock::new(None),
             }),
@@ -402,9 +326,12 @@ impl Tensor {
                 .ok_or(TensorError::NoTensorGradient)?,
         );
 
+        let device = self.data.device.read()?.clone();
+
         Ok(Self {
             data: Arc::new(TensorData {
                 inner: RwLock::new(new_inner),
+                device: RwLock::new(device),
                 grad: RwLock::new(None),
                 parents: RwLock::new(Vec::new()),
             }),
