@@ -118,34 +118,47 @@ where
     (tensor, data)
 }
 
+/// Generate a random Shape with an appropriate size.
+///
+/// # Note
+/// * The maximum dimension number is 4.
+/// * The maximum size of each dimension is 100.
+/// * The product of all dimensions is less than 10000.
+///
+/// # Arguments
+/// * `seed` - The seed for random number generator.
+///
+/// # Returns
+/// * `shape` - The random shape.
+pub fn generate_random_shape_with_appropriate_size(seed: u64) -> Shape {
+    let mut rng = StdRng::seed_from_u64(seed);
+    let dim_num = rng.random_range(1..=4);
+    let mut dims = Vec::with_capacity(dim_num);
+    let mut total_size = 1;
+    for _ in 0..dim_num {
+        let max_dim = (10000 / total_size).min(100);
+        let dim = rng.random_range(1..=max_dim);
+        dims.push(dim);
+        total_size *= dim;
+    }
+    Shape::from_dims(dims.as_slice())
+}
+
 proptest! {
     #[test]
     fn test_generate_random_tensor_and_corresponding_data_with_random_shape_and_random_dtype(
-        shape in prop::collection::vec(prop::num::usize::ANY, 1..=4),
+        shape_seed in prop::num::u64::ANY,
         dtype in prop::sample::select(vec![DType::U8, DType::U32, DType::I64, DType::F32,DType::F64]),
         grad_enabled in prop::bool::ANY,
-        seed in prop::num::u64::ANY,
+        data_seed in prop::num::u64::ANY,
     ) {
-        let shape = Shape::from_dims(shape.as_slice());
+        let shape = generate_random_shape_with_appropriate_size(shape_seed);
         let dtype = DType::from(dtype);
         let device = Device::get_cpu();
 
-        // Restrict the size of the tensor to avoid memory overflow
-        let dims = shape.dims();
-        let mut total_size: usize = 1;
-        for &dim in dims {
-            if dim > 100 {
-                return Ok(());
-            }
-            total_size = total_size.saturating_mul(dim);
-            if total_size > 10000 {
-                return Ok(());
-            }
-        }
-
         match dtype {
             DType::U8 => {
-                let (tensor, data) = generate_random_tensor_and_corresponding_data::<u8>(&shape, &dtype, &device, grad_enabled, seed);
+                let (tensor, data) = generate_random_tensor_and_corresponding_data::<u8>(&shape, &dtype, &device, grad_enabled, data_seed);
                 assert_eq!(tensor.get_shape().unwrap(), shape);
                 assert_eq!(tensor.get_dtype().unwrap(), dtype);
                 assert_eq!(tensor.get_device().unwrap(), device);
@@ -153,7 +166,7 @@ proptest! {
                 assert_eq!(tensor.to_vec::<u8>().unwrap(), data);
             }
             DType::U32 => {
-                let (tensor, data) = generate_random_tensor_and_corresponding_data::<u32>(&shape, &dtype, &device, grad_enabled, seed);
+                let (tensor, data) = generate_random_tensor_and_corresponding_data::<u32>(&shape, &dtype, &device, grad_enabled, data_seed);
                 assert_eq!(tensor.get_shape().unwrap(), shape);
                 assert_eq!(tensor.get_dtype().unwrap(), dtype);
                 assert_eq!(tensor.get_device().unwrap(), device);
@@ -161,7 +174,7 @@ proptest! {
                 assert_eq!(tensor.to_vec::<u32>().unwrap(), data);
             }
             DType::I64 => {
-                let (tensor, data) = generate_random_tensor_and_corresponding_data::<i64>(&shape, &dtype, &device, grad_enabled, seed);
+                let (tensor, data) = generate_random_tensor_and_corresponding_data::<i64>(&shape, &dtype, &device, grad_enabled, data_seed);
                 assert_eq!(tensor.get_shape().unwrap(), shape);
                 assert_eq!(tensor.get_dtype().unwrap(), dtype);
                 assert_eq!(tensor.get_device().unwrap(), device);
@@ -169,7 +182,7 @@ proptest! {
                 assert_eq!(tensor.to_vec::<i64>().unwrap(), data);
             }
             DType::F32 => {
-                let (tensor, data) = generate_random_tensor_and_corresponding_data::<f32>(&shape, &dtype, &device, grad_enabled, seed);
+                let (tensor, data) = generate_random_tensor_and_corresponding_data::<f32>(&shape, &dtype, &device, grad_enabled, data_seed);
                 assert_eq!(tensor.get_shape().unwrap(), shape);
                 assert_eq!(tensor.get_dtype().unwrap(), dtype);
                 assert_eq!(tensor.get_device().unwrap(), device);
@@ -177,7 +190,7 @@ proptest! {
                 assert_eq!(tensor.to_vec::<f32>().unwrap(), data);
             }
             DType::F64 => {
-                let (tensor, data) = generate_random_tensor_and_corresponding_data::<f64>(&shape, &dtype, &device, grad_enabled, seed);
+                let (tensor, data) = generate_random_tensor_and_corresponding_data::<f64>(&shape, &dtype, &device, grad_enabled, data_seed);
                 assert_eq!(tensor.get_shape().unwrap(), shape);
                 assert_eq!(tensor.get_dtype().unwrap(), dtype);
                 assert_eq!(tensor.get_device().unwrap(), device);
@@ -188,7 +201,22 @@ proptest! {
                 panic!("Unsupported dtype");
             }
         };
+    }
 
+    #[test]
+    fn test_generate_random_shape_with_appropriate_size(
+        seed in prop::num::u64::ANY,
+    ) {
+        let shape = generate_random_shape_with_appropriate_size(seed);
+        let dims = shape.dims();
+        let dim_num = dims.len();
+        assert!(dim_num <= 4);
 
+        let mut total_size: usize = 1;
+        for &dim in dims {
+            assert!(dim <= 100);
+            total_size = total_size.saturating_mul(dim);
+        }
+        assert!(total_size <= 10000);
     }
 }
