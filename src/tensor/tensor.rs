@@ -1,4 +1,7 @@
 use crate::tensor::{DType, Device, Shape};
+use crossbeam::queue::SegQueue;
+use dashmap::DashMap;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
 
@@ -268,37 +271,74 @@ impl Tensor {
             }
         };
 
-        // Get the parent tensors that have gradient enabled
+        // The parent tensors(including indirect parents) that have gradient enabled
         let mut parents = Vec::new();
-        let mut stack = vec![self.clone()];
-        while let Some(tensor) = stack.pop() {
-            for parent in tensor.data.parents.read()?.iter() {
-                if parent.get_grad_enabled() {
-                    parents.push(parent.clone());
-                }
-                stack.push(parent.clone());
-            }
+        // The queue for pending tensors
+        let queue = SegQueue::new();
+        // The visited tensors
+        let visited = DashMap::new();
+
+        // Add the self tensor to the queue and mark it as visited
+        queue.push(self.clone());
+        visited.insert(Arc::as_ptr(&self.data) as usize, true);
+
+        while let Some(current) = queue.pop() {
+            // Get the parent tensors of the current tensor
+            let current_parents = {
+                let parents = current.data.parents.read()?;
+                parents.clone()
+            };
+
+            // Filter out the gradient enabled parent tensors
+            let grad_enabled_parents = current_parents
+                .par_iter()
+                .filter_map(|parent| {
+                    let parent_id = Arc::as_ptr(&parent.data) as usize;
+                    match visited.insert(parent_id, true).is_some() {
+                        true => None,
+                        false => {
+                            // Add the parent tensor to the queue for further processing
+                            queue.push(parent.clone());
+
+                            match parent.get_grad_enabled() {
+                                true => Some(parent.clone()),
+                                false => None,
+                            }
+                        }
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            // Add the parent tensors that have gradient enabled to the list of parents
+            parents.extend(grad_enabled_parents);
         }
 
         // Update the gradient of each parent tensor
-        for parent in parents {
-            let inner = parent.data.inner.read()?;
-            let inner_tensor = match &*inner {
-                TensorInner::Tensor(tensor) => tensor,
-                TensorInner::Var(var) => var,
-            };
+        parents
+            .par_iter()
+            .map(|parent| {
+                let inner = parent.data.inner.read()?;
+                let inner_tensor = match &*inner {
+                    TensorInner::Tensor(tensor) => tensor,
+                    TensorInner::Var(var) => var,
+                };
 
-            let grad = grad_store
-                .get(inner_tensor)
-                .ok_or(TensorError::NoTensorGradient)?;
-            let parent_grad = parent
-                .data
-                .grad
-                .read()?
-                .clone()
-                .ok_or(TensorError::NoTensorGradient)?;
-            *parent.data.grad.write()? = Some(grad.add(&parent_grad)?);
-        }
+                // Get the new gradient of the parent tensor from the grad_store
+                let grad = grad_store
+                    .get(inner_tensor)
+                    .ok_or(TensorError::NoTensorGradient)?;
+                // Get the original gradient of the parent tensor
+                let parent_grad = parent
+                    .data
+                    .grad
+                    .read()?
+                    .clone()
+                    .ok_or(TensorError::NoTensorGradient)?;
+                // Update the gradient of the parent tensor
+                *parent.data.grad.write()? = Some(grad.add(&parent_grad)?);
+                Ok(())
+            })
+            .collect::<Result<(), TensorError>>()?;
 
         Ok(())
     }

@@ -53,9 +53,11 @@ fn test_backward() {
     // Test backward operation with a grad enabled tensor.
     let t1 = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, true).unwrap();
     let t2 = Tensor::from_data(&[4.0f64, 5.0f64, 6.0f64], &device, true).unwrap();
-    let t3 = t1.add(&t2).unwrap();
+    let t3 = Tensor::from_data(&[7.0f64, 8.0f64, 9.0f64], &device, true).unwrap();
+    let t4 = t1.add(&t2).unwrap();
+    let t5 = t4.add(&t3).unwrap();
 
-    t3.backward().unwrap();
+    t5.backward().unwrap();
     assert_eq!(
         t1.get_grad().unwrap().to_vec::<f64>().unwrap(),
         vec![1.0f64, 1.0f64, 1.0f64]
@@ -64,15 +66,23 @@ fn test_backward() {
         t2.get_grad().unwrap().to_vec::<f64>().unwrap(),
         vec![1.0f64, 1.0f64, 1.0f64]
     );
+    assert_eq!(
+        t3.get_grad().unwrap().to_vec::<f64>().unwrap(),
+        vec![1.0f64, 1.0f64, 1.0f64]
+    );
 
     // Test gradient accumulation function
-    t3.backward().unwrap();
+    t5.backward().unwrap();
     assert_eq!(
         t1.get_grad().unwrap().to_vec::<f64>().unwrap(),
         vec![2.0f64, 2.0f64, 2.0f64]
     );
     assert_eq!(
         t2.get_grad().unwrap().to_vec::<f64>().unwrap(),
+        vec![2.0f64, 2.0f64, 2.0f64]
+    );
+    assert_eq!(
+        t3.get_grad().unwrap().to_vec::<f64>().unwrap(),
         vec![2.0f64, 2.0f64, 2.0f64]
     );
 }
