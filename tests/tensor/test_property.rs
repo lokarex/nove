@@ -1,51 +1,24 @@
-use nove::tensor::{DType, Device, Tensor, TensorError};
+use nove::tensor::{DType, Device, Tensor};
 use proptest::prelude::*;
 
 #[test]
 fn test_to_device_and_get_device_with_cpu() {
     let cpu = Device::get_cpu();
-    let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
 
     assert_eq!(tensor.get_device().unwrap(), cpu);
-
-    assert_eq!(tensor.to_device(&cpu), Err(TensorError::AlreadyOnDevice));
+    assert_eq!(tensor.to_device(&cpu), Ok(()));
 }
 
-fn test_to_dtype_and_get_dtype(tensor: &mut Tensor, original_dtype: &DType, target_dtype: &DType) {
+fn test_to_dtype_and_get_dtype(tensor: &Tensor, original_dtype: &DType, target_dtype: &DType) {
     // Check original dtype
     assert_eq!(tensor.get_dtype().unwrap(), *original_dtype);
 
-    // Try to convert to original dtype
-    // It should return an `TensorError::AlreadyDtype` error
-    assert_eq!(
-        tensor.to_dtype(original_dtype),
-        Err(TensorError::AlreadyDtype)
-    );
-
     // Try to convert to target dtype
-    match original_dtype == target_dtype {
-        // If original dtype is the same as target dtype,
-        // it should return an `TensorError::AlreadyDtype` error
-        true => {
-            assert_eq!(
-                tensor.to_dtype(target_dtype),
-                Err(TensorError::AlreadyDtype)
-            );
-        }
-        // If original dtype is different from target dtype,
-        // it should return an `Ok(())`
-        false => {
-            assert_eq!(tensor.to_dtype(target_dtype), Ok(()));
-        }
-    }
+    assert_eq!(Ok(()), tensor.to_dtype(target_dtype));
+
     // Check the current dtype
     assert_eq!(tensor.get_dtype().unwrap(), *target_dtype);
-    // Try to convert to target dtype again
-    // It should return an `TensorError::AlreadyDtype` error
-    assert_eq!(
-        tensor.to_dtype(target_dtype),
-        Err(TensorError::AlreadyDtype)
-    );
 }
 
 proptest! {

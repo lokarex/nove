@@ -50,7 +50,7 @@ where
     }
 
     // Create tensor from data
-    let mut tensor = match dim_num {
+    let tensor = match dim_num {
         1 => Tensor::from_data(&data[..dims[0]], device, grad_enabled).unwrap(),
         2 => {
             let data_2d: Vec<Vec<f32>> = data[..dims[0] * dims[1]]
@@ -162,7 +162,7 @@ proptest! {
                 assert_eq!(tensor.get_shape().unwrap(), shape);
                 assert_eq!(tensor.get_dtype().unwrap(), dtype);
                 assert_eq!(tensor.get_device().unwrap(), device);
-                assert_eq!(tensor.get_grad_enabled(), grad_enabled);
+                assert_eq!(tensor.get_grad_enabled().unwrap(), grad_enabled);
                 assert_eq!(tensor.to_vec::<u8>().unwrap(), data);
             }
             DType::U32 => {
@@ -170,7 +170,7 @@ proptest! {
                 assert_eq!(tensor.get_shape().unwrap(), shape);
                 assert_eq!(tensor.get_dtype().unwrap(), dtype);
                 assert_eq!(tensor.get_device().unwrap(), device);
-                assert_eq!(tensor.get_grad_enabled(), grad_enabled);
+                assert_eq!(tensor.get_grad_enabled().unwrap(), grad_enabled);
                 assert_eq!(tensor.to_vec::<u32>().unwrap(), data);
             }
             DType::I64 => {
@@ -178,7 +178,7 @@ proptest! {
                 assert_eq!(tensor.get_shape().unwrap(), shape);
                 assert_eq!(tensor.get_dtype().unwrap(), dtype);
                 assert_eq!(tensor.get_device().unwrap(), device);
-                assert_eq!(tensor.get_grad_enabled(), grad_enabled);
+                assert_eq!(tensor.get_grad_enabled().unwrap(), grad_enabled);
                 assert_eq!(tensor.to_vec::<i64>().unwrap(), data);
             }
             DType::F32 => {
@@ -186,7 +186,7 @@ proptest! {
                 assert_eq!(tensor.get_shape().unwrap(), shape);
                 assert_eq!(tensor.get_dtype().unwrap(), dtype);
                 assert_eq!(tensor.get_device().unwrap(), device);
-                assert_eq!(tensor.get_grad_enabled(), grad_enabled);
+                assert_eq!(tensor.get_grad_enabled().unwrap(), grad_enabled);
                 assert_eq!(tensor.to_vec::<f32>().unwrap(), data);
             }
             DType::F64 => {
@@ -194,7 +194,7 @@ proptest! {
                 assert_eq!(tensor.get_shape().unwrap(), shape);
                 assert_eq!(tensor.get_dtype().unwrap(), dtype);
                 assert_eq!(tensor.get_device().unwrap(), device);
-                assert_eq!(tensor.get_grad_enabled(), grad_enabled);
+                assert_eq!(tensor.get_grad_enabled().unwrap(), grad_enabled);
                 assert_eq!(tensor.to_vec::<f64>().unwrap(), data);
             }
             _ => {

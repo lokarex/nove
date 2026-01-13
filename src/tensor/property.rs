@@ -3,9 +3,6 @@ use crate::tensor::{DType, Device, Shape, Tensor, TensorError, tensor::TensorInn
 impl Tensor {
     /// Move the tensor to the specified device.
     ///
-    /// # Notes
-    /// * If the tensor is already on the specified device, an error(TensorError::AlreadyOnDevice) is returned.
-    ///
     /// # Arguments
     /// * `device` - The device to move the tensor to.
     ///
@@ -22,15 +19,13 @@ impl Tensor {
     /// // Move the tensor to the CPU(It already on the CPU, so it will return an error)
     /// match tensor.to_device(&cpu) {
     ///     Ok(()) => println!("Tensor has been moved to CPU"),
-    ///     Err(TensorError::AlreadyOnDevice) => println!("Tensor is already on CPU"),
     ///     Err(err) => println!("Error moving tensor to CPU: {:?}", err),
     /// }
     /// ```
-    pub fn to_device(&mut self, device: &Device) -> Result<(), TensorError> {
+    pub fn to_device(&self, device: &Device) -> Result<(), TensorError> {
         // Check the device
-        let current_device = self.get_device()?;
-        if current_device == *device {
-            return Err(TensorError::AlreadyOnDevice);
+        if self.get_device()? == *device {
+            return Ok(());
         }
 
         // Move the inner to the device
@@ -80,7 +75,6 @@ impl Tensor {
     /// Convert the tensor to the specified dtype.
     ///
     /// # Notes
-    /// * If the element dtype of the tensor is already the specified dtype, an error(TensorError::AlreadyDtype) is returned.
     /// * The gradient (if present) is also converted to the same dtype to maintain consistency.
     ///
     /// # Arguments
@@ -99,11 +93,10 @@ impl Tensor {
     /// // Convert the tensor to F64 dtype
     /// match tensor.to_dtype(&DType::F64) {
     ///     Ok(()) => println!("Tensor has been converted to F64 dtype"),
-    ///     Err(TensorError::AlreadyDtype) => println!("Tensor is already F64 dtype"),
     ///     Err(err) => println!("Error converting tensor to F64 dtype: {:?}", err),
     /// }
     /// ```
-    pub fn to_dtype(&mut self, dtype: &DType) -> Result<(), TensorError> {
+    pub fn to_dtype(&self, dtype: &DType) -> Result<(), TensorError> {
         // Check current dtype first to avoid unnecessary conversion
         let current_dtype = {
             let inner = self.data.inner.read()?;
@@ -113,9 +106,9 @@ impl Tensor {
             }
         };
 
-        // If already the target dtype, return error
+        // If already the target dtype, return Ok
         if current_dtype == *dtype {
-            return Err(TensorError::AlreadyDtype);
+            return Ok(());
         }
 
         // Convert the inner to the dtype

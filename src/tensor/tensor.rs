@@ -20,18 +20,6 @@ pub enum TensorError {
     #[error("Tensor does not have a computed gradient")]
     NoTensorGradient,
 
-    #[error("Cannot enable gradients: tensor already has gradients enabled")]
-    AlreadyGradientEnabled,
-
-    #[error("Cannot disable gradients: tensor already has gradients disabled")]
-    AlreadyGradientDisabled,
-
-    #[error("Tensor is already of dtype")]
-    AlreadyDtype,
-
-    #[error("Tensor is already on device")]
-    AlreadyOnDevice,
-
     #[error("RwLock poisoned: {0}")]
     RwLockPoisoned(String),
 
@@ -57,10 +45,6 @@ impl PartialEq for TensorError {
             (TensorError::GradientDisabled, TensorError::GradientDisabled) => true,
             (TensorError::GradientStoreMissing, TensorError::GradientStoreMissing) => true,
             (TensorError::NoTensorGradient, TensorError::NoTensorGradient) => true,
-            (TensorError::AlreadyGradientEnabled, TensorError::AlreadyGradientEnabled) => true,
-            (TensorError::AlreadyGradientDisabled, TensorError::AlreadyGradientDisabled) => true,
-            (TensorError::AlreadyDtype, TensorError::AlreadyDtype) => true,
-            (TensorError::AlreadyOnDevice, TensorError::AlreadyOnDevice) => true,
             (TensorError::RwLockPoisoned(a), TensorError::RwLockPoisoned(b)) => a == b,
             (TensorError::ShapeMismatch(a1, b1), TensorError::ShapeMismatch(a2, b2)) => {
                 a1 == a2 && b1 == b2
@@ -118,38 +102,46 @@ impl AsRef<Tensor> for Tensor {
 impl Tensor {
     /// Set the gradient enabled status of the tensor.
     ///
+    /// # Notes
+    /// * This method will truncate the graph.
+    /// * When enabling gradients, a zero tensor used as the initial gradient will be created if no gradient exists.
+    /// * When disabling gradients, the current gradient will be discarded.
+    ///
     /// # Arguments
-    /// * `requires_grad` - The desired gradient enabled status.
+    /// * `grad_enabled` - The desired gradient enabled status.
     ///
     /// # Returns
     /// * `Ok(())` - The tensor's gradient enabled status is successfully set.
     /// * `Err(TensorError)` - The error when setting the tensor's gradient enabled status.
-    pub fn set_grad_enabled(&mut self, requires_grad: bool) -> Result<(), TensorError> {
+    pub fn set_grad_enabled(&self, grad_enabled: bool) -> Result<(), TensorError> {
         // Check if the gradient status is already as required
-        if self.get_grad_enabled() == requires_grad && requires_grad == true {
-            return Err(TensorError::AlreadyGradientEnabled);
-        }
-        if self.get_grad_enabled() == requires_grad && requires_grad == false {
-            return Err(TensorError::AlreadyGradientDisabled);
+        if self.get_grad_enabled()? == grad_enabled {
+            return Ok(());
         }
 
-        // Get current inner tensor and release the read lock immediately
-        let inner_tensor = {
-            let inner = self.data.inner.read().unwrap();
-            match &*inner {
+        // Get the inner tensor and gradient
+        let (inner_tensor, inner_grad) = {
+            let grad = self.data.grad.read()?;
+            let inner = self.data.inner.read()?;
+            let inner_tensor = match &*inner {
                 TensorInner::Tensor(tensor) => tensor.clone(),
                 TensorInner::Var(var) => var.as_tensor().clone(),
-            }
+            };
+
+            (inner_tensor, grad.clone())
         };
 
-        // Create new inner and grad based on requires_grad
-        let (new_inner, new_grad) = match requires_grad {
+        // Create new inner and grad based on grad_enabled
+        let (new_inner, new_grad) = match grad_enabled {
             true => {
                 // Convert to Var type
                 let var = candle_core::Var::from_tensor(&inner_tensor)?;
-                // Create zero tensor with the same shape
-                let zero_grad = var.zeros_like()?;
-                (TensorInner::Var(var), Some(zero_grad))
+                // Get the current gradient tensor, or create a zero tensor if None
+                let grad = match inner_grad {
+                    Some(grad) => grad.clone(),
+                    None => var.zeros_like()?,
+                };
+                (TensorInner::Var(var), Some(grad))
             }
             false => {
                 // Convert to Tensor type
@@ -158,9 +150,11 @@ impl Tensor {
         };
 
         // Update the inner tensor
-        *self.data.inner.write().unwrap() = new_inner;
+        *self.data.inner.write()? = new_inner;
         // Update the gradient tensor
-        *self.data.grad.write().unwrap() = new_grad;
+        *self.data.grad.write()? = new_grad;
+        // Truncate the graph by clearing parents
+        *self.data.parents.write()? = Vec::new();
 
         Ok(())
     }
@@ -168,10 +162,15 @@ impl Tensor {
     /// Get the gradient enabled status of the tensor.
     ///
     /// # Returns
-    /// * `true` - The tensor has gradient enabled.
-    /// * `false` - The tensor has gradient disabled.
-    pub fn get_grad_enabled(&self) -> bool {
-        self.data.grad.read().unwrap().is_some()
+    /// * `Ok(true)` - The tensor has gradient enabled.
+    /// * `Ok(false)` - The tensor has gradient disabled.
+    /// * `Err(TensorError)` - The error when getting the tensor's gradient enabled status.
+    pub fn get_grad_enabled(&self) -> Result<bool, TensorError> {
+        let inner = self.data.inner.read()?;
+        Ok(match &*inner {
+            TensorInner::Var(_) => true,
+            TensorInner::Tensor(_) => false,
+        })
     }
 
     /// Set the gradient tensor of the tensor.
@@ -182,9 +181,9 @@ impl Tensor {
     /// # Returns
     /// * `Ok(())` - The tensor's gradient tensor is successfully set.
     /// * `Err(TensorError)` - The error when setting the tensor's gradient tensor.
-    pub fn set_grad(&mut self, grad: Tensor) -> Result<(), TensorError> {
+    pub fn set_grad(&self, grad: Tensor) -> Result<(), TensorError> {
         // Check if the gradient status is enabled
-        if !self.get_grad_enabled() {
+        if !self.get_grad_enabled()? {
             return Err(TensorError::NoTensorGradient);
         }
 
@@ -221,7 +220,7 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when getting the tensor's gradient tensor.
     pub fn get_grad(&self) -> Result<Tensor, TensorError> {
         // Check if the gradient status is enabled
-        if !self.get_grad_enabled() {
+        if !self.get_grad_enabled()? {
             return Err(TensorError::GradientDisabled);
         }
 
@@ -300,7 +299,7 @@ impl Tensor {
                             // Add the parent tensor to the queue for further processing
                             queue.push(parent.clone());
 
-                            match parent.get_grad_enabled() {
+                            match parent.get_grad_enabled().unwrap_or_else(|_| false) {
                                 true => Some(parent.clone()),
                                 false => None,
                             }

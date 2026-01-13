@@ -1,41 +1,28 @@
-use nove::tensor::{Device, Tensor, TensorError};
+use nove::tensor::{Device, Tensor};
 
 #[test]
 fn test_set_grad_enabled() {
     let device = Device::get_cpu();
 
-    let mut t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
+    let t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
 
     // Check if the gradient status is disabled by default
-    assert_eq!(t.get_grad_enabled(), false);
+    assert_eq!(t.get_grad_enabled().unwrap(), false);
 
     // Check if the gradient status can be enabled
     t.set_grad_enabled(true).unwrap();
-    assert_eq!(t.get_grad_enabled(), true);
+    assert_eq!(t.get_grad_enabled().unwrap(), true);
 
     // Check if the gradient status can be disabled
     t.set_grad_enabled(false).unwrap();
-    assert_eq!(t.get_grad_enabled(), false);
-
-    // Check if the gradient status can't be disabled when it's already disabled
-    match t.set_grad_enabled(false) {
-        Err(TensorError::AlreadyGradientDisabled) => {}
-        _ => panic!("It should return AlreadyGradientDisabled error"),
-    }
-
-    // Check if the gradient status can't be enabled when it's already enabled
-    t.set_grad_enabled(true).unwrap();
-    match t.set_grad_enabled(true) {
-        Err(TensorError::AlreadyGradientEnabled) => {}
-        _ => panic!("It should return AlreadyGradientEnabled error"),
-    }
+    assert_eq!(t.get_grad_enabled().unwrap(), false);
 }
 
 #[test]
 fn test_set_grad() {
     let device = Device::get_cpu();
 
-    let mut t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, true).unwrap();
+    let t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, true).unwrap();
 
     // Check if the gradient tensor can be set
     let grad = Tensor::from_data(&[0.1f64, 0.2f64, 0.3f64], &device, false).unwrap();
