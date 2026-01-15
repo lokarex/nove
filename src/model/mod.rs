@@ -1,75 +1,10 @@
-use std::collections::HashMap;
-
+use crate::{
+    model::paramstore::ParamStore,
+    tensor::{Device, Tensor},
+};
 use thiserror::Error;
 
-use crate::tensor::{Device, Tensor};
-
-#[derive(Error, Debug)]
-pub enum ParamStoreError {
-    #[error("IO error: {0}")]
-    IoError(std::io::Error),
-
-    #[error("Other error: {0}")]
-    OtherError(String),
-}
-
-pub trait ParamStore {
-    /// Save the parameters in the store to the specified file.
-    ///
-    /// # Arguments
-    /// * `path` - The path of the file to save the parameters to.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the parameters are successfully saved to the file.
-    /// * `Err(ParamStoreError)` - The error when saving the parameters to the file.
-    fn save(&self, path: &str) -> Result<(), ParamStoreError>;
-
-    /// Load the parameters from the specified file to the store.
-    ///
-    /// # Arguments
-    /// * `path` - The path of the file to load the parameters from.
-    /// * `devices` - The devices to map the loaded parameters to.
-    /// * `processor` - The function to process each loaded parameter.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the parameters are successfully loaded from the file.
-    /// * `Err(ParamStoreError)` - The error when loading the parameters from the file.
-    fn load(
-        &mut self,
-        path: &str,
-        devices: &[Device],
-        processor: dyn FnMut((&str, Tensor), &Device),
-    ) -> Result<(), ParamStoreError>;
-
-    /// Move the parameters in the store to the specified devices.
-    ///
-    /// # Arguments
-    /// * `devices` - The devices to move the parameters to.
-    /// * `processor` - The function to process each parameter.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the parameters are successfully moved to the devices.
-    /// * `Err(ParamStoreError)` - The error when moving the parameters to the devices.
-    fn to_device(
-        &mut self,
-        devices: &[Device],
-        processor: dyn FnMut((&str, Tensor), &Device),
-    ) -> Result<(), ParamStoreError>;
-
-    /// Get the parameters in the store.
-    ///
-    /// # Returns
-    /// * `Ok(Vec<Tensor>)` - The parameters in the store.
-    /// * `Err(ParamStoreError)` - The error when getting the parameters.
-    fn parameters(&self) -> Result<Vec<Tensor>, ParamStoreError>;
-
-    /// Get the named parameters in the store.
-    ///
-    /// # Returns
-    /// * `Ok(HashMap<&str, Tensor>)` - The named parameters in the store.
-    /// * `Err(ParamStoreError)` - The error when getting the named parameters.
-    fn named_parameters(&self) -> Result<HashMap<&str, Tensor>, ParamStoreError>;
-}
+pub mod paramstore;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
@@ -118,26 +53,26 @@ pub trait Model {
     /// # Returns
     /// * `Ok(())` - If the model is successfully moved to the devices.
     /// * `Err(ModelError)` - The error when moving the model to the devices.
-    fn to_device(
+    fn to_devices(
         &mut self,
         devices: &[Device],
-        processor: dyn FnMut((&str, Tensor), &Device),
+        processor: dyn FnMut((&str, &Tensor), &Device),
     ) -> Result<(), ModelError>;
 
     /// Save the model to the specified file.
     ///
     /// # Arguments
-    /// * `path` - The path of the file to save the model to.
+    /// * `file_path` - The path of the file to save the model to.
     ///
     /// # Returns
     /// * `Ok(())` - If the model is successfully saved to the file.
     /// * `Err(ModelError)` - The error when saving the model to the file.
-    fn save(&self, path: &str) -> Result<(), ModelError>;
+    fn save(&self, file_path: &str) -> Result<(), ModelError>;
 
     /// Load the model from the specified file.
     ///
     /// # Arguments
-    /// * `path` - The path of the file to load the model from.
+    /// * `file_path` - The path of the file to load the model from.
     /// * `devices` - The devices to map the loaded parameters to.
     /// * `processor` - The function to process each loaded parameter.
     ///
@@ -146,8 +81,22 @@ pub trait Model {
     /// * `Err(ModelError)` - The error when loading the model from the file.
     fn load(
         &mut self,
-        path: &str,
+        file_path: &str,
         devices: &[Device],
-        processor: dyn FnMut((&str, Tensor), &Device),
+        processor: dyn FnMut((&str, &Tensor), &Device),
     ) -> Result<(), ModelError>;
+
+    /// Set the model to training mode.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the model is successfully set to training mode.
+    /// * `Err(ModelError)` - The error when setting the model to training mode.
+    fn to_train(&mut self) -> Result<(), ModelError>;
+
+    /// Set the model to evaluation mode.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the model is successfully set to evaluation mode.
+    /// * `Err(ModelError)` - The error when setting the model to evaluation mode.
+    fn to_eval(&mut self) -> Result<(), ModelError>;
 }
