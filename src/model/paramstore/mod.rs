@@ -1,5 +1,7 @@
-use crate::tensor::{Device, Tensor, TensorError};
-use std::collections::HashMap;
+use crate::{
+    model::Parameter,
+    tensor::{Device, TensorError},
+};
 use thiserror::Error;
 
 pub mod safetensors;
@@ -17,81 +19,90 @@ pub enum ParamStoreError {
 }
 
 pub trait ParamStore {
-    /// Save the parameters in the store to the specified file.
+    /// Set the name of the parameter store.
     ///
     /// # Arguments
-    /// * `file_path` - The path of the file to save the parameters to.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the parameters are successfully saved to the file.
-    /// * `Err(ParamStoreError)` - The error when saving the parameters to the file.
-    fn save(&self, file_path: &str) -> Result<(), ParamStoreError>;
+    /// * `name` - The name of the parameter store.
+    fn set_name(&mut self, name: &str);
 
-    /// Load the parameters from the specified file to the store.
-    ///
-    /// # Arguments
-    /// * `file_path` - The path of the file to load the parameters from.
-    /// * `devices` - The devices to map the loaded parameters to.
-    /// * `processor` - The function to process each loaded parameter.
+    /// Get the name of the parameter store.
     ///
     /// # Returns
-    /// * `Ok(())` - If the parameters are successfully loaded from the file.
-    /// * `Err(ParamStoreError)` - The error when loading the parameters from the file.
+    /// * `&str` - The name of the parameter store.
+    fn name(&self) -> &str;
+
+    /// Set the type ID of the parameter store.
+    ///
+    /// # Notes
+    /// * The type ID is used to identify the type of the parameter set.
+    ///
+    /// # Arguments
+    /// * `type_id` - The type ID of the parameter store.
+    fn set_type_id(&mut self, type_id: usize);
+
+    /// Get the type ID of the parameter store.
+    ///
+    /// # Returns
+    /// * `usize` - The type ID of the parameter store.
+    fn type_id(&self) -> usize;
+
+    /// Save the all parameters to the specified folder.
+    ///
+    /// # Arguments
+    /// * `folder_path` - The path of the folder to save the parameters to.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the parameters are successfully saved to the folder.
+    /// * `Err(ParamStoreError)` - The error when saving the parameters to the folder.
+    fn save(&self, folder_path: &str) -> Result<(), ParamStoreError>;
+
+    /// Load the parameters from the specified folder to the store.
+    ///
+    /// # Arguments
+    /// * `folder_path` - The path of the folder to load the parameters from.
+    /// * `process_fn` - The function to process each parameter store(including submodules).
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the parameters are successfully loaded from the folder.
+    /// * `Err(ParamStoreError)` - The error when loading the parameters from the folder.
     fn load(
         &mut self,
-        file_path: &str,
-        devices: &[Device],
-        processor: impl FnMut((&str, &Tensor), &[Device]) -> Result<(), ParamStoreError>,
+        folder_path: &str,
+        device: &Device,
+        process_fn: impl FnMut(&str, &mut Self) -> Result<(), ParamStoreError>,
     ) -> Result<(), ParamStoreError>;
 
-    /// Add a parameter to the store.
+    /// Set the direct submodule in the parameter store.
     ///
     /// # Arguments
-    /// * `name` - The name of the parameter.
-    /// * `param` - The parameter to add.
+    /// * `module` - The submodule to set.
     ///
     /// # Returns
-    /// * `Ok(())` - If the parameter is successfully added to the store.
-    /// * `Err(ParamStoreError)` - The error when adding the parameter to the store.
-    fn add_param(&mut self, name: &str, param: Tensor) -> Result<(), ParamStoreError>;
+    /// * `Ok(())` - If the submodule is successfully set.
+    /// * `Err(ParamStoreError)` - The error when setting the submodule.
+    fn set_module(&mut self, module: Self) -> Result<(), ParamStoreError>;
 
-    /// Update the parameter with the specified name in the store.
+    /// Get the direct submodules in the parameter store.
+    ///
+    /// # Returns
+    /// * `Ok(Vec<&Self>)` - The submodules in the parameter store.
+    /// * `Err(ParamStoreError)` - The error when getting the submodules.
+    fn modules(&self) -> Result<Vec<&Self>, ParamStoreError>;
+
+    /// Set the direct parameter in the store.
     ///
     /// # Arguments
-    /// * `name` - The name of the parameter.
-    /// * `param` - The parameter after update.
+    /// * `param` - The parameter to set.
     ///
     /// # Returns
-    /// * `Ok(())` - If the parameter is successfully updated in the store.
-    /// * `Err(ParamStoreError)` - The error when updating the parameter in the store.
-    fn update_param(&mut self, name: &str, param: Tensor) -> Result<(), ParamStoreError>;
+    /// * `Ok(())` - If the parameter is successfully set.
+    /// * `Err(ParamStoreError)` - The error when setting the parameter.
+    fn set_paramter(&mut self, param: Parameter) -> Result<(), ParamStoreError>;
 
-    /// Move the parameters in the store to the specified devices.
-    ///
-    /// # Arguments
-    /// * `devices` - The devices to move the parameters to.
-    /// * `processor` - The function to process each parameter.
+    /// Get the direct parameters in the store.
     ///
     /// # Returns
-    /// * `Ok(())` - If the parameters are successfully moved to the devices.
-    /// * `Err(ParamStoreError)` - The error when moving the parameters to the devices.
-    fn to_device(
-        &mut self,
-        devices: &[Device],
-        processor: impl FnMut((&str, &Tensor), &[Device]) -> Result<(), ParamStoreError>,
-    ) -> Result<(), ParamStoreError>;
-
-    /// Get the parameters in the store.
-    ///
-    /// # Returns
-    /// * `Ok(Vec<&Tensor>)` - The parameters in the store.
+    /// * `Ok(Vec<&Parameter>)` - The parameters in the store.
     /// * `Err(ParamStoreError)` - The error when getting the parameters.
-    fn parameters(&self) -> Result<Vec<&Tensor>, ParamStoreError>;
-
-    /// Get the named parameters in the store.
-    ///
-    /// # Returns
-    /// * `Ok(HashMap<&str, &Tensor>)` - The named parameters in the store.
-    /// * `Err(ParamStoreError)` - The error when getting the named parameters.
-    fn named_parameters(&self) -> Result<HashMap<&str, &Tensor>, ParamStoreError>;
+    fn parameters(&self) -> Result<Vec<&Parameter>, ParamStoreError>;
 }

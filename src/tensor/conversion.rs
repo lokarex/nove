@@ -250,7 +250,6 @@ impl Tensor {
     /// # Returns
     /// * `Ok(Self)` - The created tensor if successful.
     /// * `Err(TensorError)` - The error when creating the tensor.
-    /// ```
     pub fn from_candle_tensor(
         tensor: candle_core::Tensor,
         device: &Device,

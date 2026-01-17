@@ -1,31 +1,68 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, usize};
 
 use crate::{
-    model::paramstore::{ParamStore, ParamStoreError},
+    model::{
+        Parameter,
+        paramstore::{ParamStore, ParamStoreError},
+    },
     tensor::{Device, Tensor},
 };
 
 pub struct SafeTensorsParamStore {
-    params: HashMap<String, Tensor>,
+    name: String,
+    type_id: usize,
+    params: HashMap<String, Parameter>,
+    modules: HashMap<String, Self>,
 }
 
 impl SafeTensorsParamStore {
-    pub fn new() -> Self {
+    /// Create a new `SafeTensorsParamStore`.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the parameter store.
+    ///
+    /// # Returns
+    /// * `SafeTensorsParamStore` - The new `SafeTensorsParamStore`.
+    pub fn new(name: &str) -> Self {
         Self {
+            name: name.to_string(),
+            type_id: usize::MAX,
             params: HashMap::new(),
+            modules: HashMap::new(),
         }
     }
 }
 
 impl ParamStore for SafeTensorsParamStore {
-    fn save(&self, path: &str) -> Result<(), super::ParamStoreError> {
-        let params = self
-            .params
-            .iter()
-            .map(|(k, v)| Ok((k.clone(), v.to_candle_tensor()?)))
-            .collect::<Result<HashMap<String, candle_core::Tensor>, ParamStoreError>>()?;
+    fn set_name(&mut self, name: &str) {
+        self.name = name.to_string();
+    }
 
-        candle_core::safetensors::save(&params, path)
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn set_type_id(&mut self, type_id: usize) {
+        self.type_id = type_id;
+    }
+
+    fn type_id(&self) -> usize {
+        self.type_id
+    }
+
+    fn save(&self, folder_path: &str) -> Result<(), ParamStoreError> {
+        let file_path = folder_path.to_string() + "/" + self.name.as_str() + ".safetensors";
+        let all_params = Self::all_params_with_full_name(self, &self.name)?
+            .iter()
+            .map(|(k, v)| {
+                Ok::<(String, candle_core::Tensor), ParamStoreError>((
+                    k.clone(),
+                    v.1.to_candle_tensor()?,
+                ))
+            })
+            .collect::<Result<HashMap<_, _>, _>>()?;
+
+        candle_core::safetensors::save(&all_params, file_path)
             .map_err(|e| ParamStoreError::OtherError(e.to_string()))?;
 
         Ok(())
@@ -33,71 +70,105 @@ impl ParamStore for SafeTensorsParamStore {
 
     fn load(
         &mut self,
-        path: &str,
-        devices: &[Device],
-        mut processor: impl FnMut((&str, &Tensor), &[Device]) -> Result<(), ParamStoreError>,
+        folder_path: &str,
+        device: &Device,
+        mut process_fn: impl FnMut(&str, &mut Self) -> Result<(), ParamStoreError>,
     ) -> Result<(), ParamStoreError> {
-        let loaded_params = candle_core::safetensors::load(path, &Device::get_cpu())
+        let file_path = folder_path.to_string() + "/" + self.name.as_str() + ".safetensors";
+        // Load the parameters from the file.
+        let loaded_params = candle_core::safetensors::load(file_path.as_str(), device)
             .map_err(|e| ParamStoreError::OtherError(e.to_string()))?;
 
-        self.params
-            .iter()
-            .zip(loaded_params.iter())
-            .map(|((k1, v1), (k2, v2))| {
-                if k1 != k2 {
-                    return Err(ParamStoreError::OtherError(format!(
-                        "key {} in SafeTensorsParamStore does not match key {} in safetensors file",
-                        k1, k2
-                    )));
-                }
-                let new_tensor = Tensor::from_candle_tensor(v2.clone(), &Device::get_cpu(), false)?;
-                v1.deep_clone_from(&new_tensor)?;
-                processor((k1, v1), devices)
-            })
-            .collect::<Result<(), ParamStoreError>>()?;
+        // Get all parameters in the store.
+        let all_params = Self::all_params_with_full_name(self, &self.name)?;
 
-        Ok(())
-    }
-
-    fn add_param(&mut self, name: &str, param: Tensor) -> Result<(), ParamStoreError> {
-        if self.params.contains_key(name) {
+        // Check if the number of parameters in the file matches the number of parameters in the store.
+        if loaded_params.len() != all_params.len() {
             return Err(ParamStoreError::OtherError(format!(
-                "param {} already exist in SafeTensorsParamStore",
-                name
+                "The number({}) of parameters in the file({}) does not match the number({}) of parameters in the store",
+                loaded_params.len(),
+                file_path,
+                all_params.len()
             )));
         }
-        self.params.insert(name.to_string(), param);
-        Ok(())
-    }
 
-    fn update_param(&mut self, name: &str, param: Tensor) -> Result<(), ParamStoreError> {
-        if !self.params.contains_key(name) {
-            return Err(ParamStoreError::OtherError(format!(
-                "param {} does not exist in SafeTensorsParamStore",
-                name
-            )));
+        for (full_name, param) in all_params {
+            // Check if the parameter exists in the file.
+            let loaded_param = loaded_params.get(full_name.as_str()).ok_or_else(|| {
+                ParamStoreError::OtherError(format!(
+                    "Parameter {} not found in the file({}).",
+                    full_name, file_path
+                ))
+            })?;
+
+            // Convert the loaded parameter to a `Tensor`.
+            let loaded_tensor = Tensor::from_candle_tensor(loaded_param.clone(), device, false)?;
+            // Update the parameter in the store with the loaded tensor.
+            param.1.deep_clone_from(&loaded_tensor)?;
         }
-        self.params.insert(name.to_string(), param);
+
+        // Process each module in the store.
+        self.process_all_modules_with_full_name(self.name.clone().as_str(), &mut process_fn)?;
+
         Ok(())
     }
 
-    fn to_device(
+    fn set_module(&mut self, module: Self) -> Result<(), ParamStoreError> {
+        self.modules.insert(module.name.clone(), module);
+        Ok(())
+    }
+
+    fn modules(&self) -> Result<Vec<&Self>, ParamStoreError> {
+        Ok(self.modules.iter().map(|(_, v)| v).collect())
+    }
+
+    fn set_paramter(&mut self, param: Parameter) -> Result<(), ParamStoreError> {
+        self.params.insert(param.0.clone(), param);
+        Ok(())
+    }
+
+    fn parameters(&self) -> Result<Vec<&Parameter>, ParamStoreError> {
+        Ok(self.params.iter().map(|(_, v)| v).collect())
+    }
+}
+
+impl SafeTensorsParamStore {
+    fn all_params_with_full_name(
+        &self,
+        prefix: &str,
+    ) -> Result<HashMap<String, &Parameter>, ParamStoreError> {
+        let mut all_params = HashMap::new();
+
+        // Get the direct parameters in the current module.
+        for (name, param) in &self.params {
+            let full_name = format!("{}.{}", prefix, name);
+            all_params.insert(full_name, param);
+        }
+
+        // Recursively get the parameters in the submodules.
+        for (module_name, module) in &self.modules {
+            let new_prefix = format!("{}.{}", prefix, module_name);
+            let module_params = Self::all_params_with_full_name(module, &new_prefix)?;
+            all_params.extend(module_params);
+        }
+
+        Ok(all_params)
+    }
+
+    fn process_all_modules_with_full_name(
         &mut self,
-        devices: &[Device],
-        mut processor: impl FnMut((&str, &Tensor), &[Device]) -> Result<(), ParamStoreError>,
+        prefix: &str,
+        process_fn: &mut impl FnMut(&str, &mut Self) -> Result<(), ParamStoreError>,
     ) -> Result<(), ParamStoreError> {
-        self.params
-            .iter()
-            .map(|(k, v)| processor((k.as_str(), v), devices))
-            .collect::<Result<(), ParamStoreError>>()?;
+        // Process the current module
+        process_fn(prefix, self)?;
+
+        // Recursively process all submodules
+        for (module_name, module) in &mut self.modules {
+            let new_prefix = format!("{}.{}", prefix, module_name);
+            module.process_all_modules_with_full_name(new_prefix.as_str(), process_fn)?;
+        }
+
         Ok(())
-    }
-
-    fn parameters(&self) -> Result<Vec<&Tensor>, ParamStoreError> {
-        Ok(self.params.values().collect())
-    }
-
-    fn named_parameters(&self) -> Result<HashMap<&str, &Tensor>, ParamStoreError> {
-        Ok(self.params.iter().map(|(k, v)| (k.as_str(), v)).collect())
     }
 }

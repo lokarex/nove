@@ -1,6 +1,11 @@
-use nove::model::paramstore::safetensors::SafeTensorsParamStore;
+use nove::model::paramstore::{ParamStore, safetensors::SafeTensorsParamStore};
+use tempfile::TempDir;
 
 #[test]
 fn test_safetensors_paramstore() {
-    let _param_store = SafeTensorsParamStore::new();
+    let temp_dir = TempDir::new().unwrap();
+    let param_store = SafeTensorsParamStore::new("test");
+    param_store
+        .save(temp_dir.path().join("test").to_str().unwrap())
+        .unwrap();
 }
