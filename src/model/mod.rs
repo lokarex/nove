@@ -62,6 +62,9 @@ pub trait Model {
     /// * `Ok(())` - If the model is successfully saved to the folder.
     /// * `Err(ModelError)` - The error when saving the model to the folder.
     fn save(&self, folder_path: &str) -> Result<(), ModelError> {
+        // Create the folder if it does not exist.
+        std::fs::create_dir_all(folder_path)?;
+
         let param_stores = self.param_stores()?;
         for param_store in param_stores {
             param_store.save(folder_path)?;
@@ -156,5 +159,23 @@ pub trait Model {
     /// * `Err(ModelError)` - The error when setting the model to evaluation mode.
     fn to_eval(&mut self) -> Result<(), ModelError> {
         todo!()
+    }
+
+    /// Get the summary of the model.
+    ///
+    /// # Returns
+    /// * `Ok(String)` - The summary of the model.
+    /// * `Err(ModelError)` - The error when getting the model summary.
+    fn summary(&self) -> Result<String, ModelError> {
+        let mut summary = format!("{}(\n", std::any::type_name::<Self>());
+        let param_stores = self.param_stores()?;
+        for param_store in param_stores {
+            let param_store_summary = format!("{}", param_store);
+            for line in param_store_summary.lines() {
+                summary.push_str(&format!("  {}\n", line));
+            }
+        }
+        summary.push_str(")\n");
+        Ok(summary)
     }
 }

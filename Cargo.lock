@@ -838,6 +838,7 @@ dependencies = [
  "candle-core",
  "crossbeam",
  "dashmap",
+ "indexmap",
  "proptest",
  "rand",
  "rayon",

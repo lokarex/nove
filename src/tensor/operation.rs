@@ -18,7 +18,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let device = Device::get_cpu();
+    /// let device = Device::cpu();
     /// let t1 = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![3.0, 4.0], &device, false).unwrap();
     ///
@@ -70,7 +70,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let device = Device::get_cpu();
+    /// let device = Device::cpu();
     /// let t1 = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![3.0, 4.0], &device, false).unwrap();
     /// let t3 = Tensor::from_data(vec![5.0, 6.0], &device, false).unwrap();

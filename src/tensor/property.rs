@@ -13,7 +13,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor, TensorError};
-    /// let cpu = Device::get_cpu();
+    /// let cpu = Device::cpu();
     /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// // Move the tensor to the CPU(It already on the CPU, so it will return an error)
@@ -24,7 +24,7 @@ impl Tensor {
     /// ```
     pub fn to_device(&self, device: &Device) -> Result<(), TensorError> {
         // Check the device
-        if self.get_device()? == *device {
+        if self.device()? == *device {
             return Ok(());
         }
 
@@ -60,14 +60,14 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = Device::get_cpu();
+    /// let cpu = Device::cpu();
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// // Get the device of the tensor
-    /// let device = tensor.get_device().unwrap();
+    /// let device = tensor.device().unwrap();
     /// println!("The tensor is on device: {:?}", device);
     /// ```
-    pub fn get_device(&self) -> Result<Device, TensorError> {
+    pub fn device(&self) -> Result<Device, TensorError> {
         let device = self.data.device.read()?;
         Ok(device.clone())
     }
@@ -87,7 +87,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, DType, Tensor, TensorError};
-    /// let cpu = Device::get_cpu();
+    /// let cpu = Device::cpu();
     /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// // Convert the tensor to F64 dtype
@@ -140,14 +140,14 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = Device::get_cpu();
+    /// let cpu = Device::cpu();
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// // Get the dtype of the tensor
-    /// let dtype = tensor.get_dtype().unwrap();
+    /// let dtype = tensor.dtype().unwrap();
     /// println!("The dtype of the tensor is: {:?}", dtype);
     /// ```
-    pub fn get_dtype(&self) -> Result<DType, TensorError> {
+    pub fn dtype(&self) -> Result<DType, TensorError> {
         let inner = self.data.inner.read()?;
         let dtype = match &*inner {
             TensorInner::Tensor(tensor) => tensor.dtype(),
@@ -165,14 +165,14 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let cpu = Device::get_cpu();
+    /// let cpu = Device::cpu();
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// // Get the shape of the tensor
-    /// let shape = tensor.get_shape().unwrap();
+    /// let shape = tensor.shape().unwrap();
     /// println!("The shape of the tensor is: {:?}", shape);
     /// ```
-    pub fn get_shape(&self) -> Result<Shape, TensorError> {
+    pub fn shape(&self) -> Result<Shape, TensorError> {
         let inner = self.data.inner.read()?;
         let shape = match &*inner {
             TensorInner::Tensor(tensor) => tensor.shape(),
@@ -184,21 +184,21 @@ impl Tensor {
     /// Get the number of dimensions of the tensor.
     ///
     /// # Returns
-    /// * `Ok(dim_num)` - The number of dimensions of the tensor.
+    /// * `Ok(num_dim)` - The number of dimensions of the tensor.
     /// * `Err(TensorError)` - The error when getting the number of dimensions of the tensor.
     ///
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = Device::get_cpu();
+    /// let cpu = Device::cpu();
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// // Get the number of dimensions of the tensor
-    /// let dim_num = tensor.get_dim_num().unwrap();
-    /// println!("The number of dimensions of the tensor is : {:?}", dim_num);
+    /// let num_dim = tensor.num_dim().unwrap();
+    /// println!("The number of dimensions of the tensor is : {:?}", num_dim);
     /// ```
-    pub fn get_dim_num(&self) -> Result<usize, TensorError> {
-        let shape = self.get_shape()?;
+    pub fn num_dim(&self) -> Result<usize, TensorError> {
+        let shape = self.shape()?;
         Ok(shape.rank())
     }
 }

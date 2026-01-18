@@ -28,7 +28,7 @@ proptest! {
         data_seed in prop::num::u64::ANY,
     ) {
         let shape = util::generate_random_shape_with_appropriate_size(shape_seed);
-        let device = Device::get_cpu();
+        let device = Device::cpu();
         let mut data_seed = data_seed;
 
         match dtype {
@@ -73,14 +73,7 @@ where
     S: candle_core::WithDType + std::fmt::Debug,
 {
     let mut stacked_data: Vec<S> = Vec::with_capacity(
-        datas.len()
-            * datas[0]
-                .0
-                .get_shape()
-                .unwrap()
-                .dims()
-                .iter()
-                .product::<usize>(),
+        datas.len() * datas[0].0.shape().unwrap().dims().iter().product::<usize>(),
     );
     let mut stacked_tensor = Vec::with_capacity(datas.len());
 
@@ -103,7 +96,7 @@ proptest! {
         data_seed in prop::num::u64::ANY,
     ) {
         let shape = util::generate_random_shape_with_appropriate_size(shape_seed);
-        let device = Device::get_cpu();
+        let device = Device::cpu();
         let mut data_seed= data_seed;
 
         match dtype {

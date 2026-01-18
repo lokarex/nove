@@ -86,7 +86,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::get_cpu();
+    /// let device = Device::cpu();
     ///
     /// // Create a tensor from a scalar
     /// let tensor = Tensor::from_data(1.0f32, &device, false).unwrap();
@@ -145,7 +145,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::get_cpu();
+    /// let device = Device::cpu();
     ///
     /// let tensor = Tensor::from_scalar(1.0f32, &device, false).unwrap();
     /// println!("{:?}", tensor);
@@ -177,7 +177,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::get_cpu();
+    /// let device = Device::cpu();
     ///
     /// let tensor = Tensor::from_scalar(1.0f32, &device, false).unwrap();
     /// println!("{:?}", tensor.to_scalar::<f32>().unwrap());
@@ -196,8 +196,8 @@ impl Tensor {
         // If the tensor dimension number is 0, it is a scalar tensor.
         // We can directly convert it to a scalar.
         // Otherwise, we need to squeeze the tensor to remove the dimension.
-        let dim_num = self.get_dim_num()?;
-        match dim_num {
+        let num_dim = self.num_dim()?;
+        match num_dim {
             0 => Ok(inner_tensor.to_scalar::<S>()?),
             _ => {
                 let squeezed = inner_tensor.squeeze(0)?;
@@ -222,7 +222,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::get_cpu();
+    /// let device = Device::cpu();
     ///
     /// let tensor = Tensor::from_data(&[[1.0f64, 2.0f64, 3.0f64], [4.0f64, 5.0f64, 6.0f64]], &device, false).unwrap();
     /// println!("{:?}", tensor.to_vec::<f64>().unwrap());

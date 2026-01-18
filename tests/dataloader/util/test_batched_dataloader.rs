@@ -19,7 +19,7 @@ fn test_batched_dataloader() {
         Tensor::from_data(&[x as i64], device, false).unwrap()
     };
     let collate_fn = |x: Vec<Tensor>| -> Tensor { Tensor::stack(&x.as_slice(), 0).unwrap() };
-    let device = Device::get_cpu();
+    let device = Device::cpu();
 
     // Create a basic dataloader.
     let mut dataloader: BasicDataloader<SimpleDataset, Tensor, Tensor, _, _> =
@@ -50,7 +50,7 @@ fn test_batched_dataloader() {
         let batch = batch.unwrap();
 
         // Check the shape of the batch.
-        assert_eq!(batch.get_shape().unwrap(), shapes[counter]);
+        assert_eq!(batch.shape().unwrap(), shapes[counter]);
 
         // Check the data of the batch.
         batch

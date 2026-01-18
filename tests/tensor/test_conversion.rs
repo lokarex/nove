@@ -8,7 +8,7 @@ fn test_from_data_and_to_scalar_with_scalar<T>(val: T) -> Result<(), TestCaseErr
 where
     T: candle_core::NdArray + candle_core::WithDType + Debug,
 {
-    let device = Device::get_cpu();
+    let device = Device::cpu();
     let tensor = Tensor::from_data(val, &device, false).unwrap();
     prop_assert_eq!(tensor.to_scalar::<T>().unwrap(), val);
     Ok(())
@@ -51,7 +51,7 @@ fn test_from_data_and_to_vec_with_vector<T>(vec: Vec<T>) -> Result<(), TestCaseE
 where
     T: candle_core::NdArray + candle_core::WithDType + Debug + Copy,
 {
-    let device = Device::get_cpu();
+    let device = Device::cpu();
 
     // Test from_data and to_vec with a 1D vector.
     let tensor = Tensor::from_data(vec.clone(), &device, false).unwrap();
@@ -129,7 +129,7 @@ fn test_from_data_and_to_vec_with_slice<T>(slice: &[T]) -> Result<(), TestCaseEr
 where
     T: candle_core::NdArray + candle_core::WithDType + Debug + Copy,
 {
-    let device = Device::get_cpu();
+    let device = Device::cpu();
 
     // Test from_data and to_vec with a 1D slice.
     let tensor = Tensor::from_data(slice, &device, false).unwrap();

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     model::Parameter,
     tensor::{Device, TensorError},
@@ -18,7 +20,7 @@ pub enum ParamStoreError {
     OtherError(String),
 }
 
-pub trait ParamStore {
+pub trait ParamStore: Display {
     /// Set the name of the parameter store.
     ///
     /// # Arguments

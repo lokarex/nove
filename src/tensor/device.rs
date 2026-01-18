@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[cfg(any(feature = "cuda", feature = "metal"))]
 use thiserror::Error;
 
@@ -43,10 +45,10 @@ impl Device {
     /// ```
     /// use nove::tensor::Device;
     ///
-    /// let cpu = Device::get_cpu();
+    /// let cpu = Device::cpu();
     /// println!("{:?}", cpu);
     /// ```
-    pub fn get_cpu() -> Self {
+    pub fn cpu() -> Self {
         Self {
             inner: candle_core::Device::Cpu,
             device_type: DeviceTpye::Cpu,
@@ -67,14 +69,14 @@ impl Device {
     /// ```
     /// use nove::tensor::Device;
     ///
-    /// let cuda = Device::get_cuda(0);
+    /// let cuda = Device::cuda(0);
     /// match cuda {
     ///     Ok(cuda) => println!("{:?}", cuda),
     ///     Err(err) => println!("{:?}", err),
     /// }
     /// ```
     #[cfg(feature = "cuda")]
-    pub fn get_cuda(index: usize) -> Result<Self, DeviceError> {
+    pub fn cuda(index: usize) -> Result<Self, DeviceError> {
         Ok(Self {
             inner: candle_core::Device::new_cuda(index)?,
             device_type: DeviceTpye::Cuda,
@@ -97,11 +99,11 @@ impl Device {
     /// ```
     /// use nove::tensor::Device;
     ///
-    /// let device = Device::get_cuda_if_available(0);
+    /// let device = Device::cuda_if_available(0);
     /// println!("{:?}", device);
     /// ```
     #[cfg(feature = "cuda")]
-    pub fn get_cuda_if_available(index: usize) -> Self {
+    pub fn cuda_if_available(index: usize) -> Self {
         let (device, device_type, index) = match candle_core::Device::new_cuda(index) {
             Ok(device) => (device, DeviceTpye::Cuda, index),
             Err(_) => (candle_core::Device::Cpu, DeviceTpye::Cpu, 0),
@@ -127,14 +129,14 @@ impl Device {
     /// ```
     /// use nove::tensor::Device;
     ///
-    /// let metal = Device::get_metal(0);
+    /// let metal = Device::metal(0);
     /// match metal {
     ///     Ok(metal) => println!("{:?}", metal),
     ///     Err(err) => println!("{:?}", err),
     /// }
     /// ```
     #[cfg(feature = "metal")]
-    pub fn get_metal(index: usize) -> Result<Self, DeviceError> {
+    pub fn metal(index: usize) -> Result<Self, DeviceError> {
         Ok(Self {
             inner: candle_core::Device::new_metal(index)?,
             device_type: DeviceTpye::Metal,
@@ -157,11 +159,11 @@ impl Device {
     /// ```
     /// use nove::tensor::Device;
     ///
-    /// let device = Device::get_metal_if_available(0);
+    /// let device = Device::metal_if_available(0);
     /// println!("{:?}", device);
     /// ```
     #[cfg(feature = "metal")]
-    pub fn get_metal_if_available(index: usize) -> Self {
+    pub fn metal_if_available(index: usize) -> Self {
         let (device, device_type, index) = match candle_core::Device::new_metal(index) {
             Ok(device) => (device, DeviceTpye::Metal, index),
             Err(_) => (candle_core::Device::Cpu, DeviceTpye::Cpu, 0),
@@ -190,3 +192,27 @@ impl PartialEq for Device {
 }
 
 impl Eq for Device {}
+
+impl Display for DeviceTpye {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeviceTpye::Cpu => write!(f, "cpu"),
+            #[cfg(feature = "cuda")]
+            DeviceTpye::Cuda => write!(f, "cuda"),
+            #[cfg(feature = "metal")]
+            DeviceTpye::Metal => write!(f, "metal"),
+        }
+    }
+}
+
+impl Display for Device {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.device_type {
+            DeviceTpye::Cpu => write!(f, "{}", self.device_type),
+            #[cfg(feature = "cuda")]
+            DeviceTpye::Cuda => write!(f, "{}({})", self.device_type, self.index),
+            #[cfg(feature = "metal")]
+            DeviceTpye::Metal => write!(f, "{}({})", self.device_type, self.index),
+        }
+    }
+}

@@ -2,7 +2,10 @@ use crate::tensor::{DType, Device, Shape};
 use crossbeam::queue::SegQueue;
 use dashmap::DashMap;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use std::sync::{Arc, RwLock};
+use std::{
+    fmt::Display,
+    sync::{Arc, RwLock},
+};
 use thiserror::Error;
 
 /// Error type for tensor operations.
@@ -99,6 +102,22 @@ impl AsRef<Tensor> for Tensor {
     }
 }
 
+impl Display for Tensor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let inner = self
+            .data
+            .inner
+            .read()
+            .map_err(|_| std::fmt::Error::default())?;
+        let inner_tensor = match &*inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var.as_tensor(),
+        };
+        inner_tensor.fmt(f)?;
+        Ok(())
+    }
+}
+
 impl Tensor {
     /// Set the gradient enabled status of the tensor.
     ///
@@ -115,7 +134,7 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when setting the tensor's gradient enabled status.
     pub fn set_grad_enabled(&self, grad_enabled: bool) -> Result<(), TensorError> {
         // Check if the gradient status is already as required
-        if self.get_grad_enabled()? == grad_enabled {
+        if self.grad_enabled()? == grad_enabled {
             return Ok(());
         }
 
@@ -165,7 +184,7 @@ impl Tensor {
     /// * `Ok(true)` - The tensor has gradient enabled.
     /// * `Ok(false)` - The tensor has gradient disabled.
     /// * `Err(TensorError)` - The error when getting the tensor's gradient enabled status.
-    pub fn get_grad_enabled(&self) -> Result<bool, TensorError> {
+    pub fn grad_enabled(&self) -> Result<bool, TensorError> {
         let inner = self.data.inner.read()?;
         Ok(match &*inner {
             TensorInner::Var(_) => true,
@@ -183,20 +202,20 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when setting the tensor's gradient tensor.
     pub fn set_grad(&self, grad: Tensor) -> Result<(), TensorError> {
         // Check if the gradient status is enabled
-        if !self.get_grad_enabled()? {
+        if !self.grad_enabled()? {
             return Err(TensorError::NoTensorGradient);
         }
 
         // Check if the gradient shape is the same as the tensor shape
-        let grad_shape = grad.get_shape()?;
-        let self_shape = self.get_shape()?;
+        let grad_shape = grad.shape()?;
+        let self_shape = self.shape()?;
         if grad_shape != self_shape {
             return Err(TensorError::ShapeMismatch(self_shape, grad_shape));
         }
 
         // Check if the gradient dtype is the same as the tensor dtype
-        let grad_dtype = grad.get_dtype()?;
-        let self_dtype = self.get_dtype()?;
+        let grad_dtype = grad.dtype()?;
+        let self_dtype = self.dtype()?;
         if grad_dtype != self_dtype {
             return Err(TensorError::DTypeMismatch(self_dtype, grad_dtype));
         }
@@ -218,9 +237,9 @@ impl Tensor {
     /// # Returns
     /// * `Ok(Tensor)` - The tensor's gradient tensor.
     /// * `Err(TensorError)` - The error when getting the tensor's gradient tensor.
-    pub fn get_grad(&self) -> Result<Tensor, TensorError> {
+    pub fn grad(&self) -> Result<Tensor, TensorError> {
         // Check if the gradient status is enabled
-        if !self.get_grad_enabled()? {
+        if !self.grad_enabled()? {
             return Err(TensorError::GradientDisabled);
         }
 
@@ -299,7 +318,7 @@ impl Tensor {
                             // Add the parent tensor to the queue for further processing
                             queue.push(parent.clone());
 
-                            match parent.get_grad_enabled().unwrap_or_else(|_| false) {
+                            match parent.grad_enabled().unwrap_or_else(|_| false) {
                                 true => Some(parent.clone()),
                                 false => None,
                             }

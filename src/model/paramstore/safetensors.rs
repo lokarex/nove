@@ -1,4 +1,6 @@
-use std::{collections::HashMap, usize};
+use std::{collections::HashMap, fmt::Display, usize};
+
+use indexmap::IndexMap;
 
 use crate::{
     model::{
@@ -11,8 +13,8 @@ use crate::{
 pub struct SafeTensorsParamStore {
     name: String,
     type_id: usize,
-    params: HashMap<String, Parameter>,
-    modules: HashMap<String, Self>,
+    params: IndexMap<String, Parameter>,
+    modules: IndexMap<String, Self>,
 }
 
 impl SafeTensorsParamStore {
@@ -27,8 +29,8 @@ impl SafeTensorsParamStore {
         Self {
             name: name.to_string(),
             type_id: usize::MAX,
-            params: HashMap::new(),
-            modules: HashMap::new(),
+            params: IndexMap::new(),
+            modules: IndexMap::new(),
         }
     }
 }
@@ -51,6 +53,9 @@ impl ParamStore for SafeTensorsParamStore {
     }
 
     fn save(&self, folder_path: &str) -> Result<(), ParamStoreError> {
+        // Create the folder if it does not exist.
+        std::fs::create_dir_all(folder_path)?;
+
         let file_path = folder_path.to_string() + "/" + self.name.as_str() + ".safetensors";
         let all_params = Self::all_params_with_full_name(self, &self.name)?
             .iter()
@@ -169,6 +174,39 @@ impl SafeTensorsParamStore {
             module.process_all_modules_with_full_name(new_prefix.as_str(), process_fn)?;
         }
 
+        Ok(())
+    }
+}
+
+impl SafeTensorsParamStore {
+    fn fmt_with_indent(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        indent: &mut String,
+    ) -> std::fmt::Result {
+        write!(f, "{}{}", indent, self.name)?;
+
+        // Display submodules
+        if !self.modules.is_empty() {
+            writeln!(f, "(")?;
+            indent.push_str("  ");
+            for (_, module) in &self.modules {
+                module.fmt_with_indent(f, indent)?;
+            }
+            indent.truncate(indent.len().saturating_sub(2));
+            writeln!(f, "{})", indent)?;
+        } else {
+            writeln!(f, "")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Display for SafeTensorsParamStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut indent = String::new();
+        self.fmt_with_indent(f, &mut indent)?;
         Ok(())
     }
 }
