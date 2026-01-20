@@ -6,67 +6,6 @@ use crate::tensor::{
 };
 
 impl Tensor {
-    /// Deep clone the data from the other tensor to this tensor.
-    ///
-    /// # Notes
-    /// * Because the cloned tensor is a new tensor, it will not be connected to the previous computation graph.
-    ///
-    /// # Arguments
-    /// * `other` - The other tensor to clone from.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the cloning is successful.
-    /// * `Err(TensorError)` - If the cloning fails.
-    pub fn deep_clone_from(&self, other: &Tensor) -> Result<(), TensorError> {
-        let inner = match &*other.data.inner.read()? {
-            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.detach()),
-            TensorInner::Var(var) => {
-                TensorInner::Var(candle_core::Var::from_tensor(&var.detach())?)
-            }
-        };
-        let device = other.data.device.read()?.clone();
-        let grad = match &*other.data.grad.read()? {
-            Some(grad) => Some(grad.detach()),
-            None => None,
-        };
-
-        *self.data.inner.write()? = inner;
-        *self.data.device.write()? = device;
-        *self.data.grad.write()? = grad;
-        *self.data.parents.write()? = vec![];
-        Ok(())
-    }
-
-    /// Deep clone the data from this tensor to a new tensor.
-    ///
-    /// # Notes
-    /// * Because the cloned tensor is a new tensor, it will not be connected to the previous computation graph.
-    ///
-    /// # Returns
-    /// * `Ok(tensor)` - The cloned tensor if successful.
-    /// * `Err(TensorError)` - The error when cloning the tensor.
-    pub fn deep_clone(&self) -> Result<Self, TensorError> {
-        let inner = match &*self.data.inner.read()? {
-            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.detach()),
-            TensorInner::Var(var) => {
-                TensorInner::Var(candle_core::Var::from_tensor(&var.detach())?)
-            }
-        };
-        let device = self.data.device.read()?.clone();
-        let grad = match &*self.data.grad.read()? {
-            Some(grad) => Some(grad.detach()),
-            None => None,
-        };
-        Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(inner),
-                device: RwLock::new(device),
-                grad: RwLock::new(grad),
-                parents: RwLock::new(vec![]),
-            }),
-        })
-    }
-
     /// Create a new tensor from the given data.
     ///
     /// # Notes

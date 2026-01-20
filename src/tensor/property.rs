@@ -28,6 +28,9 @@ impl Tensor {
             return Ok(());
         }
 
+        // Update the device
+        *self.data.device.write()? = device.clone();
+
         // Move the inner to the device
         let mut inner = self.data.inner.write()?;
         match &mut *inner {

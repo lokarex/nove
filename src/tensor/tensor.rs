@@ -360,4 +360,23 @@ impl Tensor {
 
         Ok(())
     }
+
+    pub fn update_from_tensor(&self, other: &Tensor) -> Result<(), TensorError> {
+        let other_inner = other.data.inner.read()?;
+        let other_inner_tensor = match &*other_inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+        let mut self_inner = self.data.inner.write()?;
+        match &mut *self_inner {
+            TensorInner::Tensor(_tensor) => {
+                todo!()
+            }
+            TensorInner::Var(var) => {
+                var.set(other_inner_tensor)?;
+            }
+        }
+
+        Ok(())
+    }
 }

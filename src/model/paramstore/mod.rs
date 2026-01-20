@@ -16,37 +16,46 @@ pub enum ParamStoreError {
     #[error("Tensor error: {0}")]
     TensorError(#[from] TensorError),
 
+    #[error("RwLock poisoned: {0}")]
+    RwLockPoisoned(String),
+
     #[error("Other error: {0}")]
     OtherError(String),
 }
 
-pub trait ParamStore: Display {
+impl<T> From<std::sync::PoisonError<T>> for ParamStoreError {
+    fn from(error: std::sync::PoisonError<T>) -> Self {
+        ParamStoreError::RwLockPoisoned(error.to_string())
+    }
+}
+
+pub trait ParamStore: Display + Clone {
+    /// Create a new parameter store with the specified name.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the parameter store.
+    ///
+    /// # Returns
+    /// * `Ok(Self)` - The new parameter store.
+    /// * `Err(ParamStoreError)` - The error when creating the parameter store.
+    fn new(name: &str) -> Result<Self, ParamStoreError>;
+
     /// Set the name of the parameter store.
     ///
     /// # Arguments
     /// * `name` - The name of the parameter store.
-    fn set_name(&mut self, name: &str);
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the name is successfully set.
+    /// * `Err(ParamStoreError)` - The error when setting the name.
+    fn set_name(&self, name: &str) -> Result<(), ParamStoreError>;
 
     /// Get the name of the parameter store.
     ///
     /// # Returns
-    /// * `&str` - The name of the parameter store.
-    fn name(&self) -> &str;
-
-    /// Set the type ID of the parameter store.
-    ///
-    /// # Notes
-    /// * The type ID is used to identify the type of the parameter set.
-    ///
-    /// # Arguments
-    /// * `type_id` - The type ID of the parameter store.
-    fn set_type_id(&mut self, type_id: usize);
-
-    /// Get the type ID of the parameter store.
-    ///
-    /// # Returns
-    /// * `usize` - The type ID of the parameter store.
-    fn type_id(&self) -> usize;
+    /// * `Ok(String)` - The name of the parameter store.
+    /// * `Err(ParamStoreError)` - The error when getting the name.
+    fn name(&self) -> Result<String, ParamStoreError>;
 
     /// Save the all parameters to the specified folder.
     ///
@@ -68,10 +77,10 @@ pub trait ParamStore: Display {
     /// * `Ok(())` - If the parameters are successfully loaded from the folder.
     /// * `Err(ParamStoreError)` - The error when loading the parameters from the folder.
     fn load(
-        &mut self,
+        &self,
         folder_path: &str,
         device: &Device,
-        process_fn: impl FnMut(&str, &mut Self) -> Result<(), ParamStoreError>,
+        process_fn: impl FnMut(&str, &Self) -> Result<(), ParamStoreError>,
     ) -> Result<(), ParamStoreError>;
 
     /// Set the direct submodule in the parameter store.
@@ -82,14 +91,14 @@ pub trait ParamStore: Display {
     /// # Returns
     /// * `Ok(())` - If the submodule is successfully set.
     /// * `Err(ParamStoreError)` - The error when setting the submodule.
-    fn set_module(&mut self, module: Self) -> Result<(), ParamStoreError>;
+    fn set_module(&self, module: Self) -> Result<(), ParamStoreError>;
 
     /// Get the direct submodules in the parameter store.
     ///
     /// # Returns
     /// * `Ok(Vec<&Self>)` - The submodules in the parameter store.
     /// * `Err(ParamStoreError)` - The error when getting the submodules.
-    fn modules(&self) -> Result<Vec<&Self>, ParamStoreError>;
+    fn modules(&self) -> Result<Vec<Self>, ParamStoreError>;
 
     /// Set the direct parameter in the store.
     ///
@@ -99,12 +108,12 @@ pub trait ParamStore: Display {
     /// # Returns
     /// * `Ok(())` - If the parameter is successfully set.
     /// * `Err(ParamStoreError)` - The error when setting the parameter.
-    fn set_paramter(&mut self, param: Parameter) -> Result<(), ParamStoreError>;
+    fn set_paramter(&self, param: Parameter) -> Result<(), ParamStoreError>;
 
     /// Get the direct parameters in the store.
     ///
     /// # Returns
     /// * `Ok(Vec<&Parameter>)` - The parameters in the store.
     /// * `Err(ParamStoreError)` - The error when getting the parameters.
-    fn parameters(&self) -> Result<Vec<&Parameter>, ParamStoreError>;
+    fn parameters(&self) -> Result<Vec<Parameter>, ParamStoreError>;
 }

@@ -4,6 +4,7 @@ use crate::{
 };
 use thiserror::Error;
 
+pub mod layer;
 pub mod paramstore;
 
 #[derive(Error, Debug)]
@@ -18,6 +19,7 @@ pub enum ModelError {
     OtherError(String),
 }
 
+#[derive(Debug, Clone)]
 pub struct Parameter(pub String, pub Tensor);
 
 pub trait Model {
@@ -25,19 +27,42 @@ pub trait Model {
     type Input;
     type Output;
 
-    /// Get the parameter stores of the model.
+    /// Get the direct parameter stores of the model.
     ///
     /// # Returns
-    /// * `Ok(Vec<&Self::ParamStore>)` - The parameter stores of the model.
+    /// * `Ok(Vec<Self::ParamStore>)` - The parameter stores of the model.
     /// * `Err(ModelError)` - The error when getting the parameter stores.
-    fn param_stores(&self) -> Result<Vec<&Self::ParamStore>, ModelError>;
+    fn param_stores(&self) -> Result<Vec<Self::ParamStore>, ModelError>;
 
-    /// Get the mutable parameter stores of the model.
+    /// Get all parameters of the model, including those in the submodules.
     ///
     /// # Returns
-    /// * `Ok(Vec<&mut Self::ParamStore>)` - The mutable parameter stores of the model.
-    /// * `Err(ModelError)` - The error when getting the mutable parameter stores.
-    fn param_store_mut(&mut self) -> Result<Vec<&mut Self::ParamStore>, ModelError>;
+    /// * `Ok(Vec<Parameter>)` - All parameters of the model.
+    /// * `Err(ModelError)` - The error when getting the parameters.
+    fn parameters(&self) -> Result<Vec<Parameter>, ModelError> {
+        let mut all_params = Vec::new();
+
+        fn collect_params<S: ParamStore>(
+            store: &S,
+            all_params: &mut Vec<Parameter>,
+        ) -> Result<(), ParamStoreError> {
+            // Collect parameters from the current store.
+            all_params.extend(store.parameters()?);
+
+            // Recursively collect parameters from submodules.
+            for submodule in store.modules()? {
+                collect_params(&submodule, all_params)?;
+            }
+
+            Ok(())
+        }
+
+        for store in self.param_stores()? {
+            collect_params(&store, &mut all_params)?;
+        }
+
+        Ok(all_params)
+    }
 
     /// Perform a forward pass of the model.
     ///
@@ -47,7 +72,7 @@ pub trait Model {
     /// # Returns
     /// * `Ok(Self::Output)` - The output data of the forward pass.
     /// * `Err(ModelError)` - The error when performing the forward pass.
-    fn forward(&self, input: Self::Input) -> Result<Self::Output, ModelError>;
+    fn forward(&mut self, input: Self::Input) -> Result<Self::Output, ModelError>;
 
     /// Save the model to the specified folder.
     ///
@@ -95,7 +120,7 @@ pub trait Model {
         &mut self,
         folder_path: &str,
         devices: &[Device],
-        mut process_fn: impl FnMut(&str, &mut Self::ParamStore) -> Result<(), ParamStoreError>,
+        mut process_fn: impl FnMut(&str, &Self::ParamStore) -> Result<(), ParamStoreError>,
     ) -> Result<(), ModelError> {
         if devices.is_empty() {
             return Err(ModelError::OtherError(
@@ -103,7 +128,7 @@ pub trait Model {
             ));
         }
 
-        let mut param_stores = self.param_store_mut()?;
+        let param_stores = self.param_stores()?;
         // Get the number of parameter stores.
         let num_param_stores = param_stores.len();
         if num_param_stores == 0 {
@@ -116,49 +141,23 @@ pub trait Model {
             return Err(ModelError::OtherError(format!(
                 "The number of devices({}) is not equal to the number of parameter stores({}) or 1.",
                 devices.len(),
-                self.param_stores()?.len()
+                num_param_stores
             )));
         }
 
         match devices.len() {
             1 => {
-                for param_store in param_stores.iter_mut() {
-                    param_store.load(
-                        (folder_path.to_string() + param_store.name()).as_str(),
-                        &devices[0],
-                        &mut process_fn,
-                    )?;
+                for param_store in param_stores.iter() {
+                    param_store.load(folder_path, &devices[0], &mut process_fn)?;
                 }
             }
             _ => {
-                for (i, param_store) in param_stores.iter_mut().enumerate() {
-                    param_store.load(
-                        (folder_path.to_string() + param_store.name()).as_str(),
-                        &devices[i],
-                        &mut process_fn,
-                    )?;
+                for (i, param_store) in param_stores.iter().enumerate() {
+                    param_store.load(folder_path, &devices[i], &mut process_fn)?;
                 }
             }
         }
         Ok(())
-    }
-
-    /// Set the model to training mode.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the model is successfully set to training mode.
-    /// * `Err(ModelError)` - The error when setting the model to training mode.
-    fn to_train(&mut self) -> Result<(), ModelError> {
-        todo!()
-    }
-
-    /// Set the model to evaluation mode.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the model is successfully set to evaluation mode.
-    /// * `Err(ModelError)` - The error when setting the model to evaluation mode.
-    fn to_eval(&mut self) -> Result<(), ModelError> {
-        todo!()
     }
 
     /// Get the summary of the model.
