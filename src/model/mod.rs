@@ -116,12 +116,15 @@ pub trait Model {
     /// # Returns
     /// * `Ok(())` - If the model is successfully loaded from the folder.
     /// * `Err(ModelError)` - The error when loading the model from the folder.
-    fn load(
+    fn load<F>(
         &mut self,
         folder_path: &str,
         devices: &[Device],
-        mut process_fn: impl FnMut(&str, &Self::ParamStore) -> Result<(), ParamStoreError>,
-    ) -> Result<(), ModelError> {
+        mut process_fn: F,
+    ) -> Result<(), ModelError>
+    where
+        F: FnMut(&str, &Self::ParamStore) -> Result<(), ParamStoreError>,
+    {
         if devices.is_empty() {
             return Err(ModelError::OtherError(
                 "The devices list is empty.".to_string(),

@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     fmt::Display,
+    path::Path,
     sync::{Arc, RwLock},
 };
 
@@ -50,7 +51,9 @@ impl ParamStore for SafeTensorsParamStore {
         // Create the folder if it does not exist.
         std::fs::create_dir_all(folder_path)?;
 
-        let file_path = folder_path.to_string() + "/" + self.name()?.as_str() + ".safetensors";
+        let file_path = Path::new(folder_path)
+            .join(self.name()?.as_str())
+            .with_extension("safetensors");
         let all_params = Self::all_params_with_full_name(self, &self.name()?)?
             .iter()
             .map(|(k, v)| {
@@ -67,15 +70,20 @@ impl ParamStore for SafeTensorsParamStore {
         Ok(())
     }
 
-    fn load(
+    fn load<F>(
         &self,
         folder_path: &str,
         device: &Device,
-        mut process_fn: impl FnMut(&str, &Self) -> Result<(), ParamStoreError>,
-    ) -> Result<(), ParamStoreError> {
-        let file_path = folder_path.to_string() + "/" + self.name()?.as_str() + ".safetensors";
+        mut process_fn: F,
+    ) -> Result<(), ParamStoreError>
+    where
+        F: FnMut(&str, &Self) -> Result<(), ParamStoreError>,
+    {
+        let file_path = Path::new(folder_path)
+            .join(self.name()?.as_str())
+            .with_extension("safetensors");
         // Load the parameters from the file.
-        let loaded_params = candle_core::safetensors::load(file_path.as_str(), device)
+        let loaded_params = candle_core::safetensors::load(&file_path, device)
             .map_err(|e| ParamStoreError::OtherError(e.to_string()))?;
 
         // Get all parameters in the store.
@@ -86,7 +94,7 @@ impl ParamStore for SafeTensorsParamStore {
             return Err(ParamStoreError::OtherError(format!(
                 "The number({}) of parameters in the file({}) does not match the number({}) of parameters in the store",
                 loaded_params.len(),
-                file_path,
+                file_path.display(),
                 all_params.len()
             )));
         }
@@ -96,7 +104,8 @@ impl ParamStore for SafeTensorsParamStore {
             let loaded_param = loaded_params.get(full_name.as_str()).ok_or_else(|| {
                 ParamStoreError::OtherError(format!(
                     "Parameter {} not found in the file({}).",
-                    full_name, file_path
+                    full_name,
+                    file_path.display()
                 ))
             })?;
 
@@ -127,7 +136,7 @@ impl ParamStore for SafeTensorsParamStore {
             .collect())
     }
 
-    fn set_paramter(&self, param: Parameter) -> Result<(), ParamStoreError> {
+    fn set_parameter(&self, param: Parameter) -> Result<(), ParamStoreError> {
         self.inner.params.write()?.insert(param.0.clone(), param);
         Ok(())
     }
@@ -166,17 +175,20 @@ impl SafeTensorsParamStore {
         Ok(all_params)
     }
 
-    fn process_all_modules_with_full_name(
+    fn process_all_modules_with_full_name<F>(
         &self,
         prefix: &str,
-        process_fn: &mut impl FnMut(&str, &Self) -> Result<(), ParamStoreError>,
-    ) -> Result<(), ParamStoreError> {
+        process_fn: &mut F,
+    ) -> Result<(), ParamStoreError>
+    where
+        F: FnMut(&str, &Self) -> Result<(), ParamStoreError>,
+    {
         // Process the current module
         process_fn(prefix, self)?;
 
         // Recursively process all submodules
-        let modules = self.inner.modules.read()?.clone();
-        for (module_name, module) in modules {
+        let modules = self.inner.modules.read()?;
+        for (module_name, module) in &*modules {
             let new_prefix = format!("{}.{}", prefix, module_name);
             module.process_all_modules_with_full_name(new_prefix.as_str(), process_fn)?;
         }
@@ -193,17 +205,13 @@ impl SafeTensorsParamStore {
     ) -> std::fmt::Result {
         write!(f, "{}{}", indent, self.name().map_err(|_| std::fmt::Error)?)?;
 
+        let submodules = self.inner.modules.read().map_err(|_| std::fmt::Error)?;
+
         // Display submodules
-        if !self
-            .inner
-            .modules
-            .read()
-            .map_err(|_| std::fmt::Error)?
-            .is_empty()
-        {
+        if !submodules.is_empty() {
             writeln!(f, "(")?;
             indent.push_str("  ");
-            for (_, module) in &*self.inner.modules.read().map_err(|_| std::fmt::Error)? {
+            for (_, module) in &*submodules {
                 module.fmt_with_indent(f, indent)?;
             }
             indent.truncate(indent.len().saturating_sub(2));

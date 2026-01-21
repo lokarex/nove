@@ -76,12 +76,14 @@ pub trait ParamStore: Display + Clone {
     /// # Returns
     /// * `Ok(())` - If the parameters are successfully loaded from the folder.
     /// * `Err(ParamStoreError)` - The error when loading the parameters from the folder.
-    fn load(
+    fn load<F>(
         &self,
         folder_path: &str,
         device: &Device,
-        process_fn: impl FnMut(&str, &Self) -> Result<(), ParamStoreError>,
-    ) -> Result<(), ParamStoreError>;
+        process_fn: F,
+    ) -> Result<(), ParamStoreError>
+    where
+        F: FnMut(&str, &Self) -> Result<(), ParamStoreError>;
 
     /// Set the direct submodule in the parameter store.
     ///
@@ -96,7 +98,7 @@ pub trait ParamStore: Display + Clone {
     /// Get the direct submodules in the parameter store.
     ///
     /// # Returns
-    /// * `Ok(Vec<&Self>)` - The submodules in the parameter store.
+    /// * `Ok(Vec<Self>)` - The submodules in the parameter store.
     /// * `Err(ParamStoreError)` - The error when getting the submodules.
     fn modules(&self) -> Result<Vec<Self>, ParamStoreError>;
 
@@ -108,12 +110,12 @@ pub trait ParamStore: Display + Clone {
     /// # Returns
     /// * `Ok(())` - If the parameter is successfully set.
     /// * `Err(ParamStoreError)` - The error when setting the parameter.
-    fn set_paramter(&self, param: Parameter) -> Result<(), ParamStoreError>;
+    fn set_parameter(&self, param: Parameter) -> Result<(), ParamStoreError>;
 
     /// Get the direct parameters in the store.
     ///
     /// # Returns
-    /// * `Ok(Vec<&Parameter>)` - The parameters in the store.
+    /// * `Ok(Vec<Parameter>)` - The parameters in the store.
     /// * `Err(ParamStoreError)` - The error when getting the parameters.
     fn parameters(&self) -> Result<Vec<Parameter>, ParamStoreError>;
 }
