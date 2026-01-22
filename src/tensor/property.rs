@@ -1,7 +1,12 @@
-use crate::tensor::{DType, Device, Shape, Tensor, TensorError, tensor::TensorInner};
+use std::sync::{Arc, RwLock};
+
+use crate::tensor::{
+    DType, Device, Shape, Tensor, TensorError,
+    tensor::{TensorData, TensorInner},
+};
 
 impl Tensor {
-    /// Move the tensor to the specified device.
+    /// Move the tensor to the specified device inplace.
     ///
     /// # Arguments
     /// * `device` - The device to move the tensor to.
@@ -14,44 +19,86 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, TensorError};
     /// let cpu = Device::cpu();
-    /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
-    /// // Move the tensor to the CPU(It already on the CPU, so it will return an error)
-    /// match tensor.to_device(&cpu) {
+    /// // Move the tensor to the CPU
+    /// match tensor.to_device_inplace(&cpu) {
     ///     Ok(()) => println!("Tensor has been moved to CPU"),
     ///     Err(err) => println!("Error moving tensor to CPU: {:?}", err),
     /// }
     /// ```
-    pub fn to_device(&self, device: &Device) -> Result<(), TensorError> {
+    pub fn to_device_inplace(&self, device: &Device) -> Result<(), TensorError> {
         // Check the device
         if self.device()? == *device {
             return Ok(());
         }
 
-        // Update the device
-        *self.data.device.write()? = device.clone();
-
-        // Move the inner to the device
-        let mut inner = self.data.inner.write()?;
-        match &mut *inner {
-            TensorInner::Tensor(tensor) => {
-                *tensor = tensor.to_device(device)?;
-            }
+        // Create the new inner
+        let new_inner = match &*self.data.inner.read()? {
+            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_device(device)?),
             TensorInner::Var(var) => {
-                *var = candle_core::Var::from_tensor(&var.to_device(device)?)?;
+                TensorInner::Var(candle_core::Var::from_tensor(&var.to_device(device)?)?)
             }
-        }
+        };
 
-        // Move the gradient to the device
-        let mut grad = self.data.grad.write()?;
-        if let Some(grad) = grad.as_mut() {
-            *grad = grad.to_device(device)?;
-        }
+        // Create the new gradient
+        let new_grad = match &*self.data.grad.read()? {
+            Some(grad) => Some(grad.to_device(device)?),
+            None => None,
+        };
 
-        // Clear the parents
-        let mut parents = self.data.parents.write()?;
-        parents.clear();
+        {
+            let mut inner_write = self.data.inner.write()?;
+            let mut grad_write = self.data.grad.write()?;
+            let mut device_write = self.data.device.write()?;
+
+            // Update the inner
+            *inner_write = new_inner;
+            // Update the gradient
+            *grad_write = new_grad;
+            // Update the device
+            *device_write = device.clone();
+        }
         Ok(())
+    }
+
+    /// Create a new tensor like the current tensor, but on the specified device.
+    ///
+    /// # Arguments
+    /// * `device` - The device to move the tensor to.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The new tensor on the specified device.
+    /// * `Err(TensorError)` - The error when moving the tensor to the device.
+    pub fn to_device(&self, device: &Device) -> Result<Tensor, TensorError> {
+        // Check the device, if the device is the same, return the original tensor
+        if self.device()? == *device {
+            return Ok(self.clone());
+        }
+
+        // Create the new inner
+        let new_inner = match &*self.data.inner.read()? {
+            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_device(device)?),
+            TensorInner::Var(var) => {
+                TensorInner::Var(candle_core::Var::from_tensor(&var.to_device(device)?)?)
+            }
+        };
+
+        // Create the new gradient
+        let new_grad = match &*self.data.grad.read()? {
+            Some(grad) => Some(grad.to_device(device)?),
+            None => None,
+        };
+
+        // Create the new tensor
+        Ok(Tensor {
+            data: Arc::new(TensorData {
+                inner: RwLock::new(new_inner),
+                grad: RwLock::new(new_grad),
+                device: RwLock::new(device.clone()),
+                parents: RwLock::new(vec![self.clone()]),
+            }),
+        })
     }
 
     /// Get the device of the tensor.
@@ -157,6 +204,27 @@ impl Tensor {
             TensorInner::Var(var) => var.dtype(),
         };
         Ok(dtype)
+    }
+
+    /// Reshape the tensor inplace to the specified shape.
+    ///
+    /// # Arguments
+    /// * `shape` - The shape to reshape the tensor to.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the tensor is successfully reshaped.
+    /// * `Err(TensorError)` - The error when reshaping the tensor.
+    pub fn to_shape_inplace(&self, shape: &Shape) -> Result<(), TensorError> {
+        let mut inner = self.data.inner.write()?;
+        match &mut *inner {
+            TensorInner::Tensor(tensor) => {
+                *tensor = tensor.reshape(shape)?;
+            }
+            TensorInner::Var(var) => {
+                *var = candle_core::Var::from_tensor(&var.reshape(shape)?)?;
+            }
+        }
+        Ok(())
     }
 
     /// Get the shape of the tensor.

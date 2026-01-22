@@ -1,6 +1,6 @@
 use crate::{
     model::paramstore::{ParamStore, ParamStoreError},
-    tensor::{Device, Tensor},
+    tensor::{Device, Tensor, TensorError},
 };
 use thiserror::Error;
 
@@ -11,6 +11,9 @@ pub mod paramstore;
 pub enum ModelError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+
+    #[error("Tensor error: {0}")]
+    TensorError(#[from] TensorError),
 
     #[error("ParamStore error: {0}")]
     ParamStoreError(#[from] ParamStoreError),

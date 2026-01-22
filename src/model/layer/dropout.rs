@@ -2,13 +2,15 @@ use crate::{
     model::{Model, ModelError, paramstore::ParamStore},
     tensor::Tensor,
 };
+use rand::{Rng, rngs::ThreadRng};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ID: AtomicUsize = AtomicUsize::new(1);
 
 pub struct Dropout<P: ParamStore> {
-    pub dropout_prob: f32,
-    pub param_store: P,
+    dropout_prob: f32,
+    param_store: P,
+    rng: ThreadRng,
 }
 
 impl<P: ParamStore> Dropout<P> {
@@ -32,6 +34,7 @@ impl<P: ParamStore> Dropout<P> {
         Ok(Self {
             dropout_prob,
             param_store,
+            rng: rand::rng(),
         })
     }
 }
@@ -45,7 +48,31 @@ impl<P: ParamStore> Model for Dropout<P> {
         Ok(vec![self.param_store.clone()])
     }
 
-    fn forward(&mut self, _input: Self::Input) -> Result<Self::Output, ModelError> {
-        todo!()
+    fn forward(&mut self, input: Self::Input) -> Result<Self::Output, ModelError> {
+        let (x, training) = input;
+        match training {
+            true => {
+                let scale = 1.0 / (1.0 - self.dropout_prob);
+                let shape = x.shape()?;
+                let total_size = shape.dims().iter().product::<usize>();
+
+                let mask_vec = (0..total_size)
+                    .map(|_| {
+                        if self.rng.random::<f32>() >= self.dropout_prob {
+                            scale
+                        } else {
+                            0.0
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                let mask = Tensor::from_data(mask_vec, &x.device()?, false)?;
+                mask.to_dtype(&x.dtype()?)?;
+                mask.to_shape_inplace(&x.shape()?)?;
+
+                Ok(x.mul(&mask)?)
+            }
+            false => Ok(x),
+        }
     }
 }

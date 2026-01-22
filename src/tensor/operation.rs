@@ -57,6 +57,40 @@ impl Tensor {
         })
     }
 
+    /// Multiply two tensors element-wise.
+    ///
+    /// # Arguments
+    /// * `other` - The tensor to multiply.
+    ///
+    /// # Returns
+    /// * `Ok(Self)` - The result tensor after multiplication.
+    /// * `Err(TensorError)` - The error when multiplying the tensors.
+    pub fn mul(&self, other: &Self) -> Result<Self, TensorError> {
+        // Get the inner tensors
+        let inner1 = self.data.inner.read()?;
+        let inner1_tensor = match &*inner1 {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+        let inner2 = other.data.inner.read()?;
+        let inner2_tensor = match &*inner2 {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        // Create the inner
+        let new_inner = TensorInner::Tensor(inner1_tensor.mul(inner2_tensor)?);
+
+        Ok(Self {
+            data: Arc::new(TensorData {
+                inner: RwLock::new(new_inner),
+                device: RwLock::new(self.data.device.read()?.clone()),
+                parents: RwLock::new(vec![self.clone(), other.clone()]),
+                grad: RwLock::new(None),
+            }),
+        })
+    }
+
     /// Stack a list of tensors along a new dimension.
     ///
     /// # Arguments
