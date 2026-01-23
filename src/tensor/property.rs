@@ -122,7 +122,7 @@ impl Tensor {
         Ok(device.clone())
     }
 
-    /// Convert the tensor to the specified dtype.
+    /// Convert the tensor to the specified dtype inplace.
     ///
     /// # Notes
     /// * The gradient (if present) is also converted to the same dtype to maintain consistency.
@@ -141,12 +141,12 @@ impl Tensor {
     /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// // Convert the tensor to F64 dtype
-    /// match tensor.to_dtype(&DType::F64) {
+    /// match tensor.to_dtype_inplace(&DType::F64) {
     ///     Ok(()) => println!("Tensor has been converted to F64 dtype"),
     ///     Err(err) => println!("Error converting tensor to F64 dtype: {:?}", err),
     /// }
     /// ```
-    pub fn to_dtype(&self, dtype: &DType) -> Result<(), TensorError> {
+    pub fn to_dtype_inplace(&self, dtype: &DType) -> Result<(), TensorError> {
         // Check current dtype first to avoid unnecessary conversion
         let current_dtype = {
             let inner = self.data.inner.read()?;
@@ -161,21 +161,28 @@ impl Tensor {
             return Ok(());
         }
 
-        // Convert the inner to the dtype
-        let mut inner = self.data.inner.write()?;
-        match &mut *inner {
-            TensorInner::Tensor(tensor) => {
-                *tensor = tensor.to_dtype(*dtype)?;
-            }
+        // Create the new inner
+        let new_inner = match &*self.data.inner.read()? {
+            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_dtype(*dtype)?),
             TensorInner::Var(var) => {
-                *var = candle_core::Var::from_tensor(&var.to_dtype(*dtype)?)?;
+                TensorInner::Var(candle_core::Var::from_tensor(&var.to_dtype(*dtype)?)?)
             }
-        }
+        };
 
-        // Convert the gradient to the dtype
-        let mut grad = self.data.grad.write()?;
-        if let Some(grad) = grad.as_mut() {
-            *grad = grad.to_dtype(*dtype)?;
+        // Create the new gradient
+        let new_grad = match &*self.data.grad.read()? {
+            Some(grad) => Some(grad.to_dtype(*dtype)?),
+            None => None,
+        };
+
+        {
+            let mut inner_write = self.data.inner.write()?;
+            let mut grad_write = self.data.grad.write()?;
+
+            // Update the inner
+            *inner_write = new_inner;
+            // Update the gradient
+            *grad_write = new_grad;
         }
 
         Ok(())
@@ -215,16 +222,59 @@ impl Tensor {
     /// * `Ok(())` - If the tensor is successfully reshaped.
     /// * `Err(TensorError)` - The error when reshaping the tensor.
     pub fn to_shape_inplace(&self, shape: &Shape) -> Result<(), TensorError> {
-        let mut inner = self.data.inner.write()?;
-        match &mut *inner {
-            TensorInner::Tensor(tensor) => {
-                *tensor = tensor.reshape(shape)?;
-            }
+        let new_inner = match &*self.data.inner.read()? {
+            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.reshape(shape)?),
             TensorInner::Var(var) => {
-                *var = candle_core::Var::from_tensor(&var.reshape(shape)?)?;
+                TensorInner::Var(candle_core::Var::from_tensor(&var.reshape(shape)?)?)
             }
+        };
+
+        let new_grad = match &*self.data.grad.read()? {
+            Some(grad) => Some(grad.reshape(shape)?),
+            None => None,
+        };
+
+        {
+            let mut inner_write = self.data.inner.write()?;
+            let mut grad_write = self.data.grad.write()?;
+
+            // Update the inner
+            *inner_write = new_inner;
+            // Update the gradient
+            *grad_write = new_grad;
         }
         Ok(())
+    }
+
+    /// Create a new tensor like the current tensor with the specified shape.
+    ///
+    /// # Arguments
+    /// * `shape` - The shape to reshape the tensor to.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The new tensor with the specified shape.
+    /// * `Err(TensorError)` - The error when reshaping the tensor.
+    pub fn to_shape(&self, shape: &Shape) -> Result<Tensor, TensorError> {
+        let new_inner = match &*self.data.inner.read()? {
+            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.reshape(shape)?),
+            TensorInner::Var(var) => {
+                TensorInner::Var(candle_core::Var::from_tensor(&var.reshape(shape)?)?)
+            }
+        };
+
+        let new_grad = match &*self.data.grad.read()? {
+            Some(grad) => Some(grad.reshape(shape)?),
+            None => None,
+        };
+
+        Ok(Tensor {
+            data: Arc::new(TensorData {
+                inner: RwLock::new(new_inner),
+                grad: RwLock::new(new_grad),
+                device: RwLock::new(self.data.device.read()?.clone()),
+                parents: RwLock::new(vec![self.clone()]),
+            }),
+        })
     }
 
     /// Get the shape of the tensor.

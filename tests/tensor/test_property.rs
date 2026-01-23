@@ -10,12 +10,12 @@ fn test_to_device_inplace_and_device_with_cpu() {
     assert_eq!(tensor.to_device_inplace(&cpu), Ok(()));
 }
 
-fn test_to_dtype_and_dtype(tensor: &Tensor, original_dtype: &DType, tardtype: &DType) {
+fn test_to_dtype_inplace_and_dtype(tensor: &Tensor, original_dtype: &DType, tardtype: &DType) {
     // Check original dtype
     assert_eq!(tensor.dtype().unwrap(), *original_dtype);
 
     // Try to convert to target dtype
-    assert_eq!(Ok(()), tensor.to_dtype(tardtype));
+    assert_eq!(Ok(()), tensor.to_dtype_inplace(tardtype));
 
     // Check the current dtype
     assert_eq!(tensor.dtype().unwrap(), *tardtype);
@@ -32,10 +32,10 @@ proptest! {
 
         // If original_dtype is not F32, convert it to original_dtype
         if original_dtype != DType::F32 {
-            tensor.to_dtype(&original_dtype).unwrap();
+            tensor.to_dtype_inplace(&original_dtype).unwrap();
         }
 
-        test_to_dtype_and_dtype(&mut tensor, &original_dtype, &tardtype);
+        test_to_dtype_inplace_and_dtype(&mut tensor, &original_dtype, &tardtype);
     }
 }
 

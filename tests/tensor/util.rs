@@ -82,7 +82,7 @@ where
     };
 
     if *dtype != tensor.dtype().unwrap() {
-        tensor.to_dtype(dtype).unwrap();
+        tensor.to_dtype_inplace(dtype).unwrap();
     }
 
     // Convert data to the specified dtype
