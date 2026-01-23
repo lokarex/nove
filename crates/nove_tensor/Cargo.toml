@@ -1,0 +1,25 @@
+[package]
+name = "nove_tensor"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+candle-core = { workspace = true }
+crossbeam = { workspace = true }
+dashmap = { workspace = true }
+thiserror = { workspace = true }
+rayon = { workspace = true }
+
+[dev-dependencies]
+nove = { path = "../nove" }
+proptest = { workspace = true }
+rand = { workspace = true }
+
+[features]
+default = []
+cuda = ["candle-core/cuda"]
+metal = ["candle-core/metal"]

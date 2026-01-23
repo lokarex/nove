@@ -1,0 +1,17 @@
+[package]
+name = "nove_dataset"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bincode = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]
+nove = { path = "../nove" }
+rand = { workspace = true }
+tempfile = { workspace = true }

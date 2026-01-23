@@ -1,0 +1,15 @@
+[package]
+name = "nove_model"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+candle-core = { workspace = true }
+indexmap = { workspace = true }
+nove_tensor = { path = "../nove_tensor" }
+rand = { workspace = true }
+thiserror = { workspace = true }

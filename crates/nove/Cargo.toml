@@ -1,0 +1,13 @@
+[package]
+name = "nove"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+nove_dataloader = { path = "../nove_dataloader" }
+nove_dataset = { path = "../nove_dataset" }
+nove_tensor = { path = "../nove_tensor" }
