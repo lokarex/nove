@@ -8,6 +8,6 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-nove_dataloader = { path = "../nove_dataloader" }
-nove_dataset = { path = "../nove_dataset" }
-nove_tensor = { path = "../nove_tensor" }
+nove_dataloader = { path = "../nove_dataloader", version = "=0.1.1" }
+nove_dataset = { path = "../nove_dataset", version = "=0.1.1" }
+nove_tensor = { path = "../nove_tensor", version = "=0.1.1" }

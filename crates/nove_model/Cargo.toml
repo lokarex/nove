@@ -10,6 +10,6 @@ repository.workspace = true
 [dependencies]
 candle-core = { workspace = true }
 indexmap = { workspace = true }
-nove_tensor = { path = "../nove_tensor" }
+nove_tensor = { path = "../nove_tensor", version = "=0.1.1" }
 rand = { workspace = true }
 thiserror = { workspace = true }
