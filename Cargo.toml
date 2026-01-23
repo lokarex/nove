@@ -14,7 +14,7 @@ members = [
 
 [workspace.package]
 name = "nove"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["lokarex <lokarex@outlook.com>"]
 description = "An easy-to-use, lightweight deep learning library wrapped around Candle Tensor."

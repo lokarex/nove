@@ -832,7 +832,7 @@ dependencies = [
 
 [[package]]
 name = "nove"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "nove_dataloader",
  "nove_dataset",
@@ -841,7 +841,7 @@ dependencies = [
 
 [[package]]
 name = "nove_dataloader"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "nove",
  "nove_dataset",
@@ -851,7 +851,7 @@ dependencies = [
 
 [[package]]
 name = "nove_dataset"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bincode",
  "nove",
@@ -861,19 +861,19 @@ dependencies = [
 
 [[package]]
 name = "nove_learner"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "nove_lossfn"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "nove_macro"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "nove_model"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "candle-core",
  "indexmap",
@@ -884,11 +884,11 @@ dependencies = [
 
 [[package]]
 name = "nove_optimizer"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "nove_tensor"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "candle-core",
  "crossbeam",
