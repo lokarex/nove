@@ -50,7 +50,7 @@ where
     }
 
     // Create tensor from data
-    let tensor = match num_dim {
+    let mut tensor = match num_dim {
         1 => Tensor::from_data(&data[..dims[0]], device, grad_enabled).unwrap(),
         2 => {
             let data_2d: Vec<Vec<f32>> = data[..dims[0] * dims[1]]

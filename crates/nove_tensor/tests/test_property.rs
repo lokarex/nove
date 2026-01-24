@@ -4,13 +4,13 @@ use proptest::prelude::*;
 #[test]
 fn test_to_device_inplace_and_device_with_cpu() {
     let cpu = Device::cpu();
-    let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
 
     assert_eq!(tensor.device().unwrap(), cpu);
     assert_eq!(tensor.to_device_inplace(&cpu), Ok(()));
 }
 
-fn test_to_dtype_inplace_and_dtype(tensor: &Tensor, original_dtype: &DType, tardtype: &DType) {
+fn test_to_dtype_inplace_and_dtype(tensor: &mut Tensor, original_dtype: &DType, tardtype: &DType) {
     // Check original dtype
     assert_eq!(tensor.dtype().unwrap(), *original_dtype);
 

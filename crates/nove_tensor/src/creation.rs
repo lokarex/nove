@@ -63,17 +63,12 @@ impl Tensor {
             false => TensorInner::Tensor(candle_core::Tensor::rand(low, high, shape, device)?),
         };
 
-        let grad = match &inner {
-            TensorInner::Var(var) => Some(var.zeros_like()?),
-            TensorInner::Tensor(_) => None,
-        };
-
         Ok(Self {
             data: Arc::new(TensorData {
                 inner: RwLock::new(inner),
                 device: RwLock::new(device.clone()),
                 parents: RwLock::new(vec![]),
-                grad: RwLock::new(grad),
+                grad: RwLock::new(None),
             }),
         })
     }

@@ -64,9 +64,9 @@ impl<P: ParamStore> Model for Dropout<P> {
                     })
                     .collect::<Vec<_>>();
 
-                let mask = Tensor::from_data(mask_vec, &x.device()?, false)?;
-                mask.to_dtype_inplace(&x.dtype()?)?;
-                mask.to_shape_inplace(&x.shape()?)?;
+                let mask = Tensor::from_data(mask_vec, &x.device()?, false)?
+                    .to_dtype(&x.dtype()?)?
+                    .to_shape(&x.shape()?)?;
 
                 Ok(x.mul(&mask)?)
             }

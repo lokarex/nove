@@ -4,7 +4,7 @@ use nove::tensor::{Device, Tensor};
 fn test_set_grad_enabled() {
     let device = Device::cpu();
 
-    let t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
+    let mut t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, false).unwrap();
 
     // Check if the gradient status is disabled by default
     assert_eq!(t.grad_enabled().unwrap(), false);
@@ -22,7 +22,7 @@ fn test_set_grad_enabled() {
 fn test_set_grad() {
     let device = Device::cpu();
 
-    let t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, true).unwrap();
+    let mut t = Tensor::from_data(&[1.0f64, 2.0f64, 3.0f64], &device, true).unwrap();
 
     // Check if the gradient tensor can be set
     let grad = Tensor::from_data(&[0.1f64, 0.2f64, 0.3f64], &device, false).unwrap();

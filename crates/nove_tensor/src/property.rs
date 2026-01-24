@@ -19,7 +19,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, TensorError};
     /// let cpu = Device::cpu();
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// // Move the tensor to the CPU
     /// match tensor.to_device_inplace(&cpu) {
@@ -27,7 +27,7 @@ impl Tensor {
     ///     Err(err) => println!("Error moving tensor to CPU: {:?}", err),
     /// }
     /// ```
-    pub fn to_device_inplace(&self, device: &Device) -> Result<(), TensorError> {
+    pub fn to_device_inplace(&mut self, device: &Device) -> Result<(), TensorError> {
         // Check the device
         if self.device()? == *device {
             return Ok(());
@@ -146,7 +146,7 @@ impl Tensor {
     ///     Err(err) => println!("Error converting tensor to F64 dtype: {:?}", err),
     /// }
     /// ```
-    pub fn to_dtype_inplace(&self, dtype: &DType) -> Result<(), TensorError> {
+    pub fn to_dtype_inplace(&mut self, dtype: &DType) -> Result<(), TensorError> {
         // Check current dtype first to avoid unnecessary conversion
         let current_dtype = {
             let inner = self.data.inner.read()?;
@@ -188,6 +188,53 @@ impl Tensor {
         Ok(())
     }
 
+    /// Create a new tensor like the current tensor but with the specified dtype.
+    ///
+    /// # Arguments
+    /// * `dtype` - The dtype to convert the tensor to.
+    ///
+    /// # Returns
+    /// * `Ok(tensor)` - The new tensor if successful.
+    /// * `Err(TensorError)` - The error when converting the tensor to the dtype.
+    pub fn to_dtype(&self, dtype: &DType) -> Result<Tensor, TensorError> {
+        // Check current dtype first to avoid unnecessary conversion
+        let current_dtype = {
+            let inner = self.data.inner.read()?;
+            match &*inner {
+                TensorInner::Tensor(tensor) => tensor.dtype(),
+                TensorInner::Var(var) => var.dtype(),
+            }
+        };
+
+        // If already the target dtype, return the tensor itself
+        if current_dtype == *dtype {
+            return Ok(self.clone());
+        }
+
+        // Create the new inner
+        let new_inner = match &*self.data.inner.read()? {
+            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_dtype(*dtype)?),
+            TensorInner::Var(var) => {
+                TensorInner::Var(candle_core::Var::from_tensor(&var.to_dtype(*dtype)?)?)
+            }
+        };
+
+        // Create the new gradient
+        let new_grad = match &*self.data.grad.read()? {
+            Some(grad) => Some(grad.to_dtype(*dtype)?),
+            None => None,
+        };
+
+        Ok(Tensor {
+            data: Arc::new(TensorData {
+                inner: RwLock::new(new_inner),
+                device: RwLock::new(self.data.device.read()?.clone()),
+                grad: RwLock::new(new_grad),
+                parents: RwLock::new(vec![self.clone()]),
+            }),
+        })
+    }
+
     /// Get the dtype of the tensor.
     ///
     /// # Returns
@@ -221,7 +268,7 @@ impl Tensor {
     /// # Returns
     /// * `Ok(())` - If the tensor is successfully reshaped.
     /// * `Err(TensorError)` - The error when reshaping the tensor.
-    pub fn to_shape_inplace(&self, shape: &Shape) -> Result<(), TensorError> {
+    pub fn to_shape_inplace(&mut self, shape: &Shape) -> Result<(), TensorError> {
         let new_inner = match &*self.data.inner.read()? {
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.reshape(shape)?),
             TensorInner::Var(var) => {
