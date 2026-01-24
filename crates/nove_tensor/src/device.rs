@@ -13,8 +13,8 @@ pub enum DeviceError {
 }
 
 /// The type of the device.
-#[derive(Debug, PartialEq, Clone)]
-enum DeviceTpye {
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum DeviceKind {
     Cpu,
     #[cfg(feature = "cuda")]
     Cuda,
@@ -26,12 +26,12 @@ enum DeviceTpye {
 ///
 /// # Fields
 /// * `inner` - The inner device from candle.
-/// * `device_type` - The type of the device.
+/// * `kind` - The type of the device.
 /// * `index` - The index of the device.
 #[derive(Debug, Clone)]
 pub struct Device {
     inner: candle_core::Device,
-    device_type: DeviceTpye,
+    kind: DeviceKind,
     index: usize,
 }
 
@@ -51,7 +51,7 @@ impl Device {
     pub fn cpu() -> Self {
         Self {
             inner: candle_core::Device::Cpu,
-            device_type: DeviceTpye::Cpu,
+            kind: DeviceKind::Cpu,
             index: 0,
         }
     }
@@ -79,7 +79,7 @@ impl Device {
     pub fn cuda(index: usize) -> Result<Self, DeviceError> {
         Ok(Self {
             inner: candle_core::Device::new_cuda(index)?,
-            device_type: DeviceTpye::Cuda,
+            kind: DeviceKind::Cuda,
             index,
         })
     }
@@ -104,14 +104,14 @@ impl Device {
     /// ```
     #[cfg(feature = "cuda")]
     pub fn cuda_if_available(index: usize) -> Self {
-        let (device, device_type, index) = match candle_core::Device::new_cuda(index) {
-            Ok(device) => (device, DeviceTpye::Cuda, index),
-            Err(_) => (candle_core::Device::Cpu, DeviceTpye::Cpu, 0),
+        let (device, kind, index) = match candle_core::Device::new_cuda(index) {
+            Ok(device) => (device, DeviceKind::Cuda, index),
+            Err(_) => (candle_core::Device::Cpu, DeviceKind::Cpu, 0),
         };
 
         Self {
             inner: device,
-            device_type,
+            kind,
             index,
         }
     }
@@ -139,7 +139,7 @@ impl Device {
     pub fn metal(index: usize) -> Result<Self, DeviceError> {
         Ok(Self {
             inner: candle_core::Device::new_metal(index)?,
-            device_type: DeviceTpye::Metal,
+            kind: DeviceKind::Metal,
             index,
         })
     }
@@ -164,16 +164,103 @@ impl Device {
     /// ```
     #[cfg(feature = "metal")]
     pub fn metal_if_available(index: usize) -> Self {
-        let (device, device_type, index) = match candle_core::Device::new_metal(index) {
-            Ok(device) => (device, DeviceTpye::Metal, index),
-            Err(_) => (candle_core::Device::Cpu, DeviceTpye::Cpu, 0),
+        let (device, kind, index) = match candle_core::Device::new_metal(index) {
+            Ok(device) => (device, DeviceKind::Metal, index),
+            Err(_) => (candle_core::Device::Cpu, DeviceKind::Cpu, 0),
         };
 
         Self {
             inner: device,
-            device_type,
+            kind,
             index,
         }
+    }
+
+    /// Get the kind of the device.
+    ///
+    /// # Returns
+    /// * `DeviceKind` - The kind of the device.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::Device;
+    ///
+    /// let device = Device::cpu();
+    /// let kind = device.kind();
+    /// println!("{:?}", kind);
+    /// ```
+    pub fn kind(&self) -> DeviceKind {
+        self.kind
+    }
+
+    /// Get the index of the device.
+    ///
+    /// # Returns
+    /// * `usize` - The index of the device.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::Device;
+    ///
+    /// let device = Device::cpu();
+    /// let index = device.index();
+    /// println!("{}", index);
+    /// ```
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    /// Check if the device is a CPU device.
+    ///
+    /// # Returns
+    /// * `bool` - `true` if the device is a CPU device, otherwise `false`.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::Device;
+    ///
+    /// let device = Device::cpu();
+    /// let is_cpu = device.is_cpu();
+    /// println!("{}", is_cpu);
+    /// ```
+    pub fn is_cpu(&self) -> bool {
+        self.kind == DeviceKind::Cpu
+    }
+
+    /// Check if the device is a CUDA device.
+    ///
+    /// # Returns
+    /// * `bool` - `true` if the device is a CUDA device, otherwise `false`.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::Device;
+    ///
+    /// let device = Device::cuda_if_available(0);
+    /// let is_cuda = device.is_cuda();
+    /// println!("{}", is_cuda);
+    /// ```
+    #[cfg(feature = "cuda")]
+    pub fn is_cuda(&self) -> bool {
+        self.kind == DeviceKind::Cuda
+    }
+
+    /// Check if the device is a Metal device.
+    ///
+    /// # Returns
+    /// * `bool` - `true` if the device is a Metal device, otherwise `false`.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::Device;
+    ///
+    /// let device = Device::metal_if_available(0);
+    /// let is_metal = device.is_metal();
+    /// println!("{}", is_metal);
+    /// ```
+    #[cfg(feature = "metal")]
+    pub fn is_metal(&self) -> bool {
+        self.kind == DeviceKind::Metal
     }
 }
 
@@ -187,32 +274,32 @@ impl std::ops::Deref for Device {
 
 impl PartialEq for Device {
     fn eq(&self, other: &Self) -> bool {
-        self.device_type == other.device_type && self.index == other.index
+        self.kind == other.kind && self.index == other.index
     }
 }
 
 impl Eq for Device {}
 
-impl Display for DeviceTpye {
+impl Display for DeviceKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DeviceTpye::Cpu => write!(f, "cpu"),
+            DeviceKind::Cpu => write!(f, "cpu"),
             #[cfg(feature = "cuda")]
-            DeviceTpye::Cuda => write!(f, "cuda"),
+            DeviceKind::Cuda => write!(f, "cuda"),
             #[cfg(feature = "metal")]
-            DeviceTpye::Metal => write!(f, "metal"),
+            DeviceKind::Metal => write!(f, "metal"),
         }
     }
 }
 
 impl Display for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.device_type {
-            DeviceTpye::Cpu => write!(f, "{}", self.device_type),
+        match self.kind {
+            DeviceKind::Cpu => write!(f, "{}", self.kind),
             #[cfg(feature = "cuda")]
-            DeviceTpye::Cuda => write!(f, "{}({})", self.device_type, self.index),
+            DeviceKind::Cuda => write!(f, "{}({})", self.kind, self.index),
             #[cfg(feature = "metal")]
-            DeviceTpye::Metal => write!(f, "{}({})", self.device_type, self.index),
+            DeviceKind::Metal => write!(f, "{}({})", self.kind, self.index),
         }
     }
 }
