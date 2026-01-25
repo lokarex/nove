@@ -4,6 +4,7 @@ use nove::dataset::Dataset;
 ///
 /// The type of item in the dataset is `usize`. It contains
 /// 100 items, each item is the index of the item.
+#[derive(Clone)]
 pub struct SimpleDataset {}
 impl Dataset for SimpleDataset {
     type Item = usize;

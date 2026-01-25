@@ -1,6 +1,6 @@
 mod util;
 
-use nove::dataset::{Dataset, util::PersistedDataset};
+use nove::dataset::{Dataset, common::PersistedDataset};
 use tempfile::TempDir;
 use util::SimpleDataset;
 

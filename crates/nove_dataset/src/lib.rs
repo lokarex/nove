@@ -2,7 +2,7 @@
 //! provides some real datasets and achieves a few practical `Dataset` structs
 //! to handle datasets.
 
-pub mod util;
+pub mod common;
 
 /// The `Dataset` trait defines a generic interface for datasets.
 /// Every dataset should implement this trait.

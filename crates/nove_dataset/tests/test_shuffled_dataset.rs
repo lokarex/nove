@@ -1,6 +1,6 @@
 mod util;
 
-use nove::dataset::{Dataset, util::ShuffledDataset};
+use nove::dataset::{Dataset, common::ShuffledDataset};
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 use util::SimpleDataset;
 

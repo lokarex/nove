@@ -1,6 +1,6 @@
 mod util;
 
-use nove::dataset::{Dataset, util::IterableDataset};
+use nove::dataset::{Dataset, common::IterableDataset};
 use util::SimpleDataset;
 
 #[test]
