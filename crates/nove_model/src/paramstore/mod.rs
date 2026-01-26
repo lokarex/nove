@@ -8,16 +8,20 @@ pub mod safetensors;
 
 #[derive(Error, Debug)]
 pub enum ParamStoreError {
-    #[error("IO error: {0}")]
+    /// I/O errors from the standard library.
+    #[error(transparent)]
     IoError(#[from] std::io::Error),
 
-    #[error("Tensor error: {0}")]
+    /// Tensor errors from the `nove_tensor` crate.
+    #[error(transparent)]
     TensorError(#[from] TensorError),
 
+    /// RwLock poisoned errors from the standard library.
     #[error("RwLock poisoned: {0}")]
     RwLockPoisoned(String),
 
-    #[error("Other error: {0}")]
+    /// Other errors.
+    #[error("{0}")]
     OtherError(String),
 }
 

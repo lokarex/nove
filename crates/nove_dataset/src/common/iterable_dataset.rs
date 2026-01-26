@@ -1,4 +1,4 @@
-use crate::Dataset;
+use crate::{Dataset, DatasetError};
 
 /// IterableDataset could wrap a dataset and offer a way to iterate over it.
 ///
@@ -14,11 +14,9 @@ use crate::Dataset;
 /// # Fields
 /// * `inner` - The inner dataset.
 /// * `index` - The current index of the iterator.
-/// * `len` - The number of items in the dataset.
 pub struct IterableDataset<'a, D: Dataset> {
     inner: &'a dyn Dataset<Item = D::Item>,
     index: usize,
-    len: usize,
 }
 
 impl<'a, D: Dataset> IterableDataset<'a, D> {
@@ -28,33 +26,40 @@ impl<'a, D: Dataset> IterableDataset<'a, D> {
     /// * `dataset` - The dataset to wrap.
     ///
     /// # Returns
-    /// A new `IterableDataset` instance.
-    pub fn from_dataset(dataset: &'a D) -> Self {
-        Self {
+    /// * `Ok(Self)` - A new `IterableDataset` instance.
+    /// * `Err(DatasetError)` - The error when creating the `IterableDataset` instance.
+    pub fn from_dataset(dataset: &'a D) -> Result<Self, DatasetError> {
+        Ok(Self {
             inner: dataset as &'a dyn Dataset<Item = D::Item>,
             index: 0,
-            len: dataset.len(),
-        }
+        })
     }
 }
 
 impl<'a, D: Dataset> Dataset for IterableDataset<'a, D> {
     type Item = D::Item;
 
-    fn get(&self, index: usize) -> Self::Item {
+    fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
         self.inner.get(index)
     }
 
-    fn len(&self) -> usize {
-        self.len
+    fn len(&self) -> Result<usize, DatasetError> {
+        self.inner.len()
     }
 }
 
 impl<'a, D: Dataset> Iterator for IterableDataset<'a, D> {
-    type Item = D::Item;
+    type Item = Result<D::Item, DatasetError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.len {
+        let len = match self.len() {
+            Ok(len) => len,
+            Err(err) => {
+                return Some(Err(err));
+            }
+        };
+
+        if self.index >= len {
             return None;
         }
         let item = self.inner.get(self.index);
@@ -64,14 +69,13 @@ impl<'a, D: Dataset> Iterator for IterableDataset<'a, D> {
 }
 
 impl<'a, D: Dataset> IntoIterator for &'a IterableDataset<'a, D> {
-    type Item = D::Item;
+    type Item = Result<D::Item, DatasetError>;
     type IntoIter = IterableDataset<'a, D>;
 
     fn into_iter(self) -> Self::IntoIter {
         IterableDataset {
             inner: self.inner,
             index: self.index,
-            len: self.len,
         }
     }
 }

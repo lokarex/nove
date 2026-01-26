@@ -83,8 +83,10 @@ where
     type Output = B;
 
     fn next(&mut self) -> Result<Option<Self::Output>, DataloaderError> {
+        let dataset_len = self.dataset.len()?;
+
         if self.indices.is_empty() {
-            self.indices = (0..self.dataset.len()).collect();
+            self.indices = (0..dataset_len).collect();
         }
 
         // Shuffle the indices before the first batch.
@@ -92,15 +94,15 @@ where
             self.shuffle_indices(self.shuffle_seed.unwrap());
         }
 
-        if self.index >= self.dataset.len() {
+        if self.index >= dataset_len {
             return Ok(None);
         }
 
         for _ in 0..self.batch_size {
-            if self.index >= self.dataset.len() {
+            if self.index >= dataset_len {
                 break;
             }
-            let item = self.dataset.get(self.indices[self.index]);
+            let item = self.dataset.get(self.indices[self.index])?;
             self.datas.push((self.process_fn)(item)?);
             self.index += 1;
         }

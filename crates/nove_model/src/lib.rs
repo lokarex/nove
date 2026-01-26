@@ -7,16 +7,20 @@ pub mod paramstore;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
-    #[error("IO error: {0}")]
+    /// I/O errors from the standard library.
+    #[error(transparent)]
     IoError(#[from] std::io::Error),
 
-    #[error("Tensor error: {0}")]
+    /// Tensor errors from the `nove_tensor` crate.
+    #[error(transparent)]
     TensorError(#[from] TensorError),
 
-    #[error("ParamStore error: {0}")]
+    /// Parameter store errors from the `nove_model` crate.
+    #[error(transparent)]
     ParamStoreError(#[from] ParamStoreError),
 
-    #[error("Other error: {0}")]
+    /// Other errors.
+    #[error("{0}")]
     OtherError(String),
 }
 

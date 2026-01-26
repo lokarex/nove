@@ -38,7 +38,7 @@ fn test_batched_dataloader() {
 
     let mut counter = 0;
     // Generate the shuffled indices that are the same as the ones in the DataLoader.
-    let mut indices = (0..dataset.len()).collect::<Vec<usize>>();
+    let mut indices = (0..dataset.len().unwrap()).collect::<Vec<usize>>();
     indices.shuffle(&mut StdRng::seed_from_u64(shuffle_seed as u64));
 
     loop {
@@ -57,11 +57,11 @@ fn test_batched_dataloader() {
                 let data = chunk[0];
 
                 // Check the correspondence data.
-                assert_eq!(data, dataset.get(indices[counter]) as i64);
+                assert_eq!(data, dataset.get(indices[counter]).unwrap() as i64);
                 counter += 1;
             });
     }
 
     // Check the number of datas.
-    assert_eq!(counter, dataset.len());
+    assert_eq!(counter, dataset.len().unwrap());
 }

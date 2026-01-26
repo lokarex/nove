@@ -1,10 +1,10 @@
 //! The `util` module provides some practical `Dataset` structs to handle datasets.
 
-mod shuffled_dataset;
-pub use shuffled_dataset::ShuffledDataset;
+mod shufflable_dataset;
+pub use shufflable_dataset::ShufflableDataset;
 
-mod persisted_dataset;
-pub use persisted_dataset::PersistedDataset;
+mod persistent_dataset;
+pub use persistent_dataset::PersistentDataset;
 
 mod iterable_dataset;
 pub use iterable_dataset::IterableDataset;

@@ -2,7 +2,32 @@
 //! provides some real datasets and achieves a few practical `Dataset` structs
 //! to handle datasets.
 
+use thiserror::Error;
+
 pub mod common;
+
+#[derive(Debug, Error)]
+pub enum DatasetError {
+    /// The index is out of bounds.
+    #[error("Index out of bounds: {0} (len: {1})")]
+    IndexOutOfBounds(usize, usize),
+
+    /// I/O errors from the standard library.
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+
+    /// Encoding errors from `bincode` library.
+    #[error(transparent)]
+    EncodingError(#[from] bincode::error::EncodeError),
+
+    /// Decoding errors from `bincode` library.
+    #[error(transparent)]
+    DecodingError(#[from] bincode::error::DecodeError),
+
+    /// Other errors.
+    #[error("{0}")]
+    OtherError(String),
+}
 
 /// The `Dataset` trait defines a generic interface for datasets.
 /// Every dataset should implement this trait.
@@ -26,20 +51,23 @@ pub trait Dataset {
     /// * `index` - The index of the item to get.
     ///
     /// # Returns
-    /// The item at the given index.
-    fn get(&self, index: usize) -> Self::Item;
+    /// * `Ok(Self::Item)` - The item at the given index.
+    /// * `Err(DatasetError)` - The error when getting the item at the given index.
+    fn get(&self, index: usize) -> Result<Self::Item, DatasetError>;
 
     /// Get the number of items in the dataset.
     ///
     /// # Returns
-    /// The number of items in the dataset.
-    fn len(&self) -> usize;
+    /// * `Ok(usize)` - The number of items in the dataset.
+    /// * `Err(DatasetError)` - The error when getting the number of items in the dataset.
+    fn len(&self) -> Result<usize, DatasetError>;
 
     /// Check if the dataset is empty.
     ///
     /// # Returns
-    /// `true` if the dataset is empty, `false` otherwise.
-    fn is_empty(&self) -> bool {
-        self.len() == 0
+    /// * `Ok(bool)` - `true` if the dataset is empty, `false` otherwise.
+    /// * `Err(DatasetError)` - The error when checking if the dataset is empty.
+    fn is_empty(&self) -> Result<bool, DatasetError> {
+        Ok(self.len()? == 0)
     }
 }

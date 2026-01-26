@@ -1,10 +1,10 @@
-use crate::Dataset;
+use crate::{Dataset, DatasetError};
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 
 /// A dataset that wraps another dataset and shuffles its indices.
 ///
 /// # Note
-/// * The dataset that is wrapped by `ShuffledDataset` must implement `Dataset` trait.
+/// * The dataset that is wrapped by `ShufflableDataset` must implement `Dataset` trait.
 ///
 /// # Lifetime Parameters
 /// * `'a` - The lifetime of the inner dataset.
@@ -15,26 +15,27 @@ use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 /// # Fields
 /// * `inner` - The inner dataset.
 /// * `indices` - The shuffled indices of the inner dataset.
-pub struct ShuffledDataset<'a, D: Dataset> {
+pub struct ShufflableDataset<'a, D: Dataset> {
     inner: &'a dyn Dataset<Item = D::Item>,
     indices: Vec<usize>,
 }
 
-impl<'a, D: Dataset> ShuffledDataset<'a, D> {
-    /// Create a new `ShuffledDataset` from the given dataset.
+impl<'a, D: Dataset> ShufflableDataset<'a, D> {
+    /// Create a new `ShufflableDataset` from the given dataset.
     ///
     /// # Arguments
     /// * `dataset` - The dataset to wrap.
     ///
     /// # Returns
-    /// A new `ShuffledDataset` instance.
-    pub fn from_dataset(dataset: &'a D) -> Self {
-        let len = dataset.len();
+    /// * `Ok(Self)` - The new `ShufflableDataset` instance.
+    /// * `Err(DatasetError)` - If the inner dataset is empty.
+    pub fn from_dataset(dataset: &'a D) -> Result<Self, DatasetError> {
+        let len = dataset.len()?;
         let indices = (0..len).collect::<Vec<_>>();
-        Self {
+        Ok(Self {
             inner: dataset as &'a dyn Dataset<Item = D::Item>,
             indices,
-        }
+        })
     }
 
     /// Shuffle the indices of the inner dataset.
@@ -47,14 +48,14 @@ impl<'a, D: Dataset> ShuffledDataset<'a, D> {
     }
 }
 
-impl<'a, D: Dataset> Dataset for ShuffledDataset<'a, D> {
+impl<'a, D: Dataset> Dataset for ShufflableDataset<'a, D> {
     type Item = D::Item;
 
-    fn get(&self, index: usize) -> Self::Item {
+    fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
         self.inner.get(self.indices[index as usize])
     }
 
-    fn len(&self) -> usize {
-        self.indices.len() as usize
+    fn len(&self) -> Result<usize, DatasetError> {
+        Ok(self.indices.len() as usize)
     }
 }

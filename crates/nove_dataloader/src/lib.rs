@@ -1,6 +1,7 @@
 //! The `dataloader` module defines the `Dataloader` trait and provides some
 //! implemented data loader.
 
+use nove_dataset::DatasetError;
 use thiserror::Error;
 
 pub mod common;
@@ -10,6 +11,11 @@ pub enum DataloaderError {
     /// The dataset is empty.
     #[error("The dataset is empty.")]
     EmptyDataset,
+
+    /// Dataset errors from the `nove_dataset` crate.
+    #[error(transparent)]
+    DatasetError(#[from] DatasetError),
+
     /// Other errors.
     #[error("Other errors: {0}")]
     OtherError(String),
