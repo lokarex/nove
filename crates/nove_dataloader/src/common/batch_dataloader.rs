@@ -42,6 +42,27 @@ use nove_dataset::Dataset;
 /// * `indices` - The indices of the dataset which would be shuffled before the first batch if the shuffle_seed is not `None`.
 /// * `datas` - The processed data.
 /// * `phantom` - The phantom data only used to marks that the `B` generic type parameter which would be used later.
+///
+/// # Examples
+/// ```rust
+/// use nove::dataset::common::VecDataset;
+/// use nove::dataloader::common::{BatchDataloaderBuilder, BatchDataloader};
+/// use nove::dataloader::DataloaderError;
+///
+/// let dataset = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
+/// let mut dataloader: BatchDataloader<VecDataset<usize>, usize, Vec<usize>, _, _> = BatchDataloaderBuilder::default()
+///     .dataset(&dataset)       // Required configuration
+///     .batch_size(2)           // Required configuration
+///     .process_fn(             // Required configuration
+///         |x: usize| Ok::<usize, DataloaderError>(x)
+///     )
+///     .collate_fn(             // Required configuration
+///         |x: Vec<usize>| Ok::<Vec<usize>, DataloaderError>(x)
+///     )
+///     .shuffle_seed(Some(42))  // Optional configuration
+///     .build()
+///     .unwrap();
+/// ```
 #[derive(Builder)]
 pub struct BatchDataloader<'a, D: Dataset, O, B, P, C> {
     dataset: &'a dyn Dataset<Item = D::Item>,

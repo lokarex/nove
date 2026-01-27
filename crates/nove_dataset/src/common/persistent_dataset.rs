@@ -27,6 +27,27 @@ use bincode::{Decode, Encode, config};
 /// # Fields
 /// * `inner` - The inner dataset.
 /// * `dataset_file` - The file to persist the items to.
+///
+/// # Examples
+/// ```rust
+/// use tempfile::TempDir;
+/// use nove::dataset::common::{PersistentDataset, VecDataset};
+///
+/// // Create a temporary directory to store the dataset file.
+/// let temp_dir = TempDir::new().unwrap();
+/// let dataset_file = temp_dir.path().join("dataset.bin");
+///
+/// let dataset = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
+/// let persistent_dataset = PersistentDataset::from_dataset(&dataset).unwrap();
+///
+/// // Save the dataset to the file.
+/// persistent_dataset.save_to_file(dataset_file.to_str().unwrap()).unwrap();
+///
+/// // Load the dataset from the file.
+/// let loaded_dataset: PersistentDataset<'_, VecDataset<usize>> = PersistentDataset::load_from_file(
+///     dataset_file.to_str().unwrap(),
+/// ).unwrap();
+/// ```
 pub struct PersistentDataset<'a, D: Dataset>
 where
     D::Item: Encode + Decode<()>,
@@ -47,7 +68,19 @@ where
     /// # Returns
     /// * `Ok(Self)` - A new `PersistentDataset` instance.
     /// * `Err(DatasetError)` - The error when creating the `PersistentDataset` instance.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use nove::dataset::common::{PersistentDataset, VecDataset};
+    ///
+    /// let dataset = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
+    /// let persistent_dataset = PersistentDataset::from_dataset(&dataset).unwrap();
+    /// ```
     pub fn from_dataset(dataset: &'a D) -> Result<Self, DatasetError> {
+        if dataset.len()? == 0 {
+            return Err(DatasetError::EmptyDataset);
+        }
+
         Ok(Self {
             inner: Some(dataset as &'a dyn Dataset<Item = D::Item>),
             dataset_file: None,
@@ -62,7 +95,23 @@ where
     /// # Returns
     /// * `Ok(())` - The dataset is saved to the file successfully.
     /// * `Err(DatasetError)` - The error when saving the dataset to the file.
-    pub fn save_as_file(&self, file_path: &str) -> Result<(), DatasetError> {
+    ///
+    /// # Examples
+    /// ```rust
+    /// use tempfile::TempDir;
+    /// use nove::dataset::common::{PersistentDataset, VecDataset};
+    ///
+    /// // Create a temporary directory to store the dataset file.
+    /// let temp_dir = TempDir::new().unwrap();
+    /// let dataset_file = temp_dir.path().join("dataset.bin");
+    ///
+    /// let dataset = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
+    /// let persistent_dataset = PersistentDataset::from_dataset(&dataset).unwrap();
+    ///
+    /// // Save the dataset to the file.
+    /// persistent_dataset.save_to_file(dataset_file.to_str().unwrap()).unwrap();
+    /// ```
+    pub fn save_to_file(&self, file_path: &str) -> Result<(), DatasetError> {
         let mut file = File::create(file_path)?;
         let item_size = std::mem::size_of::<D::Item>();
         for i in 0..self.len()? {
@@ -87,6 +136,27 @@ where
     /// # Returns
     /// * `Ok(Self)` - A new `PersistentDataset` instance.
     /// * `Err(DatasetError)` - The error when loading the `PersistentDataset` instance.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use tempfile::TempDir;
+    /// use nove::dataset::common::{PersistentDataset, VecDataset};
+    ///
+    /// // Create a temporary directory to store the dataset file.
+    /// let temp_dir = TempDir::new().unwrap();
+    /// let dataset_file = temp_dir.path().join("dataset.bin");
+    ///
+    /// let dataset = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
+    /// let persistent_dataset = PersistentDataset::from_dataset(&dataset).unwrap();
+    ///
+    /// // Save the dataset to the file.
+    /// persistent_dataset.save_to_file(dataset_file.to_str().unwrap()).unwrap();
+    ///
+    /// // Load the dataset from the file.
+    /// let loaded_dataset: PersistentDataset<'_, VecDataset<usize>> = PersistentDataset::load_from_file(
+    ///     dataset_file.to_str().unwrap(),
+    /// ).unwrap();
+    /// ```
     pub fn load_from_file(file_path: &str) -> Result<Self, DatasetError> {
         Ok(Self {
             inner: None,

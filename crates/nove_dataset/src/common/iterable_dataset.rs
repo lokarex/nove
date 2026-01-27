@@ -14,6 +14,18 @@ use crate::{Dataset, DatasetError};
 /// # Fields
 /// * `inner` - The inner dataset.
 /// * `index` - The current index of the iterator.
+///
+/// # Examples
+/// ```
+/// use nove::dataset::common::{IterableDataset, VecDataset};
+///
+/// let dataset = VecDataset::from_vec(vec![1, 2, 3]);
+/// let iterable_dataset = IterableDataset::from_dataset(&dataset).unwrap();
+///
+/// for item in iterable_dataset {
+///     println!("{:?}", item);
+/// }
+/// ```
 pub struct IterableDataset<'a, D: Dataset> {
     inner: &'a dyn Dataset<Item = D::Item>,
     index: usize,
@@ -28,7 +40,22 @@ impl<'a, D: Dataset> IterableDataset<'a, D> {
     /// # Returns
     /// * `Ok(Self)` - A new `IterableDataset` instance.
     /// * `Err(DatasetError)` - The error when creating the `IterableDataset` instance.
+    /// # Examples
+    /// ```rust
+    /// use nove::dataset::common::{IterableDataset, VecDataset};
+    ///
+    /// let dataset = VecDataset::from_vec(vec![1, 2, 3]);
+    /// let iterable_dataset = IterableDataset::from_dataset(&dataset).unwrap();
+    ///
+    /// for item in iterable_dataset {
+    ///     println!("{:?}", item);
+    /// }
+    /// ```
     pub fn from_dataset(dataset: &'a D) -> Result<Self, DatasetError> {
+        if dataset.len()? == 0 {
+            return Err(DatasetError::EmptyDataset);
+        }
+
         Ok(Self {
             inner: dataset as &'a dyn Dataset<Item = D::Item>,
             index: 0,

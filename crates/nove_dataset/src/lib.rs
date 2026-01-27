@@ -5,9 +5,14 @@
 use thiserror::Error;
 
 pub mod common;
+pub mod resource;
 
 #[derive(Debug, Error)]
 pub enum DatasetError {
+    /// The dataset is empty.
+    #[error("Empty dataset")]
+    EmptyDataset,
+
     /// The index is out of bounds.
     #[error("Index out of bounds: {0} (len: {1})")]
     IndexOutOfBounds(usize, usize),

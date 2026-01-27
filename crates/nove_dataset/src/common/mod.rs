@@ -8,3 +8,6 @@ pub use persistent_dataset::PersistentDataset;
 
 mod iterable_dataset;
 pub use iterable_dataset::IterableDataset;
+
+mod vec_dataset;
+pub use vec_dataset::VecDataset;

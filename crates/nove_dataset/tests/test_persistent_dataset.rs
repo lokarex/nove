@@ -15,7 +15,7 @@ fn test_persistent_dataset_with_simple_dataset() {
     // Save the persistent dataset to a file.
     let temp_dir = TempDir::new().unwrap();
     persistent_dataset
-        .save_as_file(
+        .save_to_file(
             temp_dir
                 .path()
                 .join("test_persistent_dataset.bin")

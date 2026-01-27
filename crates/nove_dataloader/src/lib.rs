@@ -5,6 +5,7 @@ use nove_dataset::DatasetError;
 use thiserror::Error;
 
 pub mod common;
+pub mod resource;
 
 #[derive(Debug, Error)]
 pub enum DataloaderError {
