@@ -1,4 +1,5 @@
-use derive_builder::Builder;
+use std::marker::PhantomData;
+
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 
 use crate::{Dataloader, DataloaderError};
@@ -15,7 +16,7 @@ use nove_dataset::Dataset;
 ///   learn about the generic type parameters of `BatchDataloader`.
 /// * The `BatchDataloaderBuilder` needs some necessary parameters including
 ///   `dataset`, `batch_size`, `process_fn`, and `collate_fn`. It also provides
-///   an optional parameter `shuffle_seed` with default value `None` (no shuffling).
+///   an optional parameter `shuffle_seed` with default value `None` (no shuffling before the first batch).
 ///
 /// # Lifetime Parameters
 /// * `'a` - The lifetime of the inner dataset.
@@ -63,21 +64,15 @@ use nove_dataset::Dataset;
 ///     .build()
 ///     .unwrap();
 /// ```
-#[derive(Builder)]
 pub struct BatchDataloader<'a, D: Dataset, O, B, P, C> {
     dataset: &'a dyn Dataset<Item = D::Item>,
     batch_size: usize,
     process_fn: P,
     collate_fn: C,
-    #[builder(default = "None")]
     shuffle_seed: Option<usize>,
-    #[builder(setter(skip), default = "0")]
     index: usize,
-    #[builder(setter(skip), default = "Vec::new()")]
     datas: Vec<O>,
-    #[builder(setter(skip), default = "Vec::new()")]
     indices: Vec<usize>,
-    #[builder(setter(skip), default = "std::marker::PhantomData::<B>::default()")]
     phantom: std::marker::PhantomData<B>,
 }
 
@@ -134,5 +129,169 @@ where
     fn reset(&mut self) -> Result<(), DataloaderError> {
         self.index = 0;
         Ok(())
+    }
+}
+
+/// The builder for the `BatchDataloader`.
+///
+/// # Notes
+/// * The `BatchDataloaderBuilder` implements the `Default` trait. So you can use
+///   `BatchDataloaderBuilder::default()` to create a new builder and then configure it.
+/// * The `BatchDataloaderBuilder` needs some necessary parameters including
+///   `dataset`, `batch_size`, `process_fn`, and `collate_fn`. It also provides
+///   an optional parameter `shuffle_seed` with default value `None` (no shuffling before the first batch).
+///
+/// # Lifetime Parameters
+/// * `'a` - The lifetime of the inner dataset.
+///
+/// # Generic Type Parameters
+/// * `D` - The type of the dataset.
+/// * `O` - The type of the processed data.
+/// * `B` - The type of the batched data.
+/// * `P` - The type of the process function.
+/// * `C` - The type of the collate function.
+///
+/// # Examples
+/// ```rust
+/// use nove::dataset::common::VecDataset;
+/// use nove::dataloader::common::{BatchDataloaderBuilder, BatchDataloader};
+/// use nove::dataloader::DataloaderError;
+///
+/// let dataset = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
+/// let mut dataloader: BatchDataloader<VecDataset<usize>, usize, Vec<usize>, _, _> = BatchDataloaderBuilder::default()
+///     .dataset(&dataset)       // Required configuration
+///     .batch_size(2)           // Required configuration
+///     .process_fn(             // Required configuration
+///         |x: usize| Ok::<usize, DataloaderError>(x)
+///     )
+///     .collate_fn(             // Required configuration
+///         |x: Vec<usize>| Ok::<Vec<usize>, DataloaderError>(x)
+///     )
+///     .shuffle_seed(Some(42))  // Optional configuration
+///     .build()
+///     .unwrap();
+/// ```
+pub struct BatchDataloaderBuilder<'a, D: Dataset, O, B, P, C> {
+    dataset: Option<&'a dyn Dataset<Item = D::Item>>,
+    batch_size: Option<usize>,
+    process_fn: Option<P>,
+    collate_fn: Option<C>,
+    shuffle_seed: Option<usize>,
+    phantom: PhantomData<(O, B)>,
+}
+
+impl<'a, D: Dataset, O, B, P, C> Default for BatchDataloaderBuilder<'a, D, O, B, P, C> {
+    fn default() -> Self {
+        Self {
+            dataset: None,
+            batch_size: None,
+            process_fn: None,
+            collate_fn: None,
+            shuffle_seed: None,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, D: Dataset, O, B, P, C> BatchDataloaderBuilder<'a, D, O, B, P, C>
+where
+    P: Fn(D::Item) -> Result<O, DataloaderError>,
+    C: Fn(Vec<O>) -> Result<B, DataloaderError>,
+{
+    /// Configures the dataset for the dataloader.
+    ///
+    /// # Arguments
+    /// * `dataset` - The dataset to be used by the dataloader.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
+    pub fn dataset(&mut self, dataset: &'a D) -> &mut Self {
+        self.dataset = Some(dataset as &'a dyn Dataset<Item = D::Item>);
+        self
+    }
+
+    /// Configures the batch size for the dataloader.
+    ///
+    /// # Arguments
+    /// * `batch_size` - The batch size to be used by the dataloader.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
+    pub fn batch_size(&mut self, batch_size: usize) -> &mut Self {
+        self.batch_size = Some(batch_size);
+        self
+    }
+
+    /// Configures the process function for the dataloader.
+    ///
+    /// # Arguments
+    /// * `process_fn` - The process function to be used by the dataloader.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
+    pub fn process_fn(&mut self, process_fn: P) -> &mut Self {
+        self.process_fn = Some(process_fn);
+        self
+    }
+
+    /// Configures the collate function for the dataloader.
+    ///
+    /// # Arguments
+    /// * `collate_fn` - The collate function to be used by the dataloader.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
+    pub fn collate_fn(&mut self, collate_fn: C) -> &mut Self {
+        self.collate_fn = Some(collate_fn);
+        self
+    }
+
+    /// Configures the shuffle seed for the dataloader.
+    ///
+    /// # Arguments
+    /// * `shuffle_seed` - The shuffle seed to be used by the dataloader.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
+    pub fn shuffle_seed(&mut self, shuffle_seed: Option<usize>) -> &mut Self {
+        self.shuffle_seed = shuffle_seed;
+        self
+    }
+
+    /// Builds the dataloader.
+    ///
+    /// # Returns
+    /// * `Ok(BatchDataloader<'a, D, O, B, P, C>)` - The built dataloader.
+    /// * `Err(DataloaderError)` - Some errors occur while building the dataloader.
+    pub fn build(&mut self) -> Result<BatchDataloader<'a, D, O, B, P, C>, DataloaderError> {
+        let dataset = self.dataset.ok_or_else(|| {
+            DataloaderError::MissingField("dataset in BatchDataloaderBuilder".to_string())
+        })?;
+        let batch_size = self.batch_size.ok_or_else(|| {
+            DataloaderError::MissingField("batch_size in BatchDataloaderBuilder".to_string())
+        })?;
+        if batch_size == 0 {
+            return Err(DataloaderError::OtherError(
+                "batch_size in BatchDataloaderBuilder must be greater than 0".to_string(),
+            ));
+        }
+        let process_fn = self.process_fn.take().ok_or_else(|| {
+            DataloaderError::MissingField("process_fn in BatchDataloaderBuilder".to_string())
+        })?;
+        let collate_fn = self.collate_fn.take().ok_or_else(|| {
+            DataloaderError::MissingField("collate_fn in BatchDataloaderBuilder".to_string())
+        })?;
+
+        Ok(BatchDataloader {
+            dataset,
+            batch_size,
+            process_fn,
+            collate_fn,
+            shuffle_seed: self.shuffle_seed,
+            index: 0,
+            datas: Vec::new(),
+            indices: Vec::new(),
+            phantom: std::marker::PhantomData,
+        })
     }
 }

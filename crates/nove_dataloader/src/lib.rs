@@ -17,6 +17,10 @@ pub enum DataloaderError {
     #[error(transparent)]
     DatasetError(#[from] DatasetError),
 
+    /// Missing field.
+    #[error("Missing field: {0}")]
+    MissingField(String),
+
     /// Other errors.
     #[error("Other errors: {0}")]
     OtherError(String),
