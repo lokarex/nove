@@ -22,10 +22,7 @@ impl Tensor {
             }
         };
         let device = self.data.device.read()?.clone();
-        let grad = match &*self.data.grad.read()? {
-            Some(grad) => Some(grad.detach()),
-            None => None,
-        };
+        let grad = (*self.data.grad.read()?).as_ref().map(|grad| grad.detach());
         Ok(Self {
             data: Arc::new(TensorData {
                 inner: RwLock::new(inner),

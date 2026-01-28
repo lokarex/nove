@@ -205,7 +205,7 @@ where
         // If the PersistentDataset is created from another dataset,
         // we just delegate the len call to the inner dataset.
         if let Some(inner) = self.inner {
-            return Ok(inner.len()?);
+            return inner.len();
         }
 
         // If the PersistentDataset is created from a file,

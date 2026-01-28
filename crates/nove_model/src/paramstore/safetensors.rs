@@ -215,7 +215,7 @@ impl SafeTensorsParamStore {
             indent.truncate(indent.len().saturating_sub(2));
             writeln!(f, "{})", indent)?;
         } else {
-            writeln!(f, "")?;
+            writeln!(f)?;
         }
 
         Ok(())

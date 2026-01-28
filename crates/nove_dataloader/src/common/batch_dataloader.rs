@@ -25,13 +25,13 @@ use nove_dataset::Dataset;
 /// * `D`(Need to be manually set) - The type of the inner dataset.
 /// * `O`(Need to be manually set) - The type of the processed data which is the output of the process function.
 /// * `B`(Need to be manually set) - The type of the batched data which is the output of the collate function
-///    and the final output of the dataloader.
+///   and the final output of the dataloader.
 /// * `P` - The type of the process function. It needs a function that takes
-///    an item(The `D::Item` type) from the dataset as input and returns the processed
-///    data(The `Result<O, DataloaderError>` type) as output.
+///   an item(The `D::Item` type) from the dataset as input and returns the processed
+///   data(The `Result<O, DataloaderError>` type) as output.
 /// * `C` - The type of the collate function. It needs a function that takes
-///    a vector of processed data(The `Vec<O>` type) from the process function as input and returns
-///    the batched data(The `Result<B, DataloaderError>` type) as output.
+///   a vector of processed data(The `Vec<O>` type) from the process function as input and returns
+///   the batched data(The `Result<B, DataloaderError>` type) as output.
 ///
 /// # Fields
 /// * `dataset` - The inner dataset.
@@ -101,13 +101,11 @@ where
     fn next(&mut self) -> Result<Option<Self::Output>, DataloaderError> {
         let dataset_len = self.dataset.len()?;
 
-        if self.indices.is_empty() {
-            self.indices = (0..dataset_len).collect();
-        }
-
         // Shuffle the indices before the first batch.
-        if self.index == 0 && self.shuffle_seed.is_some() {
-            self.shuffle_indices(self.shuffle_seed.unwrap());
+        if self.index == 0
+            && let Some(seed) = self.shuffle_seed
+        {
+            self.shuffle_indices(seed);
         }
 
         if self.index >= dataset_len {
@@ -281,6 +279,12 @@ where
         let collate_fn = self.collate_fn.take().ok_or_else(|| {
             DataloaderError::MissingField("collate_fn in BatchDataloaderBuilder".to_string())
         })?;
+        let len = dataset.len()?;
+        if len == 0 {
+            return Err(DataloaderError::OtherError(
+                "dataset in BatchDataloaderBuilder must have at least one item".to_string(),
+            ));
+        }
 
         Ok(BatchDataloader {
             dataset,
@@ -289,8 +293,8 @@ where
             collate_fn,
             shuffle_seed: self.shuffle_seed,
             index: 0,
-            datas: Vec::new(),
-            indices: Vec::new(),
+            datas: Vec::with_capacity(len),
+            indices: (0..len).collect(),
             phantom: std::marker::PhantomData,
         })
     }

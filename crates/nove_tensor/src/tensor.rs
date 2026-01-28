@@ -104,11 +104,7 @@ impl AsRef<Tensor> for Tensor {
 
 impl Display for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let inner = self
-            .data
-            .inner
-            .read()
-            .map_err(|_| std::fmt::Error::default())?;
+        let inner = self.data.inner.read().map_err(|_| std::fmt::Error)?;
         let inner_tensor = match &*inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var.as_tensor(),
@@ -136,11 +132,10 @@ impl Tensor {
         // Get the inner tensor
         let inner_tensor = {
             let inner = self.data.inner.read()?;
-            let inner_tensor = match &*inner {
+            match &*inner {
                 TensorInner::Tensor(tensor) => tensor.clone(),
                 TensorInner::Var(var) => var.as_tensor().clone(),
-            };
-            inner_tensor
+            }
         };
 
         // Create new inner
@@ -310,7 +305,7 @@ impl Tensor {
                             // Add the parent tensor to the queue for further processing
                             queue.push(parent.clone());
 
-                            match parent.grad_enabled().unwrap_or_else(|_| false) {
+                            match parent.grad_enabled().unwrap_or(false) {
                                 true => Some(parent.clone()),
                                 false => None,
                             }
@@ -341,7 +336,7 @@ impl Tensor {
                 match &*grad_write {
                     // If the parent tensor already has a gradient, add the new gradient to it
                     Some(parent_grad) => {
-                        *grad_write = Some(grad.add(&parent_grad)?);
+                        *grad_write = Some(grad.add(parent_grad)?);
                     }
                     // If the parent tensor does not have a gradient, set it to the new gradient
                     None => {

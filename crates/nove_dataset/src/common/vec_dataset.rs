@@ -48,7 +48,7 @@ impl<T: Clone> Dataset for VecDataset<T> {
     fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
         self.items
             .get(index)
-            .ok_or_else(|| DatasetError::IndexOutOfBounds(index, self.items.len()))
+            .ok_or(DatasetError::IndexOutOfBounds(index, self.items.len()))
             .cloned()
     }
 

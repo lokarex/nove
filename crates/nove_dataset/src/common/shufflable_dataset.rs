@@ -83,10 +83,10 @@ impl<'a, D: Dataset> Dataset for ShufflableDataset<'a, D> {
     type Item = D::Item;
 
     fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
-        self.inner.get(self.indices[index as usize])
+        self.inner.get(self.indices[index])
     }
 
     fn len(&self) -> Result<usize, DatasetError> {
-        Ok(self.indices.len() as usize)
+        Ok(self.indices.len())
     }
 }

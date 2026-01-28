@@ -14,7 +14,7 @@ pub struct Dropout<P: ParamStore> {
 impl<P: ParamStore> Dropout<P> {
     pub fn new(root_param_store: &P, dropout_prob: f32) -> Result<Self, ModelError> {
         // Check the dropout_prob is valid.
-        if dropout_prob < 0.0 || dropout_prob > 1.0 {
+        if !(0.0..=1.0).contains(&dropout_prob) {
             return Err(ModelError::OtherError(
                 "dropout_prob must be between 0.0 and 1.0".to_string(),
             ));

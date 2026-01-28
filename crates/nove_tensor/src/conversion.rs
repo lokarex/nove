@@ -46,8 +46,8 @@ impl Tensor {
         A: candle_core::NdArray,
     {
         let inner = match grad_enabled {
-            true => TensorInner::Var(candle_core::Var::new(data, &device)?),
-            false => TensorInner::Tensor(candle_core::Tensor::new(data, &device)?),
+            true => TensorInner::Var(candle_core::Var::new(data, device)?),
+            false => TensorInner::Tensor(candle_core::Tensor::new(data, device)?),
         };
 
         Ok(Self {
@@ -189,7 +189,7 @@ impl Tensor {
         device: &Device,
         grad_enabled: bool,
     ) -> Result<Self, TensorError> {
-        let inner_tensor = tensor.detach().to_device(&device)?;
+        let inner_tensor = tensor.detach().to_device(device)?;
         let inner = match grad_enabled {
             true => TensorInner::Var(candle_core::Var::from_tensor(&inner_tensor)?),
             false => TensorInner::Tensor(inner_tensor.clone()),
@@ -226,10 +226,9 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when converting the tensor to a `candle_core::Var`.
     pub fn to_candle_var(&self) -> Result<candle_core::Var, TensorError> {
         let inner = self.data.inner.read()?;
-        let var = match &*inner {
+        match &*inner {
             TensorInner::Tensor(tensor) => Ok(candle_core::Var::from_tensor(&tensor.detach())?),
             TensorInner::Var(var) => Ok(candle_core::Var::from_tensor(&var.as_tensor().detach())?),
-        };
-        var
+        }
     }
 }
