@@ -210,8 +210,8 @@ impl Tensor {
         }
 
         let new_grad = match &*grad.data.inner.read()? {
-            TensorInner::Tensor(tensor) => tensor.detach(),
-            TensorInner::Var(var) => var.as_tensor().detach(),
+            TensorInner::Tensor(tensor) => tensor.copy()?,
+            TensorInner::Var(var) => var.as_tensor().copy()?,
         };
 
         // Set the gradient tensor

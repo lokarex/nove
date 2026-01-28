@@ -16,13 +16,15 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when cloning the tensor.
     pub fn deep_clone(&self) -> Result<Self, TensorError> {
         let inner = match &*self.data.inner.read()? {
-            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.detach()),
-            TensorInner::Var(var) => {
-                TensorInner::Var(candle_core::Var::from_tensor(&var.detach())?)
-            }
+            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.copy()?),
+            TensorInner::Var(var) => TensorInner::Var(candle_core::Var::from_tensor(&var.copy()?)?),
         };
         let device = self.data.device.read()?.clone();
-        let grad = (*self.data.grad.read()?).as_ref().map(|grad| grad.detach());
+        let grad = if let Some(grad) = (*self.data.grad.read()?).as_ref() {
+            Some(grad.copy()?)
+        } else {
+            None
+        };
         Ok(Self {
             data: Arc::new(TensorData {
                 inner: RwLock::new(inner),

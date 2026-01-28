@@ -189,7 +189,7 @@ impl Tensor {
         device: &Device,
         grad_enabled: bool,
     ) -> Result<Self, TensorError> {
-        let inner_tensor = tensor.detach().to_device(device)?;
+        let inner_tensor = tensor.copy()?.to_device(device)?;
         let inner = match grad_enabled {
             true => TensorInner::Var(candle_core::Var::from_tensor(&inner_tensor)?),
             false => TensorInner::Tensor(inner_tensor.clone()),
@@ -213,8 +213,8 @@ impl Tensor {
     pub fn to_candle_tensor(&self) -> Result<candle_core::Tensor, TensorError> {
         let inner = self.data.inner.read()?;
         let tensor = match &*inner {
-            TensorInner::Tensor(tensor) => tensor.detach().clone(),
-            TensorInner::Var(var) => var.as_tensor().detach().clone(),
+            TensorInner::Tensor(tensor) => tensor.copy()?,
+            TensorInner::Var(var) => var.as_tensor().copy()?,
         };
         Ok(tensor)
     }
@@ -227,8 +227,8 @@ impl Tensor {
     pub fn to_candle_var(&self) -> Result<candle_core::Var, TensorError> {
         let inner = self.data.inner.read()?;
         match &*inner {
-            TensorInner::Tensor(tensor) => Ok(candle_core::Var::from_tensor(&tensor.detach())?),
-            TensorInner::Var(var) => Ok(candle_core::Var::from_tensor(&var.as_tensor().detach())?),
+            TensorInner::Tensor(tensor) => Ok(candle_core::Var::from_tensor(&tensor.copy()?)?),
+            TensorInner::Var(var) => Ok(candle_core::Var::from_tensor(&var.as_tensor().copy()?)?),
         }
     }
 }
