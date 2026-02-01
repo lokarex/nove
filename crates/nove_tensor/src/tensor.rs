@@ -76,12 +76,14 @@ pub(crate) enum TensorInner {
 /// * `inner` - The inner representation of the tensor data.
 /// * `parents` - The list of parent tensors used to backpropagate gradients.
 /// * `grad` - The gradient of the tensor data.
+/// * `name` - The name of the tensor.
 #[derive(Debug)]
 pub(crate) struct TensorData {
     pub(crate) inner: RwLock<TensorInner>,
     pub(crate) device: RwLock<Device>,
     pub(crate) parents: RwLock<Vec<Tensor>>,
     pub(crate) grad: RwLock<Option<candle_core::Tensor>>,
+    pub(crate) name: RwLock<Option<String>>,
 }
 
 /// The tensor struct.
@@ -247,6 +249,7 @@ impl Tensor {
                 device: RwLock::new(device),
                 grad: RwLock::new(None),
                 parents: RwLock::new(Vec::new()),
+                name: RwLock::new(None),
             }),
         })
     }
@@ -359,8 +362,8 @@ impl Tensor {
         };
         let mut self_inner = self.data.inner.write()?;
         match &mut *self_inner {
-            TensorInner::Tensor(_tensor) => {
-                todo!()
+            TensorInner::Tensor(_) => {
+                *self_inner = TensorInner::Tensor(other_inner_tensor.clone());
             }
             TensorInner::Var(var) => {
                 var.set(other_inner_tensor)?;

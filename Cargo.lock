@@ -836,6 +836,7 @@ version = "0.1.1"
 dependencies = [
  "nove_dataloader",
  "nove_dataset",
+ "nove_model",
  "nove_tensor",
 ]
 
@@ -876,7 +877,6 @@ version = "0.1.1"
 name = "nove_model"
 version = "0.1.1"
 dependencies = [
- "candle-core",
  "indexmap",
  "nove_tensor",
  "rand",

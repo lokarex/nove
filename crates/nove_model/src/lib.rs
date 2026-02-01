@@ -1,9 +1,8 @@
-use crate::paramstore::{ParamStore, ParamStoreError};
-use nove_tensor::{Device, Tensor, TensorError};
+use nove_tensor::{DType, Device, Tensor, TensorError};
+use std::{collections::HashMap, fmt::Display};
 use thiserror::Error;
 
 pub mod layer;
-pub mod paramstore;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
@@ -15,174 +14,86 @@ pub enum ModelError {
     #[error(transparent)]
     TensorError(#[from] TensorError),
 
-    /// Parameter store errors from the `nove_model` crate.
-    #[error(transparent)]
-    ParamStoreError(#[from] ParamStoreError),
+    /// Missing parameter.
+    #[error("Missing parameter: {0}")]
+    MissingParameter(String),
+
+    /// Unexpected parameter.
+    #[error("Unexpected parameter: {0}")]
+    UnexpectedParameter(String),
+
+    /// Parameter missing name.
+    #[error("Parameter missing name: {0}")]
+    ParameterMissingName(String),
+
+    /// Missing field.
+    #[error("Missing field: {0}")]
+    MissingField(String),
 
     /// Other errors.
     #[error("{0}")]
     OtherError(String),
 }
 
-#[derive(Debug, Clone)]
-pub struct Parameter(pub String, pub Tensor);
-
-pub trait Model {
-    type ParamStore: ParamStore;
+pub trait Model: Display {
     type Input;
     type Output;
 
-    /// Get the direct parameter stores of the model.
-    ///
-    /// # Returns
-    /// * `Ok(Vec<Self::ParamStore>)` - The parameter stores of the model.
-    /// * `Err(ModelError)` - The error when getting the parameter stores.
-    fn param_stores(&self) -> Result<Vec<Self::ParamStore>, ModelError>;
-
-    /// Get all parameters of the model, including those in the submodules.
-    ///
-    /// # Returns
-    /// * `Ok(Vec<Parameter>)` - All parameters of the model.
-    /// * `Err(ModelError)` - The error when getting the parameters.
-    fn parameters(&self) -> Result<Vec<Parameter>, ModelError> {
-        let mut all_params = Vec::new();
-
-        fn collect_params<S: ParamStore>(
-            store: &S,
-            all_params: &mut Vec<Parameter>,
-        ) -> Result<(), ParamStoreError> {
-            // Collect parameters from the current store.
-            all_params.extend(store.parameters()?);
-
-            // Recursively collect parameters from submodules.
-            for submodule in store.modules()? {
-                collect_params(&submodule, all_params)?;
-            }
-
-            Ok(())
-        }
-
-        for store in self.param_stores()? {
-            collect_params(&store, &mut all_params)?;
-        }
-
-        Ok(all_params)
-    }
-
-    /// Perform a forward pass of the model.
+    /// Run the model forward pass.
     ///
     /// # Arguments
-    /// * `input` - The input data for the forward pass.
+    /// * `input` - The input tensor.
     ///
     /// # Returns
-    /// * `Ok(Self::Output)` - The output data of the forward pass.
-    /// * `Err(ModelError)` - The error when performing the forward pass.
+    /// * `Ok(Self::Output)` - The output tensor if successful.
+    /// * `Err(ModelError)` - The error when running the model forward pass.
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, ModelError>;
 
-    /// Save the model to the specified folder.
-    ///
-    /// # Notes
-    /// * This method would call the `save` method of each parameter store. So the specific storage
-    ///   method depends on the ParamStore chosen for the model.
+    /// Set whether to enable gradient tracking for the model.
     ///
     /// # Arguments
-    /// * `folder_path` - The path of the folder to save the model to.
+    /// * `grad_enabled` - Whether to enable gradient tracking for the model.
     ///
     /// # Returns
-    /// * `Ok(())` - If the model is successfully saved to the folder.
-    /// * `Err(ModelError)` - The error when saving the model to the folder.
-    fn save(&self, folder_path: &str) -> Result<(), ModelError> {
-        // Create the folder if it does not exist.
-        std::fs::create_dir_all(folder_path)?;
+    /// * `Ok(())` - If successful.
+    /// * `Err(ModelError)` - The error when setting the gradient tracking.
+    fn set_grad_enabled(&mut self, grad_enabled: bool) -> Result<(), ModelError>;
 
-        let param_stores = self.param_stores()?;
-        for param_store in param_stores {
-            param_store.save(folder_path)?;
-        }
-        Ok(())
-    }
-
-    /// Load the model from the specified folder.
-    ///
-    /// # Notes
-    /// * This method would call the `load` method of each parameter store.
-    /// * The ParamStore type must be same as the one used for saving.
+    /// Move the model to the specified device.
     ///
     /// # Arguments
-    /// * `folder_path` - The path of the folder to load the model from.
-    /// * `devices` - The devices to load the model to.
-    ///   * If the number of devices is 1, the model would be loaded to all parameter stores to this device.
-    ///   * If the number of devices is equal to the number of parameter stores, each parameter store
-    ///     would be loaded to the corresponding device.
-    ///   * If the number of devices is not equal to 1 or the number of parameter stores, the method
-    ///     would return an error.
-    /// * `process_fn` - The function to process each parameter store(including submodules).
+    /// * `device` - The device to move the model to.
     ///
     /// # Returns
-    /// * `Ok(())` - If the model is successfully loaded from the folder.
-    /// * `Err(ModelError)` - The error when loading the model from the folder.
-    fn load<F>(
-        &mut self,
-        folder_path: &str,
-        devices: &[Device],
-        mut process_fn: F,
-    ) -> Result<(), ModelError>
-    where
-        F: FnMut(&str, &Self::ParamStore) -> Result<(), ParamStoreError>,
-    {
-        if devices.is_empty() {
-            return Err(ModelError::OtherError(
-                "The devices list is empty.".to_string(),
-            ));
-        }
+    /// * `Ok(())` - If successful.
+    /// * `Err(ModelError)` - The error when moving the model to the device.
+    fn to_device(&mut self, device: &Device) -> Result<(), ModelError>;
 
-        let param_stores = self.param_stores()?;
-        // Get the number of parameter stores.
-        let num_param_stores = param_stores.len();
-        if num_param_stores == 0 {
-            return Err(ModelError::OtherError(
-                "The model has no parameter store.".to_string(),
-            ));
-        }
-
-        if devices.len() != 1 && devices.len() != num_param_stores {
-            return Err(ModelError::OtherError(format!(
-                "The number of devices({}) is not equal to the number of parameter stores({}) or 1.",
-                devices.len(),
-                num_param_stores
-            )));
-        }
-
-        match devices.len() {
-            1 => {
-                for param_store in param_stores.iter() {
-                    param_store.load(folder_path, &devices[0], &mut process_fn)?;
-                }
-            }
-            _ => {
-                for (i, param_store) in param_stores.iter().enumerate() {
-                    param_store.load(folder_path, &devices[i], &mut process_fn)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Get the summary of the model.
+    /// Convert the model to the specified data type.
+    ///
+    /// # Arguments
+    /// * `dtype` - The data type to convert the model to.
     ///
     /// # Returns
-    /// * `Ok(String)` - The summary of the model.
-    /// * `Err(ModelError)` - The error when getting the model summary.
-    fn summary(&self) -> Result<String, ModelError> {
-        let mut summary = format!("{}(\n", std::any::type_name::<Self>());
-        let param_stores = self.param_stores()?;
-        for param_store in param_stores {
-            let param_store_summary = format!("{}", param_store);
-            for line in param_store_summary.lines() {
-                summary.push_str(&format!("  {}\n", line));
-            }
-        }
-        summary.push_str(")\n");
-        Ok(summary)
-    }
+    /// * `Ok(())` - If successful.
+    /// * `Err(ModelError)` - The error when converting the model to the data type.
+    fn to_dtype(&mut self, dtype: &DType) -> Result<(), ModelError>;
+
+    /// Convert the model to safetensors format data.
+    ///
+    /// # Returns
+    /// * `Ok(HashMap<String, Tensor>)` - The safetensors format data if successful.
+    /// * `Err(ModelError)` - The error when converting the model to safetensors format data.
+    fn to_safetensors(&self) -> Result<HashMap<String, Tensor>, ModelError>;
+
+    /// Load the model from safetensors format data.
+    ///
+    /// # Arguments
+    /// * `tensors` - The safetensors format data to load the model from.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If successful.
+    /// * `Err(ModelError)` - The error when loading the model from safetensors format data.
+    fn load_from_safetensors(&mut self, tensors: HashMap<String, Tensor>)
+    -> Result<(), ModelError>;
 }

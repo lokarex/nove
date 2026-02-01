@@ -56,6 +56,7 @@ impl Tensor {
                 device: RwLock::new(device.clone()),
                 parents: RwLock::new(vec![]),
                 grad: RwLock::new(None),
+                name: RwLock::new(None),
             }),
         })
     }
@@ -201,6 +202,7 @@ impl Tensor {
                 device: RwLock::new(device.clone()),
                 parents: RwLock::new(vec![]),
                 grad: RwLock::new(None),
+                name: RwLock::new(None),
             }),
         })
     }

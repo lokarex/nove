@@ -9,3 +9,7 @@ pub mod dataset {
 pub mod tensor {
     pub use nove_tensor::*;
 }
+
+pub mod model {
+    pub use nove_model::*;
+}

@@ -97,6 +97,7 @@ impl Tensor {
                 grad: RwLock::new(new_grad),
                 device: RwLock::new(device.clone()),
                 parents: RwLock::new(vec![self.clone()]),
+                name: RwLock::new(None),
             }),
         })
     }
@@ -231,6 +232,7 @@ impl Tensor {
                 device: RwLock::new(self.data.device.read()?.clone()),
                 grad: RwLock::new(new_grad),
                 parents: RwLock::new(vec![self.clone()]),
+                name: RwLock::new(None),
             }),
         })
     }
@@ -320,6 +322,7 @@ impl Tensor {
                 grad: RwLock::new(new_grad),
                 device: RwLock::new(self.data.device.read()?.clone()),
                 parents: RwLock::new(vec![self.clone()]),
+                name: RwLock::new(None),
             }),
         })
     }
@@ -368,5 +371,30 @@ impl Tensor {
     pub fn num_dim(&self) -> Result<usize, TensorError> {
         let shape = self.shape()?;
         Ok(shape.rank())
+    }
+
+    /// Get the name of the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(Some(name))` - The name of the tensor if it has been set.
+    /// * `Ok(None)` - The tensor does not have a name.
+    /// * `Err(TensorError)` - The error when getting the name of the tensor.
+    pub fn name(&self) -> Result<Option<String>, TensorError> {
+        let name = self.data.name.read()?;
+        Ok(name.clone())
+    }
+
+    /// Set the name of the tensor.
+    ///
+    /// # Arguments
+    /// * `name` - The name to set for the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the name is successfully set.
+    /// * `Err(TensorError)` - The error when setting the name of the tensor.
+    pub fn set_name(&mut self, name: String) -> Result<(), TensorError> {
+        let mut name_write = self.data.name.write()?;
+        *name_write = Some(name);
+        Ok(())
     }
 }
