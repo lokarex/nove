@@ -6,7 +6,7 @@ use crate::{
 };
 
 impl Tensor {
-    /// Add two tensors element-wise.
+    /// Add two tensors.
     ///
     /// # Arguments
     /// * `other` - The tensor to add.
@@ -42,7 +42,7 @@ impl Tensor {
         let device = self.data.device.read()?.clone();
 
         // Create the inner tensor
-        let new_inner = TensorInner::Tensor(inner1_tensor.add(inner2_tensor)?);
+        let new_inner = TensorInner::Tensor(inner1_tensor.broadcast_add(inner2_tensor)?);
 
         // Set the parents
         let parents = vec![self.clone(), other.clone()];
@@ -58,7 +58,7 @@ impl Tensor {
         })
     }
 
-    /// Multiply two tensors element-wise.
+    /// Multiply two tensors.
     ///
     /// # Arguments
     /// * `other` - The tensor to multiply.
@@ -80,7 +80,7 @@ impl Tensor {
         };
 
         // Create the inner
-        let new_inner = TensorInner::Tensor(inner1_tensor.mul(inner2_tensor)?);
+        let new_inner = TensorInner::Tensor(inner1_tensor.broadcast_mul(inner2_tensor)?);
 
         Ok(Self {
             data: Arc::new(TensorData {
@@ -181,7 +181,7 @@ impl Tensor {
         };
 
         // Create the inner
-        let new_inner = TensorInner::Tensor(inner1_tensor.matmul(inner2_tensor)?);
+        let new_inner = TensorInner::Tensor(inner1_tensor.broadcast_matmul(inner2_tensor)?);
 
         Ok(Self {
             data: Arc::new(TensorData {

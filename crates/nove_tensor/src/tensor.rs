@@ -224,34 +224,34 @@ impl Tensor {
     /// Get the gradient tensor of the tensor.
     ///
     /// # Returns
-    /// * `Ok(Tensor)` - The tensor's gradient tensor.
+    /// * `Ok(Some(Tensor))` - The tensor's gradient tensor.
+    /// * `Ok(None)` - The tensor has no gradient tensor.
     /// * `Err(TensorError)` - The error when getting the tensor's gradient tensor.
-    pub fn grad(&self) -> Result<Tensor, TensorError> {
+    pub fn grad(&self) -> Result<Option<Tensor>, TensorError> {
         // Check if the gradient status is enabled
         if !self.grad_enabled()? {
             return Err(TensorError::GradientDisabled);
         }
 
-        let new_inner = TensorInner::Tensor(
-            self.data
-                .grad
-                .read()
-                .unwrap()
-                .clone()
-                .ok_or(TensorError::NoTensorGradient)?,
-        );
+        let grad_read = self.data.grad.read()?;
+        match &*grad_read {
+            None => Ok(None),
+            Some(grad) => {
+                let new_inner = TensorInner::Tensor(grad.clone());
 
-        let device = self.data.device.read()?.clone();
+                let device = self.data.device.read()?.clone();
 
-        Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(new_inner),
-                device: RwLock::new(device),
-                grad: RwLock::new(None),
-                parents: RwLock::new(Vec::new()),
-                name: RwLock::new(None),
-            }),
-        })
+                Ok(Some(Self {
+                    data: Arc::new(TensorData {
+                        inner: RwLock::new(new_inner),
+                        device: RwLock::new(device),
+                        grad: RwLock::new(None),
+                        parents: RwLock::new(Vec::new()),
+                        name: RwLock::new(None),
+                    }),
+                }))
+            }
+        }
     }
 
     /// Backpropagate the gradient of the tensor to its parent tensors.

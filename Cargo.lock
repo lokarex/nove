@@ -878,6 +878,7 @@ name = "nove_model"
 version = "0.1.1"
 dependencies = [
  "indexmap",
+ "nove",
  "nove_tensor",
  "rand",
  "thiserror 2.0.18",

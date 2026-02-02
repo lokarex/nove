@@ -28,7 +28,7 @@ fn test_set_grad() {
     let grad = Tensor::from_data(&[0.1f64, 0.2f64, 0.3f64], &device, false).unwrap();
     t.set_grad(grad).unwrap();
     assert_eq!(
-        t.grad().unwrap().to_vec::<f64>().unwrap(),
+        t.grad().unwrap().unwrap().to_vec::<f64>().unwrap(),
         vec![0.1f64, 0.2f64, 0.3f64]
     );
 }
@@ -46,30 +46,30 @@ fn test_backward() {
 
     t5.backward().unwrap();
     assert_eq!(
-        t1.grad().unwrap().to_vec::<f64>().unwrap(),
+        t1.grad().unwrap().unwrap().to_vec::<f64>().unwrap(),
         vec![1.0f64, 1.0f64, 1.0f64]
     );
     assert_eq!(
-        t2.grad().unwrap().to_vec::<f64>().unwrap(),
+        t2.grad().unwrap().unwrap().to_vec::<f64>().unwrap(),
         vec![1.0f64, 1.0f64, 1.0f64]
     );
     assert_eq!(
-        t3.grad().unwrap().to_vec::<f64>().unwrap(),
+        t3.grad().unwrap().unwrap().to_vec::<f64>().unwrap(),
         vec![1.0f64, 1.0f64, 1.0f64]
     );
 
     // Test gradient accumulation function
     t5.backward().unwrap();
     assert_eq!(
-        t1.grad().unwrap().to_vec::<f64>().unwrap(),
+        t1.grad().unwrap().unwrap().to_vec::<f64>().unwrap(),
         vec![2.0f64, 2.0f64, 2.0f64]
     );
     assert_eq!(
-        t2.grad().unwrap().to_vec::<f64>().unwrap(),
+        t2.grad().unwrap().unwrap().to_vec::<f64>().unwrap(),
         vec![2.0f64, 2.0f64, 2.0f64]
     );
     assert_eq!(
-        t3.grad().unwrap().to_vec::<f64>().unwrap(),
+        t3.grad().unwrap().unwrap().to_vec::<f64>().unwrap(),
         vec![2.0f64, 2.0f64, 2.0f64]
     );
 }
