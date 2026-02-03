@@ -15,24 +15,24 @@ impl Tensor {
     /// * `Ok(tensor)` - The cloned tensor if successful.
     /// * `Err(TensorError)` - The error when cloning the tensor.
     pub fn deep_clone(&self) -> Result<Self, TensorError> {
-        let inner = match &*self.data.inner.read()? {
+        let inner = match &self.data.read()?.inner {
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.copy()?),
             TensorInner::Var(var) => TensorInner::Var(candle_core::Var::from_tensor(&var.copy()?)?),
         };
-        let device = self.data.device.read()?.clone();
-        let grad = if let Some(grad) = (*self.data.grad.read()?).as_ref() {
+        let device = self.data.read()?.device.clone();
+        let grad = if let Some(grad) = self.data.read()?.grad.as_ref() {
             Some(grad.copy()?)
         } else {
             None
         };
         Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(inner),
-                device: RwLock::new(device),
-                grad: RwLock::new(grad),
-                parents: RwLock::new(vec![]),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner,
+                device,
+                grad,
+                parents: vec![],
+                name: None,
+            })),
         })
     }
 
@@ -64,13 +64,13 @@ impl Tensor {
         };
 
         Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(inner),
-                device: RwLock::new(device.clone()),
-                parents: RwLock::new(vec![]),
-                grad: RwLock::new(None),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner,
+                device: device.clone(),
+                parents: vec![],
+                grad: None,
+                name: None,
+            })),
         })
     }
 
@@ -102,13 +102,13 @@ impl Tensor {
         };
 
         Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(inner),
-                device: RwLock::new(device.clone()),
-                parents: RwLock::new(vec![]),
-                grad: RwLock::new(None),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner,
+                device: device.clone(),
+                parents: vec![],
+                grad: None,
+                name: None,
+            })),
         })
     }
 
@@ -134,13 +134,13 @@ impl Tensor {
             false => TensorInner::Tensor(candle_core::Tensor::zeros(shape, *dtype, device)?),
         };
         Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(inner),
-                device: RwLock::new(device.clone()),
-                parents: RwLock::new(vec![]),
-                grad: RwLock::new(None),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner,
+                device: device.clone(),
+                parents: vec![],
+                grad: None,
+                name: None,
+            })),
         })
     }
 }

@@ -79,11 +79,11 @@ pub(crate) enum TensorInner {
 /// * `name` - The name of the tensor.
 #[derive(Debug)]
 pub(crate) struct TensorData {
-    pub(crate) inner: RwLock<TensorInner>,
-    pub(crate) device: RwLock<Device>,
-    pub(crate) parents: RwLock<Vec<Tensor>>,
-    pub(crate) grad: RwLock<Option<candle_core::Tensor>>,
-    pub(crate) name: RwLock<Option<String>>,
+    pub(crate) inner: TensorInner,
+    pub(crate) device: Device,
+    pub(crate) parents: Vec<Tensor>,
+    pub(crate) grad: Option<candle_core::Tensor>,
+    pub(crate) name: Option<String>,
 }
 
 /// The tensor struct.
@@ -95,7 +95,7 @@ pub(crate) struct TensorData {
 /// * `data` - The data structure of the tensor.
 #[derive(Clone, Debug)]
 pub struct Tensor {
-    pub(crate) data: Arc<TensorData>,
+    pub(crate) data: Arc<RwLock<TensorData>>,
 }
 
 impl AsRef<Tensor> for Tensor {
@@ -106,8 +106,8 @@ impl AsRef<Tensor> for Tensor {
 
 impl Display for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let inner = self.data.inner.read().map_err(|_| std::fmt::Error)?;
-        let inner_tensor = match &*inner {
+        let data = self.data.read().map_err(|_| std::fmt::Error)?;
+        let inner_tensor = match &data.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var.as_tensor(),
         };
@@ -131,22 +131,21 @@ impl Tensor {
             return Ok(());
         }
 
-        // Get the inner tensor
         let inner_tensor = {
-            let inner = self.data.inner.read()?;
-            match &*inner {
+            let data = self.data.read()?;
+            match &data.inner {
                 TensorInner::Tensor(tensor) => tensor.clone(),
                 TensorInner::Var(var) => var.as_tensor().clone(),
             }
         };
 
-        // Create new inner
         let new_inner = match grad_enabled {
             true => {
                 // Convert to Var type
                 let var = candle_core::Var::from_tensor(&inner_tensor)?;
                 TensorInner::Var(var)
             }
+
             false => {
                 // Convert to Tensor type
                 TensorInner::Tensor(inner_tensor)
@@ -154,9 +153,8 @@ impl Tensor {
         };
 
         {
-            let mut inner_write = self.data.inner.write()?;
-            // Update the inner tensor
-            *inner_write = new_inner;
+            let mut data = self.data.write()?;
+            data.inner = new_inner;
         }
 
         Ok(())
@@ -169,8 +167,8 @@ impl Tensor {
     /// * `Ok(false)` - The tensor has gradient disabled.
     /// * `Err(TensorError)` - The error when getting the tensor's gradient enabled status.
     pub fn grad_enabled(&self) -> Result<bool, TensorError> {
-        let inner = self.data.inner.read()?;
-        Ok(match &*inner {
+        let data = self.data.read()?;
+        Ok(match &data.inner {
             TensorInner::Var(_) => true,
             TensorInner::Tensor(_) => false,
         })
@@ -211,13 +209,15 @@ impl Tensor {
             return Err(TensorError::DeviceMismatch(self_device, grad_device));
         }
 
-        let new_grad = match &*grad.data.inner.read()? {
+        let new_grad = match &grad.data.read()?.inner {
             TensorInner::Tensor(tensor) => tensor.copy()?,
             TensorInner::Var(var) => var.as_tensor().copy()?,
         };
 
-        // Set the gradient tensor
-        *self.data.grad.write()? = Some(new_grad);
+        {
+            let mut data = self.data.write()?;
+            data.grad = Some(new_grad);
+        }
         Ok(())
     }
 
@@ -233,22 +233,21 @@ impl Tensor {
             return Err(TensorError::GradientDisabled);
         }
 
-        let grad_read = self.data.grad.read()?;
-        match &*grad_read {
+        let data = self.data.read()?;
+        match &data.grad {
             None => Ok(None),
             Some(grad) => {
                 let new_inner = TensorInner::Tensor(grad.clone());
-
-                let device = self.data.device.read()?.clone();
+                let device = data.device.clone();
 
                 Ok(Some(Self {
-                    data: Arc::new(TensorData {
-                        inner: RwLock::new(new_inner),
-                        device: RwLock::new(device),
-                        grad: RwLock::new(None),
-                        parents: RwLock::new(Vec::new()),
-                        name: RwLock::new(None),
-                    }),
+                    data: Arc::new(RwLock::new(TensorData {
+                        inner: new_inner,
+                        device,
+                        grad: None,
+                        parents: Vec::new(),
+                        name: None,
+                    })),
                 }))
             }
         }
@@ -262,18 +261,18 @@ impl Tensor {
     pub fn backward(&self) -> Result<(), TensorError> {
         // Get grad_store
         let grad_store = {
-            let inner = self.data.inner.read()?;
-            match &*inner {
+            let data = self.data.read()?;
+            match &data.inner {
                 TensorInner::Var(var) => {
                     // Clone the var to release the read lock before calling backward
                     let var_clone = var.clone();
-                    drop(inner); // Explicitly release the read lock
+                    drop(data);
                     var_clone.backward()?
                 }
                 TensorInner::Tensor(tensor) => {
                     // Clone the tensor to release the read lock before calling backward
                     let tensor_clone = tensor.clone();
-                    drop(inner); // Explicitly release the read lock
+                    drop(data);
                     tensor_clone.backward()?
                 }
             }
@@ -293,8 +292,8 @@ impl Tensor {
         while let Some(current) = queue.pop() {
             // Get the parent tensors of the current tensor
             let current_parents = {
-                let parents = current.data.parents.read()?;
-                parents.clone()
+                let data = current.data.read()?;
+                data.parents.clone()
             };
 
             // Filter out the gradient enabled parent tensors
@@ -325,7 +324,7 @@ impl Tensor {
         parents
             .par_iter()
             .map(|parent| {
-                let inner_tensor = match &*parent.data.inner.read()? {
+                let inner_tensor = match &parent.data.read()?.inner {
                     TensorInner::Tensor(tensor) => tensor.clone(),
                     TensorInner::Var(var) => var.as_tensor().clone(),
                 };
@@ -335,15 +334,15 @@ impl Tensor {
                     .get(&inner_tensor)
                     .ok_or(TensorError::NoTensorGradient)?;
 
-                let mut grad_write = parent.data.grad.write()?;
-                match &*grad_write {
+                let mut data = parent.data.write()?;
+                match &data.grad {
                     // If the parent tensor already has a gradient, add the new gradient to it
                     Some(parent_grad) => {
-                        *grad_write = Some(grad.add(parent_grad)?);
+                        data.grad = Some(grad.add(parent_grad)?);
                     }
                     // If the parent tensor does not have a gradient, set it to the new gradient
                     None => {
-                        *grad_write = Some(grad.clone());
+                        data.grad = Some(grad.clone());
                     }
                 };
 
@@ -355,15 +354,15 @@ impl Tensor {
     }
 
     pub fn update_from_tensor(&self, other: &Tensor) -> Result<(), TensorError> {
-        let other_inner = other.data.inner.read()?;
-        let other_inner_tensor = match &*other_inner {
+        let other_data = other.data.read()?;
+        let other_inner_tensor = match &other_data.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
-        let mut self_inner = self.data.inner.write()?;
-        match &mut *self_inner {
+        let mut self_data = self.data.write()?;
+        match &mut self_data.inner {
             TensorInner::Tensor(_) => {
-                *self_inner = TensorInner::Tensor(other_inner_tensor.clone());
+                self_data.inner = TensorInner::Tensor(other_inner_tensor.clone());
             }
             TensorInner::Var(var) => {
                 var.set(other_inner_tensor)?;

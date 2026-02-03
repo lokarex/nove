@@ -51,13 +51,13 @@ impl Tensor {
         };
 
         Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(inner),
-                device: RwLock::new(device.clone()),
-                parents: RwLock::new(vec![]),
-                grad: RwLock::new(None),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner,
+                device: device.clone(),
+                parents: vec![],
+                grad: None,
+                name: None,
+            })),
         })
     }
 
@@ -121,9 +121,8 @@ impl Tensor {
     where
         S: candle_core::WithDType,
     {
-        // Get the inner tensor.
-        let inner = self.data.inner.read()?;
-        let inner_tensor = match &*inner {
+        let data = self.data.read()?;
+        let inner_tensor = match &data.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
@@ -167,8 +166,8 @@ impl Tensor {
     where
         S: candle_core::WithDType,
     {
-        let inner = self.data.inner.read()?;
-        let vec = match &*inner {
+        let data = self.data.read()?;
+        let vec = match &data.inner {
             TensorInner::Tensor(tensor) => tensor.flatten_all()?.to_vec1::<S>()?,
             TensorInner::Var(var) => var.flatten_all()?.to_vec1::<S>()?,
         };
@@ -197,13 +196,13 @@ impl Tensor {
         };
 
         Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(inner),
-                device: RwLock::new(device.clone()),
-                parents: RwLock::new(vec![]),
-                grad: RwLock::new(None),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner,
+                device: device.clone(),
+                parents: vec![],
+                grad: None,
+                name: None,
+            })),
         })
     }
 
@@ -213,8 +212,8 @@ impl Tensor {
     /// * `Ok(candle_core::Tensor)` - The `candle_core::Tensor` if successful.
     /// * `Err(TensorError)` - The error when converting the tensor to a `candle_core::Tensor`.
     pub fn to_candle_tensor(&self) -> Result<candle_core::Tensor, TensorError> {
-        let inner = self.data.inner.read()?;
-        let tensor = match &*inner {
+        let data = self.data.read()?;
+        let tensor = match &data.inner {
             TensorInner::Tensor(tensor) => tensor.copy()?,
             TensorInner::Var(var) => var.as_tensor().copy()?,
         };
@@ -227,8 +226,8 @@ impl Tensor {
     /// * `Ok(candle_core::Var)` - The `candle_core::Var` if successful.
     /// * `Err(TensorError)` - The error when converting the tensor to a `candle_core::Var`.
     pub fn to_candle_var(&self) -> Result<candle_core::Var, TensorError> {
-        let inner = self.data.inner.read()?;
-        match &*inner {
+        let data = self.data.read()?;
+        match &data.inner {
             TensorInner::Tensor(tensor) => Ok(candle_core::Var::from_tensor(&tensor.copy()?)?),
             TensorInner::Var(var) => Ok(candle_core::Var::from_tensor(&var.as_tensor().copy()?)?),
         }

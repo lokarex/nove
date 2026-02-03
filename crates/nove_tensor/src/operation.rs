@@ -26,35 +26,32 @@ impl Tensor {
     /// println!("{:?}", t3);
     /// ```
     pub fn add(&self, other: &Self) -> Result<Self, TensorError> {
-        // Get the inner tensors
-        let inner1 = self.data.inner.read()?;
-        let inner1_tensor = match &*inner1 {
+        let inner1 = self.data.read()?;
+        let inner1_tensor = match &inner1.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
-        let inner2 = other.data.inner.read()?;
-        let inner2_tensor = match &*inner2 {
+        let inner2 = other.data.read()?;
+        let inner2_tensor = match &inner2.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
 
         // Get the device from the first tensor
-        let device = self.data.device.read()?.clone();
+        let device = self.data.read()?.device.clone();
 
-        // Create the inner tensor
         let new_inner = TensorInner::Tensor(inner1_tensor.broadcast_add(inner2_tensor)?);
 
-        // Set the parents
         let parents = vec![self.clone(), other.clone()];
 
         Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(new_inner),
-                device: RwLock::new(device),
-                parents: RwLock::new(parents),
-                grad: RwLock::new(None),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device,
+                parents,
+                grad: None,
+                name: None,
+            })),
         })
     }
 
@@ -67,29 +64,27 @@ impl Tensor {
     /// * `Ok(Self)` - The result tensor after multiplication.
     /// * `Err(TensorError)` - The error when multiplying the tensors.
     pub fn mul(&self, other: &Self) -> Result<Self, TensorError> {
-        // Get the inner tensors
-        let inner1 = self.data.inner.read()?;
-        let inner1_tensor = match &*inner1 {
+        let inner1 = self.data.read()?;
+        let inner1_tensor = match &inner1.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
-        let inner2 = other.data.inner.read()?;
-        let inner2_tensor = match &*inner2 {
+        let inner2 = other.data.read()?;
+        let inner2_tensor = match &inner2.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
 
-        // Create the inner
         let new_inner = TensorInner::Tensor(inner1_tensor.broadcast_mul(inner2_tensor)?);
 
         Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(new_inner),
-                device: RwLock::new(self.data.device.read()?.clone()),
-                parents: RwLock::new(vec![self.clone(), other.clone()]),
-                grad: RwLock::new(None),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone(), other.clone()],
+                grad: None,
+                name: None,
+            })),
         })
     }
 
@@ -119,27 +114,25 @@ impl Tensor {
         A: AsRef<Tensor> + std::clone::Clone,
         D: candle_core::shape::Dim,
     {
-        // Get the inner tensors
         let inner_tensors = tensors
             .iter()
             .map(|tensor| {
-                let inner = tensor.as_ref().data.inner.read()?;
-                match &*inner {
+                let data = tensor.as_ref().data.read()?;
+                match &data.inner {
                     TensorInner::Tensor(tensor) => Ok(tensor.clone()),
                     TensorInner::Var(var) => Ok(var.as_tensor().clone()),
                 }
             })
             .collect::<Result<Vec<_>, TensorError>>()?;
-        // Stack the inner tensors
+        // Stack the tensors
         let new_inner_tensor = candle_core::Tensor::stack(&inner_tensors, dim)?;
 
         // Get the device from the first tensor
         let device = tensors
             .first()
-            .map(|t| t.as_ref().data.device.read().unwrap().clone())
+            .map(|t| t.as_ref().data.read().unwrap().device.clone())
             .unwrap();
 
-        // Create the new inner
         let new_inner = TensorInner::Tensor(new_inner_tensor);
 
         //  Set the parents
@@ -149,13 +142,13 @@ impl Tensor {
             .collect::<Vec<_>>();
 
         Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(new_inner),
-                device: RwLock::new(device),
-                parents: RwLock::new(parents),
-                grad: RwLock::new(None),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device,
+                parents,
+                grad: None,
+                name: None,
+            })),
         })
     }
 
@@ -168,29 +161,27 @@ impl Tensor {
     /// * `Ok(Tensor)` - The result tensor after matrix multiplication.
     /// * `Err(TensorError)` - The error when multiplying the tensors.
     pub fn matmul(&self, other: &Self) -> Result<Self, TensorError> {
-        // Get the inner tensors
-        let inner1 = self.data.inner.read()?;
-        let inner1_tensor = match &*inner1 {
+        let inner1 = self.data.read()?;
+        let inner1_tensor = match &inner1.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
-        let inner2 = other.data.inner.read()?;
-        let inner2_tensor = match &*inner2 {
+        let inner2 = other.data.read()?;
+        let inner2_tensor = match &inner2.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
 
-        // Create the inner
         let new_inner = TensorInner::Tensor(inner1_tensor.broadcast_matmul(inner2_tensor)?);
 
         Ok(Self {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(new_inner),
-                device: RwLock::new(self.data.device.read()?.clone()),
-                parents: RwLock::new(vec![self.clone(), other.clone()]),
-                grad: RwLock::new(None),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone(), other.clone()],
+                grad: None,
+                name: None,
+            })),
         })
     }
 }

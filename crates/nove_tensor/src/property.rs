@@ -28,36 +28,27 @@ impl Tensor {
     /// }
     /// ```
     pub fn to_device_inplace(&mut self, device: &Device) -> Result<(), TensorError> {
-        // Check the device
         if self.device()? == *device {
             return Ok(());
         }
 
-        // Create the new inner
-        let new_inner = match &*self.data.inner.read()? {
+        let new_inner = match &self.data.read()?.inner {
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_device(device)?),
             TensorInner::Var(var) => {
                 TensorInner::Var(candle_core::Var::from_tensor(&var.to_device(device)?)?)
             }
         };
 
-        // Create the new gradient
-        let new_grad = match &*self.data.grad.read()? {
+        let new_grad = match &self.data.read()?.grad {
             Some(grad) => Some(grad.to_device(device)?),
             None => None,
         };
 
         {
-            let mut inner_write = self.data.inner.write()?;
-            let mut grad_write = self.data.grad.write()?;
-            let mut device_write = self.data.device.write()?;
-
-            // Update the inner
-            *inner_write = new_inner;
-            // Update the gradient
-            *grad_write = new_grad;
-            // Update the device
-            *device_write = device.clone();
+            let mut data = self.data.write()?;
+            data.inner = new_inner;
+            data.grad = new_grad;
+            data.device = device.clone();
         }
         Ok(())
     }
@@ -76,29 +67,26 @@ impl Tensor {
             return Ok(self.clone());
         }
 
-        // Create the new inner
-        let new_inner = match &*self.data.inner.read()? {
+        let new_inner = match &self.data.read()?.inner {
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_device(device)?),
             TensorInner::Var(var) => {
                 TensorInner::Var(candle_core::Var::from_tensor(&var.to_device(device)?)?)
             }
         };
 
-        // Create the new gradient
-        let new_grad = match &*self.data.grad.read()? {
+        let new_grad = match &self.data.read()?.grad {
             Some(grad) => Some(grad.to_device(device)?),
             None => None,
         };
 
-        // Create the new tensor
         Ok(Tensor {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(new_inner),
-                grad: RwLock::new(new_grad),
-                device: RwLock::new(device.clone()),
-                parents: RwLock::new(vec![self.clone()]),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                grad: new_grad,
+                device: device.clone(),
+                parents: vec![self.clone()],
+                name: None,
+            })),
         })
     }
 
@@ -119,8 +107,8 @@ impl Tensor {
     /// println!("The tensor is on device: {:?}", device);
     /// ```
     pub fn device(&self) -> Result<Device, TensorError> {
-        let device = self.data.device.read()?;
-        Ok(device.clone())
+        let data = self.data.read()?;
+        Ok(data.device.clone())
     }
 
     /// Convert the tensor to the specified dtype inplace.
@@ -150,8 +138,8 @@ impl Tensor {
     pub fn to_dtype_inplace(&mut self, dtype: &DType) -> Result<(), TensorError> {
         // Check current dtype first to avoid unnecessary conversion
         let current_dtype = {
-            let inner = self.data.inner.read()?;
-            match &*inner {
+            let data = self.data.read()?;
+            match &data.inner {
                 TensorInner::Tensor(tensor) => tensor.dtype(),
                 TensorInner::Var(var) => var.dtype(),
             }
@@ -162,28 +150,22 @@ impl Tensor {
             return Ok(());
         }
 
-        // Create the new inner
-        let new_inner = match &*self.data.inner.read()? {
+        let new_inner = match &self.data.read()?.inner {
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_dtype(*dtype)?),
             TensorInner::Var(var) => {
                 TensorInner::Var(candle_core::Var::from_tensor(&var.to_dtype(*dtype)?)?)
             }
         };
 
-        // Create the new gradient
-        let new_grad = match &*self.data.grad.read()? {
+        let new_grad = match &self.data.read()?.grad {
             Some(grad) => Some(grad.to_dtype(*dtype)?),
             None => None,
         };
 
         {
-            let mut inner_write = self.data.inner.write()?;
-            let mut grad_write = self.data.grad.write()?;
-
-            // Update the inner
-            *inner_write = new_inner;
-            // Update the gradient
-            *grad_write = new_grad;
+            let mut data = self.data.write()?;
+            data.inner = new_inner;
+            data.grad = new_grad;
         }
 
         Ok(())
@@ -200,8 +182,8 @@ impl Tensor {
     pub fn to_dtype(&self, dtype: &DType) -> Result<Tensor, TensorError> {
         // Check current dtype first to avoid unnecessary conversion
         let current_dtype = {
-            let inner = self.data.inner.read()?;
-            match &*inner {
+            let data = self.data.read()?;
+            match &data.inner {
                 TensorInner::Tensor(tensor) => tensor.dtype(),
                 TensorInner::Var(var) => var.dtype(),
             }
@@ -212,28 +194,26 @@ impl Tensor {
             return Ok(self.clone());
         }
 
-        // Create the new inner
-        let new_inner = match &*self.data.inner.read()? {
+        let new_inner = match &self.data.read()?.inner {
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_dtype(*dtype)?),
             TensorInner::Var(var) => {
                 TensorInner::Var(candle_core::Var::from_tensor(&var.to_dtype(*dtype)?)?)
             }
         };
 
-        // Create the new gradient
-        let new_grad = match &*self.data.grad.read()? {
+        let new_grad = match &self.data.read()?.grad {
             Some(grad) => Some(grad.to_dtype(*dtype)?),
             None => None,
         };
 
         Ok(Tensor {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(new_inner),
-                device: RwLock::new(self.data.device.read()?.clone()),
-                grad: RwLock::new(new_grad),
-                parents: RwLock::new(vec![self.clone()]),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                grad: new_grad,
+                parents: vec![self.clone()],
+                name: None,
+            })),
         })
     }
 
@@ -254,8 +234,8 @@ impl Tensor {
     /// println!("The dtype of the tensor is: {:?}", dtype);
     /// ```
     pub fn dtype(&self) -> Result<DType, TensorError> {
-        let inner = self.data.inner.read()?;
-        let dtype = match &*inner {
+        let data = self.data.read()?;
+        let dtype = match &data.inner {
             TensorInner::Tensor(tensor) => tensor.dtype(),
             TensorInner::Var(var) => var.dtype(),
         };
@@ -271,26 +251,22 @@ impl Tensor {
     /// * `Ok(())` - If the tensor is successfully reshaped.
     /// * `Err(TensorError)` - The error when reshaping the tensor.
     pub fn to_shape_inplace(&mut self, shape: &Shape) -> Result<(), TensorError> {
-        let new_inner = match &*self.data.inner.read()? {
+        let new_inner = match &self.data.read()?.inner {
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.reshape(shape)?),
             TensorInner::Var(var) => {
                 TensorInner::Var(candle_core::Var::from_tensor(&var.reshape(shape)?)?)
             }
         };
 
-        let new_grad = match &*self.data.grad.read()? {
+        let new_grad = match &self.data.read()?.grad {
             Some(grad) => Some(grad.reshape(shape)?),
             None => None,
         };
 
         {
-            let mut inner_write = self.data.inner.write()?;
-            let mut grad_write = self.data.grad.write()?;
-
-            // Update the inner
-            *inner_write = new_inner;
-            // Update the gradient
-            *grad_write = new_grad;
+            let mut data = self.data.write()?;
+            data.inner = new_inner;
+            data.grad = new_grad;
         }
         Ok(())
     }
@@ -304,26 +280,26 @@ impl Tensor {
     /// * `Ok(Tensor)` - The new tensor with the specified shape.
     /// * `Err(TensorError)` - The error when reshaping the tensor.
     pub fn to_shape(&self, shape: &Shape) -> Result<Tensor, TensorError> {
-        let new_inner = match &*self.data.inner.read()? {
+        let new_inner = match &self.data.read()?.inner {
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.reshape(shape)?),
             TensorInner::Var(var) => {
                 TensorInner::Var(candle_core::Var::from_tensor(&var.reshape(shape)?)?)
             }
         };
 
-        let new_grad = match &*self.data.grad.read()? {
+        let new_grad = match &self.data.read()?.grad {
             Some(grad) => Some(grad.reshape(shape)?),
             None => None,
         };
 
         Ok(Tensor {
-            data: Arc::new(TensorData {
-                inner: RwLock::new(new_inner),
-                grad: RwLock::new(new_grad),
-                device: RwLock::new(self.data.device.read()?.clone()),
-                parents: RwLock::new(vec![self.clone()]),
-                name: RwLock::new(None),
-            }),
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                grad: new_grad,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                name: None,
+            })),
         })
     }
 
@@ -344,8 +320,8 @@ impl Tensor {
     /// println!("The shape of the tensor is: {:?}", shape);
     /// ```
     pub fn shape(&self) -> Result<Shape, TensorError> {
-        let inner = self.data.inner.read()?;
-        let shape = match &*inner {
+        let data = self.data.read()?;
+        let shape = match &data.inner {
             TensorInner::Tensor(tensor) => tensor.shape(),
             TensorInner::Var(var) => var.shape(),
         };
@@ -380,8 +356,8 @@ impl Tensor {
     /// * `Ok(None)` - The tensor does not have a name.
     /// * `Err(TensorError)` - The error when getting the name of the tensor.
     pub fn name(&self) -> Result<Option<String>, TensorError> {
-        let name = self.data.name.read()?;
-        Ok(name.clone())
+        let data = self.data.read()?;
+        Ok(data.name.clone())
     }
 
     /// Set the name of the tensor.
@@ -393,8 +369,8 @@ impl Tensor {
     /// * `Ok(())` - If the name is successfully set.
     /// * `Err(TensorError)` - The error when setting the name of the tensor.
     pub fn set_name(&mut self, name: String) -> Result<(), TensorError> {
-        let mut name_write = self.data.name.write()?;
-        *name_write = Some(name);
+        let mut data = self.data.write()?;
+        data.name = Some(name);
         Ok(())
     }
 }
