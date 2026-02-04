@@ -6,53 +6,6 @@ use crate::{
 };
 
 impl Tensor {
-    /// Move the tensor to the specified device inplace.
-    ///
-    /// # Arguments
-    /// * `device` - The device to move the tensor to.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the tensor is successfully moved to the device.
-    /// * `Err(TensorError)` - The error when moving the tensor to the device.
-    ///
-    /// # Examples
-    /// ```
-    /// use nove::tensor::{Device, Tensor, TensorError};
-    /// let cpu = Device::cpu();
-    /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
-    ///
-    /// // Move the tensor to the CPU
-    /// match tensor.to_device_inplace(&cpu) {
-    ///     Ok(()) => println!("Tensor has been moved to CPU"),
-    ///     Err(err) => println!("Error moving tensor to CPU: {:?}", err),
-    /// }
-    /// ```
-    pub fn to_device_inplace(&mut self, device: &Device) -> Result<(), TensorError> {
-        if self.device()? == *device {
-            return Ok(());
-        }
-
-        let new_inner = match &self.data.read()?.inner {
-            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_device(device)?),
-            TensorInner::Var(var) => {
-                TensorInner::Var(candle_core::Var::from_tensor(&var.to_device(device)?)?)
-            }
-        };
-
-        let new_grad = match &self.data.read()?.grad {
-            Some(grad) => Some(grad.to_device(device)?),
-            None => None,
-        };
-
-        {
-            let mut data = self.data.write()?;
-            data.inner = new_inner;
-            data.grad = new_grad;
-            data.device = device.clone();
-        }
-        Ok(())
-    }
-
     /// Create a new tensor like the current tensor, but on the specified device.
     ///
     /// # Arguments
@@ -109,66 +62,6 @@ impl Tensor {
     pub fn device(&self) -> Result<Device, TensorError> {
         let data = self.data.read()?;
         Ok(data.device.clone())
-    }
-
-    /// Convert the tensor to the specified dtype inplace.
-    ///
-    /// # Notes
-    /// * The gradient (if present) is also converted to the same dtype to maintain consistency.
-    ///
-    /// # Arguments
-    /// * `dtype` - The dtype to convert the tensor to.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the tensor is successfully converted to the dtype.
-    /// * `Err(TensorError)` - The error when converting the tensor to the dtype.
-    ///
-    /// # Examples
-    /// ```
-    /// use nove::tensor::{Device, DType, Tensor, TensorError};
-    /// let cpu = Device::cpu();
-    /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
-    ///
-    /// // Convert the tensor to F64 dtype
-    /// match tensor.to_dtype_inplace(&DType::F64) {
-    ///     Ok(()) => println!("Tensor has been converted to F64 dtype"),
-    ///     Err(err) => println!("Error converting tensor to F64 dtype: {:?}", err),
-    /// }
-    /// ```
-    pub fn to_dtype_inplace(&mut self, dtype: &DType) -> Result<(), TensorError> {
-        // Check current dtype first to avoid unnecessary conversion
-        let current_dtype = {
-            let data = self.data.read()?;
-            match &data.inner {
-                TensorInner::Tensor(tensor) => tensor.dtype(),
-                TensorInner::Var(var) => var.dtype(),
-            }
-        };
-
-        // If already the target dtype, return Ok
-        if current_dtype == *dtype {
-            return Ok(());
-        }
-
-        let new_inner = match &self.data.read()?.inner {
-            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_dtype(*dtype)?),
-            TensorInner::Var(var) => {
-                TensorInner::Var(candle_core::Var::from_tensor(&var.to_dtype(*dtype)?)?)
-            }
-        };
-
-        let new_grad = match &self.data.read()?.grad {
-            Some(grad) => Some(grad.to_dtype(*dtype)?),
-            None => None,
-        };
-
-        {
-            let mut data = self.data.write()?;
-            data.inner = new_inner;
-            data.grad = new_grad;
-        }
-
-        Ok(())
     }
 
     /// Create a new tensor like the current tensor but with the specified dtype.
@@ -242,35 +135,6 @@ impl Tensor {
         Ok(dtype)
     }
 
-    /// Reshape the tensor inplace to the specified shape.
-    ///
-    /// # Arguments
-    /// * `shape` - The shape to reshape the tensor to.
-    ///
-    /// # Returns
-    /// * `Ok(())` - If the tensor is successfully reshaped.
-    /// * `Err(TensorError)` - The error when reshaping the tensor.
-    pub fn to_shape_inplace(&mut self, shape: &Shape) -> Result<(), TensorError> {
-        let new_inner = match &self.data.read()?.inner {
-            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.reshape(shape)?),
-            TensorInner::Var(var) => {
-                TensorInner::Var(candle_core::Var::from_tensor(&var.reshape(shape)?)?)
-            }
-        };
-
-        let new_grad = match &self.data.read()?.grad {
-            Some(grad) => Some(grad.reshape(shape)?),
-            None => None,
-        };
-
-        {
-            let mut data = self.data.write()?;
-            data.inner = new_inner;
-            data.grad = new_grad;
-        }
-        Ok(())
-    }
-
     /// Create a new tensor like the current tensor with the specified shape.
     ///
     /// # Arguments
@@ -279,7 +143,21 @@ impl Tensor {
     /// # Returns
     /// * `Ok(Tensor)` - The new tensor with the specified shape.
     /// * `Err(TensorError)` - The error when reshaping the tensor.
-    pub fn to_shape(&self, shape: &Shape) -> Result<Tensor, TensorError> {
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let cpu = Device::cpu();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    ///
+    /// // Reshape the tensor
+    /// let reshaped_tensor = tensor.reshape(&Shape::from(&[2, 1])).unwrap();
+    ///
+    /// // Get the shape of the reshaped tensor
+    /// let shape = reshaped_tensor.shape().unwrap();
+    /// println!("The shape of the reshaped tensor is: {:?}", shape);
+    /// ```
+    pub fn reshape(&self, shape: &Shape) -> Result<Tensor, TensorError> {
         let new_inner = match &self.data.read()?.inner {
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.reshape(shape)?),
             TensorInner::Var(var) => {
@@ -355,6 +233,20 @@ impl Tensor {
     /// * `Ok(Some(name))` - The name of the tensor if it has been set.
     /// * `Ok(None)` - The tensor does not have a name.
     /// * `Err(TensorError)` - The error when getting the name of the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let cpu = Device::cpu();
+    /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    ///
+    /// // Set the name of the tensor
+    /// tensor.set_name("my_tensor".to_string()).unwrap();
+    ///
+    /// // Get the name of the tensor
+    /// let name = tensor.name().unwrap();
+    /// println!("The name of the tensor is: {:?}", name);
+    /// ```
     pub fn name(&self) -> Result<Option<String>, TensorError> {
         let data = self.data.read()?;
         Ok(data.name.clone())
@@ -368,6 +260,20 @@ impl Tensor {
     /// # Returns
     /// * `Ok(())` - If the name is successfully set.
     /// * `Err(TensorError)` - The error when setting the name of the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let cpu = Device::cpu();
+    /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    ///
+    /// // Set the name of the tensor
+    /// tensor.set_name("my_tensor".to_string()).unwrap();
+    ///
+    /// // Get the name of the tensor
+    /// let name = tensor.name().unwrap();
+    /// println!("The name of the tensor is: {:?}", name);
+    /// ```
     pub fn set_name(&mut self, name: String) -> Result<(), TensorError> {
         let mut data = self.data.write()?;
         data.name = Some(name);

@@ -119,6 +119,10 @@ impl Display for Tensor {
 impl Tensor {
     /// Set the gradient enabled status of the tensor.
     ///
+    /// # Notes
+    /// * If the tensor already has the desired gradient status, the method will do nothing.
+    /// * Switching the gradient enabled status will disconnect the tensor from the computational graph.
+    ///
     /// # Arguments
     /// * `grad_enabled` - The desired gradient enabled status.
     ///
@@ -155,6 +159,8 @@ impl Tensor {
         {
             let mut data = self.data.write()?;
             data.inner = new_inner;
+            data.grad = None;
+            data.parents.clear();
         }
 
         Ok(())
@@ -353,6 +359,20 @@ impl Tensor {
         Ok(())
     }
 
+    /// Update the tensor's inner data from another tensor.
+    ///
+    /// # Notes
+    /// * If the tensor has enabled gradients, the method will update the tensor's inner data
+    ///   without disconnecting it from the computational graph.
+    /// * If the tensor does not have enabled gradients, the method will update the tensor's inner data
+    ///   and disconnect it from the computational graph.
+    ///
+    /// # Arguments
+    /// * `other` - The tensor to update the inner data from.
+    ///
+    /// # Returns
+    /// * `Ok(())` - The tensor's inner data is successfully updated.
+    /// * `Err(TensorError)` - The error when updating the tensor's inner data.
     pub fn update_from_tensor(&self, other: &Tensor) -> Result<(), TensorError> {
         let other_data = other.data.read()?;
         let other_inner_tensor = match &other_data.inner {
@@ -363,6 +383,8 @@ impl Tensor {
         match &mut self_data.inner {
             TensorInner::Tensor(_) => {
                 self_data.inner = TensorInner::Tensor(other_inner_tensor.clone());
+                self_data.grad = None;
+                self_data.parents.clear();
             }
             TensorInner::Var(var) => {
                 var.set(other_inner_tensor)?;
