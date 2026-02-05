@@ -8,3 +8,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+thiserror = { workspace = true }
+nove_tensor = { path = "../nove_tensor", version = "=0.1.1" }

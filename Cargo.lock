@@ -836,6 +836,7 @@ version = "0.1.1"
 dependencies = [
  "nove_dataloader",
  "nove_dataset",
+ "nove_lossfn",
  "nove_model",
  "nove_tensor",
 ]
@@ -868,6 +869,10 @@ version = "0.1.1"
 [[package]]
 name = "nove_lossfn"
 version = "0.1.1"
+dependencies = [
+ "nove_tensor",
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "nove_macro"
