@@ -1,10 +1,19 @@
+use nove_tensor::TensorError;
 use thiserror::Error;
 
 mod cross_entropy_lossfn;
 pub use cross_entropy_lossfn::CrossEntropyLossFn;
+mod nll_lossfn;
+pub use nll_lossfn::NllLossFn;
 
-#[derive(Debug, Clone, Error)]
+pub mod common;
+
+#[derive(Debug, Error)]
 pub enum LossFnError {
+    /// Tensor errors from the `nove_tensor` crate.
+    #[error(transparent)]
+    TensorError(#[from] TensorError),
+
     /// Other errors.
     #[error("{0}")]
     OtherError(String),

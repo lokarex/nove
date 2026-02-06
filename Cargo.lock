@@ -870,6 +870,7 @@ version = "0.1.1"
 name = "nove_lossfn"
 version = "0.1.1"
 dependencies = [
+ "nove",
  "nove_tensor",
  "thiserror 2.0.18",
 ]

@@ -117,6 +117,26 @@ impl Display for Tensor {
 }
 
 impl Tensor {
+    pub fn detach(&self) -> Result<Tensor, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.detach());
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
     /// Set the gradient enabled status of the tensor.
     ///
     /// # Notes

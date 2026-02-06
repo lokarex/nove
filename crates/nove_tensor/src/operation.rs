@@ -184,4 +184,213 @@ impl Tensor {
             })),
         })
     }
+
+    pub fn max(&self, dim: Option<(usize, bool)>) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = match dim {
+            Some((dim, keep_dim)) => match keep_dim {
+                true => TensorInner::Tensor(inner_tensor.max_keepdim(dim)?),
+                false => TensorInner::Tensor(inner_tensor.max(dim)?),
+            },
+            None => TensorInner::Tensor(inner_tensor.max_all()?),
+        };
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn argmax(&self, dim: (usize, bool)) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = match dim {
+            (dim, keep_dim) => match keep_dim {
+                true => TensorInner::Tensor(inner_tensor.argmax_keepdim(dim)?),
+                false => TensorInner::Tensor(inner_tensor.argmax(dim)?),
+            },
+        };
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn exp(&self) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.exp()?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn sum(&self, dim: Option<(usize, bool)>) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = match dim {
+            Some((dim, keep_dim)) => match keep_dim {
+                true => TensorInner::Tensor(inner_tensor.sum_keepdim(dim)?),
+                false => TensorInner::Tensor(inner_tensor.sum(dim)?),
+            },
+            None => TensorInner::Tensor(inner_tensor.sum_all()?),
+        };
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn log(&self) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.log()?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn sub(&self, other: &Self) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let other_inner = other.data.read()?;
+        let other_inner_tensor = match &other_inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.broadcast_sub(other_inner_tensor)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone(), other.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn unsqueeze(&self, dim: usize) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.unsqueeze(dim)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn gather(&self, indices: &Self, dim: usize) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let indices_inner = indices.data.read()?;
+        let indices_inner_tensor = match &indices_inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.gather(indices_inner_tensor, dim)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone(), indices.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn affine(&self, weight: f64, bias: f64) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.affine(weight, bias)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
 }
