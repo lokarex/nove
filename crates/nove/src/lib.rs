@@ -14,6 +14,6 @@ pub mod model {
     pub use nove_model::*;
 }
 
-pub mod loss_fn {
+pub mod lossfn {
     pub use nove_lossfn::*;
 }

@@ -6,13 +6,13 @@ use crate::{
 };
 
 impl Tensor {
-    /// Add two tensors.
+    /// Add two tensors with broadcasting.
     ///
     /// # Arguments
-    /// * `other` - The tensor to add.
+    /// * `rhs` - The tensor to add.
     ///
     /// # Returns
-    /// * `Ok(Self)` - The result tensor after addition.
+    /// * `Ok(Tensor)` - The result tensor after addition.
     /// * `Err(TensorError)` - The error when adding the tensors.
     ///
     /// # Examples
@@ -25,13 +25,13 @@ impl Tensor {
     /// let t3 = t1.add(&t2).unwrap();
     /// println!("{:?}", t3);
     /// ```
-    pub fn add(&self, other: &Self) -> Result<Self, TensorError> {
+    pub fn add(&self, rhs: &Self) -> Result<Self, TensorError> {
         let inner1 = self.data.read()?;
         let inner1_tensor = match &inner1.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
-        let inner2 = other.data.read()?;
+        let inner2 = rhs.data.read()?;
         let inner2_tensor = match &inner2.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
@@ -42,7 +42,7 @@ impl Tensor {
 
         let new_inner = TensorInner::Tensor(inner1_tensor.broadcast_add(inner2_tensor)?);
 
-        let parents = vec![self.clone(), other.clone()];
+        let parents = vec![self.clone(), rhs.clone()];
 
         Ok(Self {
             data: Arc::new(RwLock::new(TensorData {
@@ -55,21 +55,32 @@ impl Tensor {
         })
     }
 
-    /// Multiply two tensors.
+    /// Multiply two tensors with broadcasting.
     ///
     /// # Arguments
-    /// * `other` - The tensor to multiply.
+    /// * `rhs` - The tensor to multiply.
     ///
     /// # Returns
-    /// * `Ok(Self)` - The result tensor after multiplication.
+    /// * `Ok(Tensor)` - The result tensor after multiplication.
     /// * `Err(TensorError)` - The error when multiplying the tensors.
-    pub fn mul(&self, other: &Self) -> Result<Self, TensorError> {
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t1 = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![3.0, 4.0], &device, false).unwrap();
+    ///
+    /// let t3 = t1.mul(&t2).unwrap();
+    /// println!("{:?}", t3);
+    /// ```
+    pub fn mul(&self, rhs: &Self) -> Result<Self, TensorError> {
         let inner1 = self.data.read()?;
         let inner1_tensor = match &inner1.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
-        let inner2 = other.data.read()?;
+        let inner2 = rhs.data.read()?;
         let inner2_tensor = match &inner2.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
@@ -81,7 +92,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), other.clone()],
+                parents: vec![self.clone(), rhs.clone()],
                 grad: None,
                 name: None,
             })),
@@ -95,7 +106,7 @@ impl Tensor {
     /// * `dim` - The dimension along which to stack the tensors.
     ///
     /// # Returns
-    /// * `Ok(Self)` - The result tensor after stacking.
+    /// * `Ok(Tensor)` - The result tensor after stacking.
     /// * `Err(TensorError)` - The error when stacking the tensors.
     ///
     /// # Examples
@@ -152,21 +163,32 @@ impl Tensor {
         })
     }
 
-    /// Matrix multiplication between two tensors.
+    /// Matrix multiplication between two tensors with broadcasting.
     ///
     /// # Arguments
-    /// * `other` - The tensor to multiply.
+    /// * `rhs` - The tensor to multiply.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The result tensor after matrix multiplication.
     /// * `Err(TensorError)` - The error when multiplying the tensors.
-    pub fn matmul(&self, other: &Self) -> Result<Self, TensorError> {
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t1 = Tensor::from_data(&[[1.0, 2.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(&[[5.0, 6.0], [7.0, 8.0]], &device, false).unwrap();
+    ///
+    /// let t3 = t1.matmul(&t2).unwrap();
+    /// println!("{:?}", t3);
+    /// ```
+    pub fn matmul(&self, rhs: &Self) -> Result<Self, TensorError> {
         let inner1 = self.data.read()?;
         let inner1_tensor = match &inner1.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
-        let inner2 = other.data.read()?;
+        let inner2 = rhs.data.read()?;
         let inner2_tensor = match &inner2.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
@@ -178,13 +200,36 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), other.clone()],
+                parents: vec![self.clone(), rhs.clone()],
                 grad: None,
                 name: None,
             })),
         })
     }
 
+    /// Compute the maximum value along a specified dimension or across all elements.
+    ///
+    /// # Arguments
+    ///
+    /// * `dim` - Optional `(dimension, keep_dim)` tuple.
+    ///   - `Some((dim, keep_dim))`: compute along `dim`
+    ///     - `keep_dim = true`: keep dimension (size becomes 1)
+    ///     - `keep_dim = false`: remove dimension
+    ///   - `None`: compute across all elements
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor containing the maximum values.
+    /// * `Err(TensorError)` - The error when computing the maximum.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
+    ///
+    /// let max_all = t.max(None).unwrap();
+    /// println!("{:?}", max_all);
+    /// ```
     pub fn max(&self, dim: Option<(usize, bool)>) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
@@ -211,6 +256,29 @@ impl Tensor {
         })
     }
 
+    /// Compute the indices of the maximum values along a specified dimension.
+    ///
+    /// # Arguments
+    ///
+    /// * `dim` - `(dimension, keep_dim)` tuple.
+    ///   - `dim`: dimension to compute argmax
+    ///   - `keep_dim`:
+    ///     - `true`: keep dimension (size becomes 1)
+    ///     - `false`: remove dimension
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor containing the indices of maximum values.
+    /// * `Err(TensorError)` - The error when computing the argmax.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
+    ///
+    /// let argmax = t.argmax((0, false)).unwrap();
+    /// println!("{:?}", argmax);
+    /// ```
     pub fn argmax(&self, dim: (usize, bool)) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
@@ -236,6 +304,21 @@ impl Tensor {
         })
     }
 
+    /// Compute the exponential (e^x) of each element in the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor with exponential values.
+    /// * `Err(TensorError)` - The error when computing the exponential.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![0.0, 1.0, 2.0], &device, false).unwrap();
+    ///
+    /// let exp = t.exp().unwrap();
+    /// println!("{:?}", exp);
+    /// ```
     pub fn exp(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
@@ -256,6 +339,28 @@ impl Tensor {
         })
     }
 
+    /// Compute the sum of elements along a specified dimension or across all elements.
+    ///
+    /// # Arguments
+    /// * `dim` - Optional `(dimension, keep_dim)` tuple.
+    ///   - `Some((dim, keep_dim))`: compute along `dim`
+    ///     - `keep_dim = true`: keep dimension (size becomes 1)
+    ///     - `keep_dim = false`: remove dimension
+    ///   - `None`: compute across all elements
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor containing the sum values.
+    /// * `Err(TensorError)` - The error when computing the sum.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
+    ///
+    /// let sum_all = t.sum(None).unwrap();
+    /// println!("{:?}", sum_all);
+    /// ```
     pub fn sum(&self, dim: Option<(usize, bool)>) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
@@ -282,6 +387,21 @@ impl Tensor {
         })
     }
 
+    /// Compute the natural logarithm (ln) of each element in the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor with logarithm values.
+    /// * `Err(TensorError)` - The error when computing the logarithm.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, false).unwrap();
+    ///
+    /// let log = t.log().unwrap();
+    /// println!("{:?}", log);
+    /// ```
     pub fn log(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
@@ -302,32 +422,69 @@ impl Tensor {
         })
     }
 
-    pub fn sub(&self, other: &Self) -> Result<Self, TensorError> {
+    /// Subtract two tensors with broadcasting.
+    ///
+    /// # Arguments
+    /// * `rhs` - The tensor to subtract.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor after subtraction.
+    /// * `Err(TensorError)` - The error when subtracting the tensors.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t1 = Tensor::from_data(vec![5.0, 6.0], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
+    ///
+    /// let t3 = t1.sub(&t2).unwrap();
+    /// println!("{:?}", t3);
+    /// ```
+    pub fn sub(&self, rhs: &Self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
 
-        let other_inner = other.data.read()?;
-        let other_inner_tensor = match &other_inner.inner {
+        let rhs_inner = rhs.data.read()?;
+        let rhs_inner_tensor = match &rhs_inner.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
 
-        let new_inner = TensorInner::Tensor(inner_tensor.broadcast_sub(other_inner_tensor)?);
+        let new_inner = TensorInner::Tensor(inner_tensor.broadcast_sub(rhs_inner_tensor)?);
 
         Ok(Self {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), other.clone()],
+                parents: vec![self.clone(), rhs.clone()],
                 grad: None,
                 name: None,
             })),
         })
     }
 
+    /// Insert a dimension of size 1 at the specified position.
+    ///
+    /// # Arguments
+    /// * `dim` - The dimension at which to insert the new dimension.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor with the new dimension added.
+    /// * `Err(TensorError)` - The error when adding the dimension.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, false).unwrap();
+    ///
+    /// let t2 = t.unsqueeze(0).unwrap();
+    /// println!("{:?}", t2);
+    /// ```
     pub fn unsqueeze(&self, dim: usize) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
@@ -348,6 +505,29 @@ impl Tensor {
         })
     }
 
+    /// Gather values from the tensor along the specified dimension using the provided indices.
+    ///
+    /// # Notes
+    /// * The data type(`DType`) of the indices tensor must be i64(`DType::I64`).
+    ///
+    /// # Arguments
+    /// * `indices` - The tensor containing the indices to gather.
+    /// * `dim` - The dimension along which to gather values.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor with gathered values.
+    /// * `Err(TensorError)` - The error when gathering values.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
+    /// let indices = Tensor::from_data(vec![0i64, 2i64], &device, false).unwrap();
+    ///
+    /// let result = t.gather(&indices, 0).unwrap();
+    /// println!("{:?}", result);
+    /// ```
     pub fn gather(&self, indices: &Self, dim: usize) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
@@ -374,6 +554,25 @@ impl Tensor {
         })
     }
 
+    /// Apply an affine transformation to each element in the tensor: `output = weight * input + bias`.
+    ///
+    /// # Arguments
+    /// * `weight` - The multiplicative weight coefficient.
+    /// * `bias` - The additive bias coefficient.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor after applying the affine transformation.
+    /// * `Err(TensorError)` - The error when applying the affine transformation.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, false).unwrap();
+    ///
+    /// let result = t.affine(2.0, 1.0).unwrap();
+    /// println!("{:?}", result);
+    /// ```
     pub fn affine(&self, weight: f64, bias: f64) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
