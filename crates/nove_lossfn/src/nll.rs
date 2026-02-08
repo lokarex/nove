@@ -25,15 +25,15 @@ use crate::{LossFn, LossFnError};
 ///   - `input`: A 2D tensor of shape (batch_size, num_classes) containing log-probabilities
 ///   - `target`: A 1D tensor of shape (batch_size) containing real class indices
 /// * The output is A scalar tensor representing the average NLL loss over the batch.
-pub struct NllLossFn;
+pub struct Nll;
 
-impl NllLossFn {
+impl Nll {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl LossFn for NllLossFn {
+impl LossFn for Nll {
     type Input = (Tensor, Tensor);
     type Output = Tensor;
 
@@ -49,7 +49,7 @@ impl LossFn for NllLossFn {
                     .affine(-1f64 / batch_size as f64, 0f64)?)
             }
             _ => Err(LossFnError::OtherError(
-                "NllLossFn: input and target must be 2D and 1D respectively".to_string(),
+                "Nll: input and target must be 2D and 1D respectively".to_string(),
             )),
         }
     }

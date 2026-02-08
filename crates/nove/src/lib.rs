@@ -17,3 +17,7 @@ pub mod model {
 pub mod lossfn {
     pub use nove_lossfn::*;
 }
+
+pub mod optimizer {
+    pub use nove_optimizer::*;
+}

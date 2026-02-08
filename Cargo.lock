@@ -838,6 +838,7 @@ dependencies = [
  "nove_dataset",
  "nove_lossfn",
  "nove_model",
+ "nove_optimizer",
  "nove_tensor",
 ]
 
@@ -893,6 +894,10 @@ dependencies = [
 [[package]]
 name = "nove_optimizer"
 version = "0.1.1"
+dependencies = [
+ "nove_tensor",
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "nove_tensor"

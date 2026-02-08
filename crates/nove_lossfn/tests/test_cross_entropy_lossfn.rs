@@ -1,4 +1,4 @@
-use nove_lossfn::{CrossEntropyLossFn, LossFn};
+use nove_lossfn::{CrossEntropy, LossFn};
 use nove_tensor::{Device, Tensor};
 
 #[test]
@@ -18,7 +18,7 @@ fn test_cross_entropy_lossfn() {
     .unwrap();
     let target = Tensor::from_data(&[0i64, 3i64, 7i64, 5i64], &device, false).unwrap();
 
-    let lossfn = CrossEntropyLossFn::new();
+    let lossfn = CrossEntropy::new();
 
     let loss = lossfn.loss((input, target)).unwrap();
 
