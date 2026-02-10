@@ -14,6 +14,13 @@ impl Sgd {
             learning_rate,
         }
     }
+
+    pub fn zero_grad(&mut self) -> Result<(), OptimizerError> {
+        for param in &mut self.params {
+            param.zero_grad()?;
+        }
+        Ok(())
+    }
 }
 
 impl Optimizer for Sgd {

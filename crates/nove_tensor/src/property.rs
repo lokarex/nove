@@ -95,7 +95,7 @@ impl Tensor {
         };
 
         let new_grad = match &self.data.read()?.grad {
-            Some(grad) => Some(grad.to_dtype(*dtype)?),
+            Some(grad) => Some(grad.to_dtype(dtype)?),
             None => None,
         };
 

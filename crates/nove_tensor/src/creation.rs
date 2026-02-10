@@ -21,7 +21,7 @@ impl Tensor {
         };
         let device = self.data.read()?.device.clone();
         let grad = if let Some(grad) = self.data.read()?.grad.as_ref() {
-            Some(grad.copy()?)
+            Some(grad.deep_clone()?)
         } else {
             None
         };

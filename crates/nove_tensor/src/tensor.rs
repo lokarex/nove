@@ -82,7 +82,7 @@ pub(crate) struct TensorData {
     pub(crate) inner: TensorInner,
     pub(crate) device: Device,
     pub(crate) parents: Vec<Tensor>,
-    pub(crate) grad: Option<candle_core::Tensor>,
+    pub(crate) grad: Option<Tensor>,
     pub(crate) name: Option<String>,
 }
 
@@ -137,55 +137,6 @@ impl Tensor {
         })
     }
 
-    /// Set the gradient enabled status of the tensor.
-    ///
-    /// # Notes
-    /// * If the tensor already has the desired gradient status, the method will do nothing.
-    /// * Switching the gradient enabled status will disconnect the tensor from the computational graph.
-    ///
-    /// # Arguments
-    /// * `grad_enabled` - The desired gradient enabled status.
-    ///
-    /// # Returns
-    /// * `Ok(())` - The tensor's gradient enabled status is successfully set.
-    /// * `Err(TensorError)` - The error when setting the tensor's gradient enabled status.
-    pub fn set_grad_enabled(&mut self, grad_enabled: bool) -> Result<(), TensorError> {
-        // Check if the gradient status is already as required
-        if self.grad_enabled()? == grad_enabled {
-            return Ok(());
-        }
-
-        let inner_tensor = {
-            let data = self.data.read()?;
-            match &data.inner {
-                TensorInner::Tensor(tensor) => tensor.clone(),
-                TensorInner::Var(var) => var.as_tensor().clone(),
-            }
-        };
-
-        let new_inner = match grad_enabled {
-            true => {
-                // Convert to Var type
-                let var = candle_core::Var::from_tensor(&inner_tensor)?;
-                TensorInner::Var(var)
-            }
-
-            false => {
-                // Convert to Tensor type
-                TensorInner::Tensor(inner_tensor)
-            }
-        };
-
-        {
-            let mut data = self.data.write()?;
-            data.inner = new_inner;
-            data.grad = None;
-            data.parents.clear();
-        }
-
-        Ok(())
-    }
-
     /// Get the gradient enabled status of the tensor.
     ///
     /// # Returns
@@ -200,51 +151,55 @@ impl Tensor {
         })
     }
 
-    /// Set the gradient tensor of the tensor.
+    /// Create a new tensor likes the current tensor, but with the desired gradient status.
+    ///
+    /// # Notes
+    /// * If the tensor already has the desired gradient status, the method will return the current tensor.
+    /// * Switching the gradient enabled status will disconnect the tensor from the computational graph.
     ///
     /// # Arguments
-    /// * `grad` - The gradient tensor to be set.
+    /// * `grad_enabled` - The desired gradient enabled status.
     ///
     /// # Returns
-    /// * `Ok(())` - The tensor's gradient tensor is successfully set.
-    /// * `Err(TensorError)` - The error when setting the tensor's gradient tensor.
-    pub fn set_grad(&mut self, grad: Tensor) -> Result<(), TensorError> {
-        // Check if the gradient status is enabled
-        if !self.grad_enabled()? {
-            return Err(TensorError::NoTensorGradient);
+    /// * `Ok(())` - The tensor's gradient enabled status is successfully set.
+    /// * `Err(TensorError)` - The error when setting the tensor's gradient enabled status.
+    pub fn require_grad(&mut self, grad_enabled: bool) -> Result<Tensor, TensorError> {
+        // Check if the gradient status is already as required
+        if self.grad_enabled()? == grad_enabled {
+            return Ok(self.clone());
         }
 
-        // Check if the gradient shape is the same as the tensor shape
-        let grad_shape = grad.shape()?;
-        let self_shape = self.shape()?;
-        if grad_shape != self_shape {
-            return Err(TensorError::ShapeMismatch(self_shape, grad_shape));
+        let inner_tensor = {
+            let data = self.data.read()?;
+            match &data.inner {
+                TensorInner::Tensor(tensor) => tensor.clone(),
+                TensorInner::Var(var) => var.as_tensor().clone(),
+            }
         }
+        .copy()?;
 
-        // Check if the gradient dtype is the same as the tensor dtype
-        let grad_dtype = grad.dtype()?;
-        let self_dtype = self.dtype()?;
-        if grad_dtype != self_dtype {
-            return Err(TensorError::DTypeMismatch(self_dtype, grad_dtype));
-        }
+        let new_inner = match grad_enabled {
+            true => {
+                // Convert to Var type
+                let var = candle_core::Var::from_tensor(&inner_tensor)?;
+                TensorInner::Var(var)
+            }
 
-        // Check if the gradient device is the same as the tensor device
-        let grad_device = grad.device()?;
-        let self_device = self.device()?;
-        if grad_device != self_device {
-            return Err(TensorError::DeviceMismatch(self_device, grad_device));
-        }
-
-        let new_grad = match &grad.data.read()?.inner {
-            TensorInner::Tensor(tensor) => tensor.copy()?,
-            TensorInner::Var(var) => var.as_tensor().copy()?,
+            false => {
+                // Convert to Tensor type
+                TensorInner::Tensor(inner_tensor)
+            }
         };
 
-        {
-            let mut data = self.data.write()?;
-            data.grad = Some(new_grad);
-        }
-        Ok(())
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.device()?.clone(),
+                parents: vec![],
+                grad: None,
+                name: None,
+            })),
+        })
     }
 
     /// Get the gradient tensor of the tensor.
@@ -254,29 +209,24 @@ impl Tensor {
     /// * `Ok(None)` - The tensor has no gradient tensor.
     /// * `Err(TensorError)` - The error when getting the tensor's gradient tensor.
     pub fn grad(&self) -> Result<Option<Tensor>, TensorError> {
-        // Check if the gradient status is enabled
-        if !self.grad_enabled()? {
-            return Err(TensorError::GradientDisabled);
-        }
-
         let data = self.data.read()?;
-        match &data.grad {
-            None => Ok(None),
-            Some(grad) => {
-                let new_inner = TensorInner::Tensor(grad.clone());
-                let device = data.device.clone();
+        Ok(data.grad.clone())
+    }
 
-                Ok(Some(Self {
-                    data: Arc::new(RwLock::new(TensorData {
-                        inner: new_inner,
-                        device,
-                        grad: None,
-                        parents: Vec::new(),
-                        name: None,
-                    })),
-                }))
+    /// Zero the gradient tensor of the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(())` - The tensor's gradient tensor is successfully set to zero.
+    /// * `Err(TensorError)` - The error when setting the tensor's gradient tensor to zero.
+    pub fn zero_grad(&mut self) -> Result<(), TensorError> {
+        let mut data = self.data.write()?;
+        if let Some(grad) = &mut data.grad {
+            match &mut grad.data.write()?.inner {
+                TensorInner::Var(var) => var.zero_set()?,
+                TensorInner::Tensor(tensor) => tensor.zero_set()?,
             }
         }
+        Ok(())
     }
 
     /// Backpropagate the gradient of the tensor to its parent tensors.
@@ -350,25 +300,35 @@ impl Tensor {
         parents
             .par_iter()
             .map(|parent| {
-                let inner_tensor = match &parent.data.read()?.inner {
+                let mut parent_write = parent.data.write()?;
+                let inner_tensor = match &parent_write.inner {
                     TensorInner::Tensor(tensor) => tensor.clone(),
                     TensorInner::Var(var) => var.as_tensor().clone(),
                 };
 
                 // Get the new gradient of the parent tensor from the grad_store
-                let grad = grad_store
+                let new_grad = grad_store
                     .get(&inner_tensor)
                     .ok_or(TensorError::NoTensorGradient)?;
 
-                let mut data = parent.data.write()?;
-                match &data.grad {
+                match &parent_write.grad {
                     // If the parent tensor already has a gradient, add the new gradient to it
                     Some(parent_grad) => {
-                        data.grad = Some(grad.add(parent_grad)?);
+                        let mut parent_grad_write = parent_grad.data.write()?;
+                        let parent_grad_inner_tensor = match &parent_grad_write.inner {
+                            TensorInner::Tensor(tensor) => tensor.clone(),
+                            TensorInner::Var(var) => var.as_tensor().clone(),
+                        };
+                        parent_grad_write.inner =
+                            TensorInner::Tensor(new_grad.add(&parent_grad_inner_tensor)?);
                     }
                     // If the parent tensor does not have a gradient, set it to the new gradient
                     None => {
-                        data.grad = Some(grad.clone());
+                        parent_write.grad = Some(Tensor::from_candle_tensor(
+                            new_grad.clone(),
+                            &parent_write.device,
+                            false,
+                        )?);
                     }
                 };
 
@@ -402,7 +362,7 @@ impl Tensor {
         let mut self_data = self.data.write()?;
         match &mut self_data.inner {
             TensorInner::Tensor(_) => {
-                self_data.inner = TensorInner::Tensor(other_inner_tensor.clone());
+                self_data.inner = TensorInner::Tensor(other_inner_tensor.copy()?);
                 self_data.grad = None;
                 self_data.parents.clear();
             }

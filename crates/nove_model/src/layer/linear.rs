@@ -93,10 +93,10 @@ impl Model for Linear {
         Ok(y)
     }
 
-    fn set_grad_enabled(&mut self, grad_enabled: bool) -> Result<(), ModelError> {
-        self.weight.set_grad_enabled(grad_enabled)?;
+    fn require_grad(&mut self, grad_enabled: bool) -> Result<(), ModelError> {
+        self.weight = self.weight.require_grad(grad_enabled)?;
         if let Some(bias) = &mut self.bias {
-            bias.set_grad_enabled(grad_enabled)?;
+            self.bias = Some(bias.require_grad(grad_enabled)?);
         }
         Ok(())
     }

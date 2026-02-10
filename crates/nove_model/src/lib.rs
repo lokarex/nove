@@ -57,7 +57,7 @@ pub trait Model: Display {
     /// # Returns
     /// * `Ok(())` - If successful.
     /// * `Err(ModelError)` - The error when setting the gradient tracking.
-    fn set_grad_enabled(&mut self, grad_enabled: bool) -> Result<(), ModelError>;
+    fn require_grad(&mut self, grad_enabled: bool) -> Result<(), ModelError>;
 
     /// Move the model to the specified device.
     ///
