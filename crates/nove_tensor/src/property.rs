@@ -238,13 +238,13 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     /// let cpu = Device::cpu();
-    /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// // Set the name of the tensor
-    /// tensor.set_name("my_tensor".to_string()).unwrap();
+    /// let named_tensor = tensor.require_name("my_tensor").unwrap();
     ///
     /// // Get the name of the tensor
-    /// let name = tensor.name().unwrap();
+    /// let name = named_tensor.name().unwrap();
     /// println!("The name of the tensor is: {:?}", name);
     /// ```
     pub fn name(&self) -> Result<Option<String>, TensorError> {
@@ -252,31 +252,31 @@ impl Tensor {
         Ok(data.name.clone())
     }
 
-    /// Set the name of the tensor.
+    /// Create a new tensor like the current tensor with the specified name.
     ///
     /// # Arguments
     /// * `name` - The name to set for the tensor.
     ///
     /// # Returns
-    /// * `Ok(())` - If the name is successfully set.
+    /// * `Ok(Tensor)` - The new tensor with the specified name.
     /// * `Err(TensorError)` - The error when setting the name of the tensor.
     ///
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
     /// let cpu = Device::cpu();
-    /// let mut tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// // Set the name of the tensor
-    /// tensor.set_name("my_tensor".to_string()).unwrap();
+    /// let named_tensor = tensor.require_name("my_tensor").unwrap();
     ///
     /// // Get the name of the tensor
-    /// let name = tensor.name().unwrap();
+    /// let name = named_tensor.name().unwrap();
     /// println!("The name of the tensor is: {:?}", name);
     /// ```
-    pub fn set_name(&mut self, name: String) -> Result<(), TensorError> {
-        let mut data = self.data.write()?;
-        data.name = Some(name);
-        Ok(())
+    pub fn require_name(&self, name: &str) -> Result<Tensor, TensorError> {
+        let new_tensor = self.deep_clone()?;
+        new_tensor.data.write()?.name = Some(name.to_string());
+        Ok(new_tensor)
     }
 }

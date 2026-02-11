@@ -382,27 +382,27 @@ impl LinearBuilder {
         let high: f32 = bound;
 
         // Initialize the weight tensor.
-        let mut weight = Tensor::rand(
+        let weight = Tensor::rand(
             low,
             high,
             &Shape::from_dims(&[self.in_features.unwrap(), self.out_features.unwrap()]),
             &self.device,
             self.grad_enabled,
         )?
-        .to_dtype(&self.dtype)?;
-        weight.set_name(format!("linear.{}.weight", id))?;
+        .to_dtype(&self.dtype)?
+        .require_name(&format!("linear.{}.weight", id))?;
 
         // Initialize the bias tensor if enabled.
         let bias = if self.bias_enabled {
-            let mut bias = Tensor::rand(
+            let bias = Tensor::rand(
                 low,
                 high,
                 &Shape::from_dims(&[self.out_features.unwrap()]),
                 &self.device,
                 self.grad_enabled,
             )?
-            .to_dtype(&self.dtype)?;
-            bias.set_name(format!("linear.{}.bias", id))?;
+            .to_dtype(&self.dtype)?
+            .require_name(&format!("linear.{}.bias", id))?;
             Some(bias)
         } else {
             None
