@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fmt::Display,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -44,22 +43,6 @@ pub struct Linear {
 }
 
 impl Linear {
-    /// Get the name of the weight tensor.
-    ///
-    /// # Returns
-    /// * `String` - The name of the weight tensor.
-    fn weight_name(&self) -> String {
-        format!("linear.{}.weight", self.id)
-    }
-
-    /// Get the name of the bias tensor.
-    ///
-    /// # Returns
-    /// * `String` - The name of the bias tensor.
-    fn bias_name(&self) -> String {
-        format!("linear.{}.bias", self.id)
-    }
-
     /// Get the weight tensor in the linear layer.
     ///
     /// # Returns
@@ -117,47 +100,11 @@ impl Model for Linear {
         Ok(())
     }
 
-    fn to_safetensors(&self) -> Result<HashMap<String, Tensor>, ModelError> {
-        let mut tensors = HashMap::new();
-
-        tensors.insert(self.weight_name(), self.weight.clone());
-
-        if let Some(bias) = &self.bias {
-            tensors.insert(self.bias_name(), bias.clone());
+    fn parameters(&self) -> Result<Vec<Tensor>, ModelError> {
+        match &self.bias {
+            Some(bias) => Ok(vec![self.weight.clone(), bias.clone()]),
+            None => Ok(vec![self.weight.clone()]),
         }
-        Ok(tensors)
-    }
-
-    fn load_from_safetensors(
-        &mut self,
-        tensors: HashMap<String, Tensor>,
-    ) -> Result<(), ModelError> {
-        let weight_name = self.weight_name();
-        let bias_name = self.bias_name();
-
-        // Update weight
-        let new_weight = tensors
-            .get(&weight_name)
-            .ok_or(ModelError::MissingParameter(weight_name))?;
-        self.weight.update_from_tensor(new_weight)?;
-
-        // Update bias
-        match (&self.bias, tensors.get(&bias_name)) {
-            // If the old and new biases exist, update the old bias.
-            (Some(bias), Some(new_bias)) => bias.update_from_tensor(new_bias)?,
-            // If the old bias does not exist, but new bias is provided, return an error.
-            (None, Some(_)) => {
-                return Err(ModelError::UnexpectedParameter(bias_name));
-            }
-            // If the old bias exists, but new bias is not provided, return an error.
-            (Some(_), None) => {
-                return Err(ModelError::MissingParameter(bias_name));
-            }
-            // If the old and new biases do not exist, do nothing.
-            (None, None) => {}
-        }
-
-        Ok(())
     }
 }
 

@@ -15,3 +15,5 @@ mod property;
 
 mod dtype;
 pub use dtype::DType;
+
+pub mod safetensor;
