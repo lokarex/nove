@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use crate::{
-    Tensor, TensorError,
+    Shape, Tensor, TensorError,
     tensor::{TensorData, TensorInner},
 };
 
@@ -587,6 +587,88 @@ impl Tensor {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
                 parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    /// Element-wise greater-than-or-equal (>=) comparison with broadcasting, returning a boolean tensor.
+    ///
+    /// # Arguments
+    /// * `rhs` - The tensor to compare with.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor with boolean values.
+    /// * `Err(TensorError)` - The error when comparing the tensors.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let lhs = Tensor::from_data(vec![1.0, 2.0, 0.0, 0.0], &device, false).unwrap();
+    /// let rhs = Tensor::from_data(vec![0.0, 0.0, 3.0, 4.0], &device, false).unwrap();
+    ///
+    /// let result = lhs.ge(&rhs).unwrap();
+    /// println!("{:?}", result);
+    /// ```
+    pub fn ge(&self, rhs: &Self) -> Result<Self, TensorError> {
+        let lhs_inner = self.data.read()?;
+        let lhs_inner_tensor = match &lhs_inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let rhs_inner = rhs.data.read()?;
+        let rhs_inner_tensor = match &rhs_inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(lhs_inner_tensor.broadcast_ge(rhs_inner_tensor)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone(), rhs.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    /// Broadcast the tensor to the specified shape.
+    ///
+    /// # Parameters
+    /// * `shape` - The shape to broadcast the tensor to.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The broadcasted tensor if successful.
+    /// * `Err(TensorError)` - The error when broadcasting the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
+    /// let shape = Shape::from_dims(&[2, 4]);
+    ///
+    /// let result = t.broadcast(&shape).unwrap();
+    /// println!("{:?}", result);
+    /// ```
+    pub fn broadcast(&self, shape: &Shape) -> Result<Self, TensorError> {
+        let inner = match &self.data.read()?.inner {
+            TensorInner::Var(var) => {
+                TensorInner::Var(candle_core::Var::from_tensor(&var.broadcast_as(shape)?)?)
+            }
+            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.broadcast_as(shape)?),
+        };
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![],
                 grad: None,
                 name: None,
             })),

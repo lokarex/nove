@@ -37,6 +37,10 @@ pub enum ModelError {
     /// Other errors.
     #[error("{0}")]
     OtherError(String),
+
+    /// Invalid argument.
+    #[error("Invalid argument: {0}")]
+    InvalidArgument(String),
 }
 
 pub trait Model: Display {

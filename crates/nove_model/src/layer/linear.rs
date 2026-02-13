@@ -64,6 +64,14 @@ impl Model for Linear {
     type Input = Tensor;
     type Output = Tensor;
 
+    /// Apply the linear layer to the input tensor.
+    ///
+    /// # Arguments
+    /// * `input` - The input tensor.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The output tensor if successful.
+    /// * `Err(ModelError)` - The error when applying the linear layer to the input tensor.
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, ModelError> {
         let y = input.matmul(&self.weight)?;
 

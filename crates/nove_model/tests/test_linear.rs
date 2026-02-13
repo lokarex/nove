@@ -1,5 +1,5 @@
-use nove_model::{Model, layer::LinearBuilder};
-use nove_tensor::{Device, Shape, Tensor};
+use nove::model::{Model, layer::LinearBuilder};
+use nove::tensor::{Device, Shape, Tensor};
 
 #[test]
 fn test_linear() {
