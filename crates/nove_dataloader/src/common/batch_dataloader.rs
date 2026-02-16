@@ -274,10 +274,10 @@ where
     /// * `Err(DataloaderError)` - Some errors occur while building the dataloader.
     pub fn build(&mut self) -> Result<BatchDataloader<'a, D, O, B, P, C>, DataloaderError> {
         let dataset = self.dataset.ok_or_else(|| {
-            DataloaderError::MissingField("dataset in BatchDataloaderBuilder".to_string())
+            DataloaderError::MissingArgument("dataset in BatchDataloaderBuilder".to_string())
         })?;
         let batch_size = self.batch_size.ok_or_else(|| {
-            DataloaderError::MissingField("batch_size in BatchDataloaderBuilder".to_string())
+            DataloaderError::MissingArgument("batch_size in BatchDataloaderBuilder".to_string())
         })?;
         if batch_size == 0 {
             return Err(DataloaderError::OtherError(
@@ -285,10 +285,10 @@ where
             ));
         }
         let process_fn = self.process_fn.take().ok_or_else(|| {
-            DataloaderError::MissingField("process_fn in BatchDataloaderBuilder".to_string())
+            DataloaderError::MissingArgument("process_fn in BatchDataloaderBuilder".to_string())
         })?;
         let collate_fn = self.collate_fn.take().ok_or_else(|| {
-            DataloaderError::MissingField("collate_fn in BatchDataloaderBuilder".to_string())
+            DataloaderError::MissingArgument("collate_fn in BatchDataloaderBuilder".to_string())
         })?;
         let len = dataset.len()?;
         if len == 0 {

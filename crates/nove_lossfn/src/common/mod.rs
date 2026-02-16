@@ -48,5 +48,5 @@ pub fn log_softmax(xs: &Tensor, dim: usize) -> Result<Tensor, TensorError> {
 
     let log_sum = Tensor::log(&Tensor::sum(&Tensor::exp(&difference)?, Some((dim, true)))?)?;
 
-    Ok(difference.sub(&log_sum)?)
+    difference.sub(&log_sum)
 }

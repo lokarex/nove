@@ -8,6 +8,31 @@ use crate::{Model, ModelError};
 
 static ID: AtomicUsize = AtomicUsize::new(1);
 
+/// Dropout layer.
+///
+/// # Notes
+/// * The `Dropout` is now only created by the `Dropout::new()` function.
+/// * The behavior of the dropout layer is controlled by the `training` flag in the `forward` method.
+///
+/// # Fields
+/// * `probability` - The probability of dropping out a unit.
+/// * `id` - The unique ID of the dropout layer.
+///
+/// # Examples
+/// ```
+/// use nove::tensor::{Device, Tensor};
+/// use nove::model::layer::Dropout;
+/// use nove::model::Model;
+///
+/// let mut dropout = Dropout::new(0.5).unwrap();
+/// println!("{}", dropout);
+///
+/// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &Device::cpu(), false).unwrap();
+/// let output = dropout.forward((input.clone(), true)).unwrap();
+/// println!("{}", output);
+/// let output = dropout.forward((input, false)).unwrap();
+/// println!("{}", output);
+/// ```
 pub struct Dropout {
     probability: f32,
     id: usize,
@@ -56,7 +81,7 @@ impl Model for Dropout {
     /// Apply dropout layer to the input tensor.
     ///
     /// # Arguments
-    /// * `input` - `(xs, training)` where `xs` is the input tensor and `training` is a boolean
+    /// * `input: (Tensor, bool)` - `(xs: Tensor, training: bool)` where `xs` is the input tensor and `training` is a boolean
     ///   indicating whether the model is in training mode.
     ///
     /// # Returns

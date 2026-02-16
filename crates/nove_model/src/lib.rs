@@ -14,21 +14,13 @@ pub enum ModelError {
     #[error(transparent)]
     TensorError(#[from] TensorError),
 
-    /// Missing parameter.
-    #[error("Missing parameter: {0}")]
-    MissingParameter(String),
-
     /// Unexpected parameter.
     #[error("Unexpected parameter: {0}")]
     UnexpectedParameter(String),
 
     /// Parameter missing name.
     #[error("Parameter missing name")]
-    ParameterMissingName(),
-
-    /// Missing field.
-    #[error("Missing field: {0}")]
-    MissingField(String),
+    ParameterMissingName,
 
     /// Parameter count mismatch.
     #[error("Parameter count mismatch: expected {expected}, got {actual}")]
@@ -41,6 +33,10 @@ pub enum ModelError {
     /// Invalid argument.
     #[error("Invalid argument: {0}")]
     InvalidArgument(String),
+
+    /// Missing argument.
+    #[error("Missing argument: {0}")]
+    MissingArgument(String),
 }
 
 pub trait Model: Display {
@@ -105,7 +101,7 @@ pub trait Model: Display {
             .into_iter()
             .map(|t| match t.name()? {
                 Some(name) => Ok((name, t)),
-                None => Err(ModelError::ParameterMissingName()),
+                None => Err(ModelError::ParameterMissingName),
             })
             .collect::<Result<HashMap<_, _>, ModelError>>()?)
     }

@@ -7,3 +7,7 @@ pub use dropout::Dropout;
 
 mod relu;
 pub use relu::ReLU;
+
+mod conv;
+pub use conv::Conv2d;
+pub use conv::Conv2dBuilder;

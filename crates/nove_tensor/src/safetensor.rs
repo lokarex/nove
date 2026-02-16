@@ -14,11 +14,7 @@ use crate::{Device, Tensor, TensorError};
 pub fn save(file_path: &str, tensors: HashMap<String, Tensor>) -> Result<(), TensorError> {
     let candle_tensor = tensors
         .iter()
-        .map(|(name, t)| {
-            let name = name;
-            let tensor = t.to_candle_tensor()?;
-            Ok((name, tensor))
-        })
+        .map(|(name, t)| Ok((name, t.to_candle_tensor()?)))
         .collect::<Result<HashMap<_, _>, TensorError>>()?;
     candle_core::safetensors::save(&candle_tensor, file_path)?;
     Ok(())

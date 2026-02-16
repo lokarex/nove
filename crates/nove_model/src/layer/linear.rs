@@ -93,17 +93,17 @@ impl Model for Linear {
     }
 
     fn to_device(&mut self, device: &Device) -> Result<(), ModelError> {
-        self.weight.to_device(device)?;
+        self.weight = self.weight.to_device(device)?;
         if let Some(bias) = &mut self.bias {
-            bias.to_device(device)?;
+            self.bias = Some(bias.to_device(device)?);
         }
         Ok(())
     }
 
     fn to_dtype(&mut self, dtype: &DType) -> Result<(), ModelError> {
-        self.weight.to_dtype(dtype)?;
+        self.weight = self.weight.to_dtype(dtype)?;
         if let Some(bias) = &mut self.bias {
-            bias.to_dtype(dtype)?;
+            self.bias = Some(bias.to_dtype(dtype)?);
         }
         Ok(())
     }
@@ -134,6 +134,8 @@ impl Display for Linear {
 /// # Notes
 /// * The `LinearBuilder` implements the `Default` trait, so you can
 ///   use `LinearBuilder::default()` to create a builder with default values.
+/// * The `weight` tensor in the linear layer is initialized with the Kaiming normal distribution(`mean=0.0`, `std=sqrt(2 / in_features)`).
+///   The `bias`` tensor is initialized with zeros(if enabled).
 ///
 /// # Required Arguments
 /// * `in_features` - The number of input features.
@@ -321,26 +323,23 @@ impl LinearBuilder {
     /// let linear = linear_builder.build().unwrap();
     /// ```
     pub fn build(&self) -> Result<Linear, ModelError> {
-        let in_features = self.in_features.ok_or(ModelError::MissingField(
+        let in_features = self.in_features.ok_or(ModelError::MissingArgument(
             "in_features in LinearBuilder".to_string(),
         ))?;
-        let out_features = self.out_features.ok_or(ModelError::MissingField(
+        let out_features = self.out_features.ok_or(ModelError::MissingArgument(
             "out_features in LinearBuilder".to_string(),
         ))?;
 
         // Generate a unique ID for the linear layer.
         let id = ID.fetch_add(1, Ordering::Relaxed);
 
-        // Determine the bounds for the weight and bias initialization.
-        let bound: f32 = 1.0 / (self.in_features.unwrap() as f32).sqrt();
-        let low: f32 = -bound;
-        let high: f32 = bound;
+        let std = (2.0 / in_features as f32).sqrt();
 
         // Initialize the weight tensor.
-        let weight = Tensor::rand(
-            low,
-            high,
-            &Shape::from_dims(&[self.in_features.unwrap(), self.out_features.unwrap()]),
+        let weight = Tensor::randn(
+            0.0,
+            std,
+            &Shape::from_dims(&[in_features, out_features]),
             &self.device,
             self.grad_enabled,
         )?
@@ -349,10 +348,9 @@ impl LinearBuilder {
 
         // Initialize the bias tensor if enabled.
         let bias = if self.bias_enabled {
-            let bias = Tensor::rand(
-                low,
-                high,
-                &Shape::from_dims(&[self.out_features.unwrap()]),
+            let bias = Tensor::zeros(
+                &Shape::from_dims(&[out_features]),
+                &self.dtype,
                 &self.device,
                 self.grad_enabled,
             )?
