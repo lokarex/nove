@@ -38,7 +38,7 @@ impl Tensor {
                 grad: new_grad,
                 device: device.clone(),
                 parents: vec![self.clone()],
-                name: None,
+                name: self.data.read()?.name.clone(),
             })),
         })
     }
@@ -105,7 +105,7 @@ impl Tensor {
                 device: self.data.read()?.device.clone(),
                 grad: new_grad,
                 parents: vec![self.clone()],
-                name: None,
+                name: self.data.read()?.name.clone(),
             })),
         })
     }
@@ -176,7 +176,7 @@ impl Tensor {
                 grad: new_grad,
                 device: self.data.read()?.device.clone(),
                 parents: vec![self.clone()],
-                name: None,
+                name: self.data.read()?.name.clone(),
             })),
         })
     }

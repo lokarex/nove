@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt::Display,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -34,6 +35,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///     .dtype(DType::F32)      // Optional, default is F32
 ///     .build();
 /// ```
+#[derive(Debug, Clone)]
 pub struct Linear {
     weight: Tensor,
     bias: Option<Tensor>,
@@ -114,13 +116,24 @@ impl Model for Linear {
             None => Ok(vec![self.weight.clone()]),
         }
     }
+
+    fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
+        Ok(self
+            .parameters()?
+            .into_iter()
+            .map(|t| match t.name()? {
+                Some(name) => Ok((name, t)),
+                None => Err(ModelError::ParameterMissingName),
+            })
+            .collect::<Result<HashMap<_, _>, ModelError>>()?)
+    }
 }
 
 impl Display for Linear {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "linear.{} (in_features={}, out_features={}, bias_enabled={})",
+            "linear.{}(in_features={}, out_features={}, bias_enabled={})",
             self.id,
             self.in_features,
             self.out_features,

@@ -12,6 +12,8 @@ indexmap = { workspace = true }
 nove_tensor = { path = "../nove_tensor", version = "=0.1.1" }
 rand = { workspace = true }
 thiserror = { workspace = true }
+nove_macro = { path = "../nove_macro", version = "=0.1.1" }
 
 [dev-dependencies]
 nove = { path = "../nove" }
+tempfile = { workspace = true }

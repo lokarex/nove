@@ -1,11 +1,12 @@
 use std::{
+    collections::HashMap,
     fmt::Display,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use nove_tensor::Tensor;
 
-use crate::Model;
+use crate::{Model, ModelError};
 
 static ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -30,6 +31,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// let output = relu.forward(input).unwrap();
 /// println!("{}", output);
 /// ```
+#[derive(Debug, Clone)]
 pub struct ReLU {
     id: usize,
 }
@@ -90,10 +92,14 @@ impl Model for ReLU {
     fn parameters(&self) -> Result<Vec<nove_tensor::Tensor>, crate::ModelError> {
         Ok(vec![])
     }
+
+    fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
+        Ok(HashMap::new())
+    }
 }
 
 impl Display for ReLU {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "relu.{} ()", self.id)
+        write!(f, "relu.{}()", self.id)
     }
 }

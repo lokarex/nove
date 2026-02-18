@@ -95,16 +95,7 @@ pub trait Model: Display {
     /// # Returns
     /// * `Ok(HashMap<String, Tensor>)` - The named parameters of the model.
     /// * `Err(ModelError)` - The error when getting the named parameters of the model.
-    fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
-        Ok(self
-            .parameters()?
-            .into_iter()
-            .map(|t| match t.name()? {
-                Some(name) => Ok((name, t)),
-                None => Err(ModelError::ParameterMissingName),
-            })
-            .collect::<Result<HashMap<_, _>, ModelError>>()?)
-    }
+    fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError>;
 
     /// Save the model parameters to a file.
     ///
@@ -159,10 +150,21 @@ pub trait Model: Display {
                     });
                 }
 
-                for (name, new_param) in new_params {
+                for (new_param_name, new_param) in new_params {
                     let old_param = old_params
-                        .get(&name)
-                        .ok_or(ModelError::UnexpectedParameter(name))?;
+                        .iter()
+                        .find(|(old_param_name, _)| {
+                            for (old_part, new_part) in
+                                old_param_name.split('.').zip(new_param_name.split('.'))
+                            {
+                                if !old_part.parse::<usize>().is_ok() && old_part != new_part {
+                                    return false;
+                                }
+                            }
+                            true
+                        })
+                        .map(|(_, tensor)| tensor)
+                        .ok_or(ModelError::UnexpectedParameter(new_param_name))?;
 
                     old_param.update_from_tensor(&new_param)?;
                 }

@@ -21,3 +21,7 @@ pub mod lossfn {
 pub mod optimizer {
     pub use nove_optimizer::*;
 }
+
+pub mod r#macro {
+    pub use nove_macro::*;
+}

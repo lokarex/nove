@@ -7,4 +7,10 @@ description.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lib]
+proc-macro = true
+
 [dependencies]
+proc-macro2 = "1.0.106"
+quote = "1.0.44"
+syn = "2.0.116"

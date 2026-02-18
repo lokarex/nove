@@ -1,5 +1,6 @@
 use nove_tensor::{DType, Device, Tensor};
 use std::{
+    collections::HashMap,
     fmt::Display,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -33,6 +34,7 @@ static ID: AtomicUsize = AtomicUsize::new(1);
 /// let output = dropout.forward((input, false)).unwrap();
 /// println!("{}", output);
 /// ```
+#[derive(Debug, Clone)]
 pub struct Dropout {
     probability: f32,
     id: usize,
@@ -123,10 +125,14 @@ impl Model for Dropout {
     fn parameters(&self) -> Result<Vec<nove_tensor::Tensor>, crate::ModelError> {
         Ok(vec![])
     }
+
+    fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
+        Ok(HashMap::new())
+    }
 }
 
 impl Display for Dropout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "dropout.{} (probability={})", self.id, self.probability)
+        write!(f, "dropout.{}(probability={})", self.id, self.probability)
     }
 }

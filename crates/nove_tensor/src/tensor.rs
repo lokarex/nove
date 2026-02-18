@@ -197,7 +197,7 @@ impl Tensor {
                 device: self.device()?.clone(),
                 parents: vec![],
                 grad: None,
-                name: None,
+                name: self.data.read()?.name.clone(),
             })),
         })
     }
