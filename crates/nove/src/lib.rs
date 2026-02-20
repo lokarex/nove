@@ -25,3 +25,11 @@ pub mod optimizer {
 pub mod r#macro {
     pub use nove_macro::*;
 }
+
+pub mod learner {
+    pub use nove_learner::*;
+}
+
+pub mod metric {
+    pub use nove_metric::*;
+}

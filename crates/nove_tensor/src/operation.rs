@@ -211,7 +211,7 @@ impl Tensor {
     ///
     /// # Arguments
     ///
-    /// * `dim` - Optional `(dimension, keep_dim)` tuple.
+    /// * `axis` - Optional `(dim, keep_dim)` tuple.
     ///   - `Some((dim, keep_dim))`: compute along `dim`
     ///     - `keep_dim = true`: keep dimension (size becomes 1)
     ///     - `keep_dim = false`: remove dimension
@@ -230,14 +230,14 @@ impl Tensor {
     /// let max_all = t.max(None).unwrap();
     /// println!("{:?}", max_all);
     /// ```
-    pub fn max(&self, dim: Option<(usize, bool)>) -> Result<Self, TensorError> {
+    pub fn max(&self, axis: Option<(usize, bool)>) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
 
-        let new_inner = match dim {
+        let new_inner = match axis {
             Some((dim, keep_dim)) => match keep_dim {
                 true => TensorInner::Tensor(inner_tensor.max_keepdim(dim)?),
                 false => TensorInner::Tensor(inner_tensor.max(dim)?),
@@ -259,15 +259,14 @@ impl Tensor {
     /// Compute the indices of the maximum values along a specified dimension.
     ///
     /// # Arguments
-    ///
-    /// * `dim` - `(dimension, keep_dim)` tuple.
+    /// * `axis` - `(dim, keep_dim)` tuple.
     ///   - `dim`: dimension to compute argmax
     ///   - `keep_dim`:
     ///     - `true`: keep dimension (size becomes 1)
     ///     - `false`: remove dimension
     ///
     /// # Returns
-    /// * `Ok(Tensor)` - The result tensor containing the indices of maximum values.
+    /// * `Ok(Tensor)` - The result tensor with dtype `u64` containing the indices of maximum values.
     /// * `Err(TensorError)` - The error when computing the argmax.
     ///
     /// # Examples
@@ -279,14 +278,14 @@ impl Tensor {
     /// let argmax = t.argmax((0, false)).unwrap();
     /// println!("{:?}", argmax);
     /// ```
-    pub fn argmax(&self, dim: (usize, bool)) -> Result<Self, TensorError> {
+    pub fn argmax(&self, axis: (usize, bool)) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
 
-        let (dim, keep_dim) = dim;
+        let (dim, keep_dim) = axis;
         let new_inner = match keep_dim {
             true => TensorInner::Tensor(inner_tensor.argmax_keepdim(dim)?),
             false => TensorInner::Tensor(inner_tensor.argmax(dim)?),
@@ -341,7 +340,7 @@ impl Tensor {
     /// Compute the sum of elements along a specified dimension or across all elements.
     ///
     /// # Arguments
-    /// * `dim` - Optional `(dimension, keep_dim)` tuple.
+    /// * `axis` - Optional `(dim, keep_dim)` tuple.
     ///   - `Some((dim, keep_dim))`: compute along `dim`
     ///     - `keep_dim = true`: keep dimension (size becomes 1)
     ///     - `keep_dim = false`: remove dimension
@@ -360,14 +359,14 @@ impl Tensor {
     /// let sum_all = t.sum(None).unwrap();
     /// println!("{:?}", sum_all);
     /// ```
-    pub fn sum(&self, dim: Option<(usize, bool)>) -> Result<Self, TensorError> {
+    pub fn sum(&self, axis: Option<(usize, bool)>) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
 
-        let new_inner = match dim {
+        let new_inner = match axis {
             Some((dim, keep_dim)) => match keep_dim {
                 true => TensorInner::Tensor(inner_tensor.sum_keepdim(dim)?),
                 false => TensorInner::Tensor(inner_tensor.sum(dim)?),
@@ -637,6 +636,51 @@ impl Tensor {
         })
     }
 
+    /// Element-wise equal (==) comparison with broadcasting, returning a boolean tensor.
+    ///
+    /// # Arguments
+    /// * `rhs` - The tensor to compare with.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor with boolean values.
+    /// * `Err(TensorError)` - The error when comparing the tensors.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let lhs = Tensor::from_data(vec![1.0, 2.0, 0.0, 0.0], &device, false).unwrap();
+    /// let rhs = Tensor::from_data(vec![0.0, 0.0, 3.0, 4.0], &device, false).unwrap();
+    ///
+    /// let result = lhs.eq(&rhs).unwrap();
+    /// println!("{:?}", result);
+    /// ```
+    pub fn eq(&self, rhs: &Self) -> Result<Self, TensorError> {
+        let lhs_inner = self.data.read()?;
+        let lhs_inner_tensor = match &lhs_inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let rhs_inner = rhs.data.read()?;
+        let rhs_inner_tensor = match &rhs_inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(lhs_inner_tensor.broadcast_eq(rhs_inner_tensor)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone(), rhs.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
     /// Broadcast the tensor to the specified shape.
     ///
     /// # Parameters
@@ -764,6 +808,51 @@ impl Tensor {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
                 parents: vec![self.clone(), kernel.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    /// Apply the mean operation along the specified axis.
+    ///
+    /// # Parameters
+    /// * `axis` - Optional `(dim, keep_dim)` tuple.
+    ///   - `Some((dim, keep_dim))`: compute along `dim`
+    ///     - `keep_dim = true`: keep dimension (size becomes 1)
+    ///     - `keep_dim = false`: remove dimension
+    ///   - `None`: compute across all elements
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The tensor after applying the mean operation.
+    /// * `Err(TensorError)` - The error when applying the mean operation.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::rand(0.0f32, 1.0f32, &Shape::from_dims(&[1, 3, 5, 5]), &device, false).unwrap();
+    /// let result = t.mean(Some((1, false))).unwrap();
+    /// println!("{:?}", result);
+    /// ```
+    pub fn mean(&self, axis: Option<(usize, bool)>) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = match axis {
+            Some((axis, false)) => TensorInner::Tensor(inner_tensor.mean(axis)?),
+            Some((axis, true)) => TensorInner::Tensor(inner_tensor.mean_keepdim(axis)?),
+            None => TensorInner::Tensor(inner_tensor.mean_all()?),
+        };
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
                 grad: None,
                 name: None,
             })),

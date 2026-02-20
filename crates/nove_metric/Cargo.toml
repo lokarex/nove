@@ -1,5 +1,5 @@
 [package]
-name = "nove_learner"
+name = "nove_metric"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,12 +9,9 @@ repository.workspace = true
 
 [dependencies]
 thiserror = { workspace = true }
-nove_dataloader = { path = "../nove_dataloader", version = "=0.1.1" }
-nove_model = { path = "../nove_model", version = "=0.1.1" }
-nove_optimizer = { path = "../nove_optimizer", version = "=0.1.1" }
 nove_lossfn = { path = "../nove_lossfn", version = "=0.1.1" }
 nove_tensor = { path = "../nove_tensor", version = "=0.1.1" }
-nove_metric = { path = "../nove_metric", version = "=0.1.1" }
+sysinfo = "0.32"
 
 [dev-dependencies]
 nove = { path = "../nove" }

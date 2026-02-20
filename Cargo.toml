@@ -3,11 +3,12 @@ resolver = "2"
 members = [
     "crates/nove",
     "crates/nove_dataloader",
-    "crates/nove_dataset", 
-    "crates/nove_learner", 
-    "crates/nove_lossfn", 
-    "crates/nove_macro", 
-    "crates/nove_model", 
+    "crates/nove_dataset",
+    "crates/nove_learner",
+    "crates/nove_lossfn",
+    "crates/nove_macro",
+    "crates/nove_metric",
+    "crates/nove_model",
     "crates/nove_optimizer",
     "crates/nove_tensor",
 ]
