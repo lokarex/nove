@@ -11,6 +11,7 @@ use crate::{EvaluationMetric, Metric, MetricError, MetricValue};
 ///
 /// # Fields
 /// * `name` - The name of the metric.
+/// * `value` - The value of the metric.
 ///
 /// # Examples
 /// ```
@@ -31,12 +32,14 @@ use crate::{EvaluationMetric, Metric, MetricError, MetricValue};
 /// ```
 pub struct AccuracyMetric {
     name: String,
+    value: MetricValue,
 }
 
 impl AccuracyMetric {
     pub fn new() -> Self {
         Self {
             name: "Accuracy".to_string(),
+            value: MetricValue::Scalar(0.0),
         }
     }
 }
@@ -44,6 +47,15 @@ impl AccuracyMetric {
 impl Metric for AccuracyMetric {
     fn name(&self) -> Result<String, MetricError> {
         Ok(self.name.clone())
+    }
+
+    fn value(&self) -> Result<MetricValue, MetricError> {
+        Ok(self.value.clone())
+    }
+
+    fn update(&mut self, value: MetricValue) -> Result<(), MetricError> {
+        self.value = value;
+        Ok(())
     }
 }
 

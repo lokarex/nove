@@ -9,6 +9,11 @@ use crate::{EvaluationMetric, Metric, MetricError, MetricValue};
 /// * Requires a loss function that accepts output and target tensors,
 ///   and returns a scalar loss tensor.
 ///
+/// # Fields
+/// * `name` - The name of the metric.
+/// * `lossfn` - The loss function.
+/// * `value` - The value of the metric.
+///
 /// # Examples
 /// ```
 /// use nove::metric::{Metric, MetricValue, LossMetric, EvaluationMetric};
@@ -31,6 +36,7 @@ use crate::{EvaluationMetric, Metric, MetricError, MetricValue};
 pub struct LossMetric {
     name: String,
     lossfn: Box<dyn LossFn<Input = (Tensor, Tensor), Output = Tensor>>,
+    value: MetricValue,
 }
 
 impl LossMetric {
@@ -40,6 +46,7 @@ impl LossMetric {
         Self {
             name: stringify!(LF).to_string(),
             lossfn: Box::new(lossfn),
+            value: MetricValue::Scalar(0.0),
         }
     }
 }
@@ -47,6 +54,15 @@ impl LossMetric {
 impl Metric for LossMetric {
     fn name(&self) -> Result<String, MetricError> {
         Ok(self.name.clone())
+    }
+
+    fn value(&self) -> Result<MetricValue, MetricError> {
+        Ok(self.value.clone())
+    }
+
+    fn update(&mut self, value: MetricValue) -> Result<(), MetricError> {
+        self.value = value;
+        Ok(())
     }
 }
 

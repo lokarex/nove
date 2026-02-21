@@ -8,6 +8,11 @@ use crate::{Metric, MetricError, MetricValue, ResourceMetric};
 /// # Notes
 /// * It depends on the `sysinfo` crate, which provides CPU usage for all cores.
 ///
+/// # Fields
+/// * `system` - The system information.
+/// * `average` - Whether to return the average CPU usage or the usage of each CPU core in `sample` method.
+/// * `value` - The value of the metric.
+///
 /// # Examples
 /// ```
 /// use nove::metric::{Metric, MetricValue, ResourceMetric, CpuUsageMetric};
@@ -23,6 +28,7 @@ use crate::{Metric, MetricError, MetricValue, ResourceMetric};
 pub struct CpuUsageMetric {
     system: Mutex<System>,
     average: bool,
+    value: MetricValue,
 }
 
 impl CpuUsageMetric {
@@ -40,6 +46,7 @@ impl CpuUsageMetric {
         Self {
             system: Mutex::new(system),
             average,
+            value: MetricValue::Scalar(0.0),
         }
     }
 }
@@ -47,6 +54,15 @@ impl CpuUsageMetric {
 impl Metric for CpuUsageMetric {
     fn name(&self) -> Result<String, MetricError> {
         Ok("CPU Usage".to_string())
+    }
+
+    fn value(&self) -> Result<MetricValue, MetricError> {
+        Ok(self.value.clone())
+    }
+
+    fn update(&mut self, value: MetricValue) -> Result<(), MetricError> {
+        self.value = value;
+        Ok(())
     }
 }
 
@@ -73,6 +89,11 @@ impl ResourceMetric for CpuUsageMetric {
 /// # Notes
 /// * It depends on the `sysinfo` crate, which provides CPU frequency for all cores.
 ///
+/// # Fields
+/// * `system` - The system information.
+/// * `average` - Whether to return the average CPU frequency or the frequency of each CPU core in `sample` method.
+/// * `value` - The value of the metric.
+///
 /// # Examples
 /// ```
 /// use nove::metric::{Metric, MetricValue, ResourceMetric, CpuFrequencyMetric};
@@ -88,6 +109,7 @@ impl ResourceMetric for CpuUsageMetric {
 pub struct CpuFrequencyMetric {
     system: Mutex<System>,
     average: bool,
+    value: MetricValue,
 }
 
 impl CpuFrequencyMetric {
@@ -105,6 +127,7 @@ impl CpuFrequencyMetric {
         Self {
             system: Mutex::new(system),
             average,
+            value: MetricValue::Scalar(0.0),
         }
     }
 }
@@ -112,6 +135,15 @@ impl CpuFrequencyMetric {
 impl Metric for CpuFrequencyMetric {
     fn name(&self) -> Result<String, MetricError> {
         Ok("CPU Frequency".to_string())
+    }
+
+    fn value(&self) -> Result<MetricValue, MetricError> {
+        Ok(self.value.clone())
+    }
+
+    fn update(&mut self, value: MetricValue) -> Result<(), MetricError> {
+        self.value = value;
+        Ok(())
     }
 }
 
