@@ -858,4 +858,47 @@ impl Tensor {
             })),
         })
     }
+
+    /// Apply the 2D max pooling operation.
+    ///
+    /// # Parameters
+    /// * `kernel_size` - The kernel size.
+    /// * `stride` - The stride size.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The tensor after applying the max pooling operation.
+    /// * `Err(TensorError)` - The error when applying the max pooling operation.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::rand(0.0f32, 1.0f32, &Shape::from_dims(&[1, 3, 5, 5]), &device, false).unwrap();
+    /// let result = t.max_pool2d((2, 2), (2, 2)).unwrap();
+    /// println!("{:?}", result);
+    /// ```
+    pub fn max_pool2d(
+        &self,
+        kernel_size: (usize, usize),
+        stride: (usize, usize),
+    ) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner =
+            TensorInner::Tensor(inner_tensor.max_pool2d_with_stride(kernel_size, stride)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
 }

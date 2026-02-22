@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt::Display, path::Path};
 use thiserror::Error;
 
 pub mod layer;
+pub mod resource;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
