@@ -17,7 +17,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Fields
 /// * `weight` - The weight tensor with shape [out_channels, in_channels/groups, kernel_height, kernel_width].
-/// * `bias` - The bias tensor with shape [out_channels].
+/// * `bias` - The bias tensor with shape \[out_channels\].
 /// * `in_channels` - The number of input channels.
 /// * `out_channels` - The number of output channels.
 /// * `kernel_size` - The size of the convolution kernel (height, width).

@@ -1,4 +1,4 @@
-//! The `util` module provides some practical `Dataset` structs to handle datasets.
+//! The `common` module provides some common utilities for datasets.
 
 mod shufflable_dataset;
 pub use shufflable_dataset::ShufflableDataset;

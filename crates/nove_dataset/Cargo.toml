@@ -9,8 +9,15 @@ repository.workspace = true
 
 [dependencies]
 bincode = { workspace = true }
+flate2 = { workspace = true }
+futures-util = { workspace = true }
+indicatif = { workspace = true }
 rand = { workspace = true }
+reqwest = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
 nove = { path = "../nove" }

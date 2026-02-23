@@ -32,3 +32,10 @@ rayon = "1.11.0"
 thiserror = "2.0.17"
 proptest = "1.9.0"
 tempfile = "3.23.0"
+flate2 = "1.0"
+futures-util = "0.3"
+indicatif = "0.17"
+reqwest = { version = "0.12", features = ["stream"] }
+sha2 = "0.10"
+tar = "0.4"
+tokio = { version = "1", features = ["rt-multi-thread"] }

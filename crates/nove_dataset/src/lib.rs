@@ -29,6 +29,18 @@ pub enum DatasetError {
     #[error(transparent)]
     DecodingError(#[from] bincode::error::DecodeError),
 
+    /// Download errors.
+    #[error("Download failed: {0}")]
+    DownloadError(String),
+
+    /// Checksum verification failed.
+    #[error("Checksum verification failed: expected {expected}, got {actual}")]
+    ChecksumError { expected: String, actual: String },
+
+    /// Extraction errors.
+    #[error("Extraction failed: {0}")]
+    ExtractionError(String),
+
     /// Other errors.
     #[error("{0}")]
     OtherError(String),
