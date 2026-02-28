@@ -13,6 +13,7 @@ use util::SimpleDataset;
 fn test_batched_dataloader() {
     // Create a simple dataset.
     let dataset = SimpleDataset {};
+    let dataset_len = dataset.len().unwrap();
 
     // Prepare the batch size, device, shuffle seed, process function and collate function.
     let device = Device::cpu();
@@ -28,7 +29,7 @@ fn test_batched_dataloader() {
     // Create a batch_dataloader.
     let mut dataloader: BatchDataloader<SimpleDataset, Tensor, Tensor, _, _> =
         BatchDataloaderBuilder::default()
-            .dataset(&dataset)
+            .dataset(dataset.clone())
             .batch_size(batch_size)
             .process_fn(process_fn)
             .collate_fn(collate_fn)
@@ -38,7 +39,7 @@ fn test_batched_dataloader() {
 
     let mut counter = 0;
     // Generate the shuffled indices that are the same as the ones in the DataLoader.
-    let mut indices = (0..dataset.len().unwrap()).collect::<Vec<usize>>();
+    let mut indices = (0..dataset_len).collect::<Vec<usize>>();
     indices.shuffle(&mut StdRng::seed_from_u64(shuffle_seed as u64));
 
     loop {

@@ -9,8 +9,10 @@ repository.workspace = true
 
 [dependencies]
 nove_dataset = { path = "../nove_dataset", version = "=0.1.1" }
+nove_tensor = { path = "../nove_tensor", version = "=0.1.1" }
 thiserror = { workspace = true }
 rand = { workspace = true }
+image = { workspace = true }
 
 [dev-dependencies]
 nove = { path = "../nove" }

@@ -2,6 +2,7 @@
 //! implemented data loader.
 
 use nove_dataset::DatasetError;
+use nove_tensor::TensorError;
 use thiserror::Error;
 
 pub mod common;
@@ -16,6 +17,14 @@ pub enum DataloaderError {
     /// Dataset errors from the `nove_dataset` crate.
     #[error(transparent)]
     DatasetError(#[from] DatasetError),
+
+    /// Tensor errors from the `nove_tensor` crate.
+    #[error(transparent)]
+    TensorError(#[from] TensorError),
+
+    /// Image loading errors.
+    #[error("Image error: {0}")]
+    ImageError(String),
 
     /// Missing argument.
     #[error("Missing argument: {0}")]

@@ -415,21 +415,22 @@ impl Mnist {
     /// * `split` - The dataset split to load (training or testing).
     ///
     /// # Returns
-    /// * `Ok(Vec<(String, u8)>)` - A vector of (image_path, label) tuples.
+    /// * `Ok(Vec<(String, usize)>)` - A vector of (image_path, label) tuples.
     /// * `Err(DatasetError)` - An error occurred during loading.
     fn load_samples(
         dataset_dir: &Path,
         split: MnistSplit,
-    ) -> Result<Vec<(String, u8)>, DatasetError> {
+    ) -> Result<Vec<(String, usize)>, DatasetError> {
         let split_dir = match split {
             MnistSplit::Training => dataset_dir.join("training"),
             MnistSplit::Testing => dataset_dir.join("testing"),
         };
 
         let mut samples = Vec::new();
-        let mut label_counts: HashMap<u8, usize> = HashMap::new();
+        let mut label_counts: HashMap<usize, usize> = HashMap::new();
 
         for label in 0u8..=9 {
+            let label_usize = label as usize;
             let label_dir = split_dir.join(label.to_string());
             if !label_dir.exists() {
                 continue;
@@ -444,13 +445,13 @@ impl Mnist {
 
                 if path.extension().map_or(false, |ext| ext == "png") {
                     if let Some(path_str) = path.to_str() {
-                        samples.push((path_str.to_string(), label));
+                        samples.push((path_str.to_string(), label_usize));
                         count += 1;
                     }
                 }
             }
 
-            label_counts.insert(label, count);
+            label_counts.insert(label_usize, count);
         }
 
         samples.sort_by(|a, b| {
@@ -469,7 +470,7 @@ impl Mnist {
                 MnistSplit::Testing => "testing",
             }
         );
-        for label in 0u8..=9 {
+        for label in 0usize..=9 {
             if let Some(count) = label_counts.get(&label) {
                 println!("  Label {}: {} samples", label, count);
             }
@@ -490,12 +491,12 @@ impl Mnist {
 /// * `samples` - A vector of (image_path, label) tuples.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MnistDataset {
-    samples: Vec<(String, u8)>,
+    samples: Vec<(String, usize)>,
 }
 
 impl MnistDataset {
     /// Returns the number of samples for each label.
-    pub fn label_distribution(&self) -> HashMap<u8, usize> {
+    pub fn label_distribution(&self) -> HashMap<usize, usize> {
         let mut distribution = HashMap::new();
         for (_, label) in &self.samples {
             *distribution.entry(*label).or_insert(0) += 1;
@@ -505,7 +506,7 @@ impl MnistDataset {
 }
 
 impl Dataset for MnistDataset {
-    type Item = (String, u8);
+    type Item = (String, usize);
 
     fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
         self.samples

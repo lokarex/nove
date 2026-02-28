@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use crate::{
-    Device, Tensor, TensorError,
+    Device, Shape, Tensor, TensorError,
     tensor::{TensorData, TensorInner},
 };
 
@@ -48,6 +48,108 @@ impl Tensor {
         let inner = match grad_enabled {
             true => TensorInner::Var(candle_core::Var::new(data, device)?),
             false => TensorInner::Tensor(candle_core::Tensor::new(data, device)?),
+        };
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner,
+                device: device.clone(),
+                parents: vec![],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    /// Create a new tensor from a vector with the specified shape.
+    ///
+    /// # Notes
+    /// * The element type of the data supported by this function includes `f32`, `f64`, `i64`, `u32`, `u8`.
+    /// * The total number of elements in the vector must match the product of the shape dimensions.
+    ///
+    /// # Arguments
+    /// * `data` - The vector of data to create the tensor from.
+    /// * `shape` - The shape of the tensor.
+    /// * `device` - The device to place the tensor on.
+    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(tensor)` - The created tensor if successful.
+    /// * `Err(TensorError)` - The error when creating the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+    /// let shape = Shape::from(&[2, 3]);
+    /// let tensor = Tensor::from_vec(data, &shape, &device, false).unwrap();
+    /// println!("{:?}", tensor);
+    /// ```
+    pub fn from_vec<D>(
+        data: Vec<D>,
+        shape: &Shape,
+        device: &Device,
+        grad_enabled: bool,
+    ) -> Result<Self, TensorError>
+    where
+        D: candle_core::WithDType,
+    {
+        let inner = match grad_enabled {
+            true => TensorInner::Var(candle_core::Var::from_vec(data, shape, device)?),
+            false => TensorInner::Tensor(candle_core::Tensor::from_vec(data, shape, device)?),
+        };
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner,
+                device: device.clone(),
+                parents: vec![],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    /// Create a new tensor from a slice with the specified shape.
+    ///
+    /// # Notes
+    /// * The element type of the data supported by this function includes `f32`, `f64`, `i64`, `u32`, `u8`.
+    /// * The total number of elements in the slice must match the product of the shape dimensions.
+    ///
+    /// # Arguments
+    /// * `data` - The slice of data to create the tensor from.
+    /// * `shape` - The shape of the tensor.
+    /// * `device` - The device to place the tensor on.
+    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(tensor)` - The created tensor if successful.
+    /// * `Err(TensorError)` - The error when creating the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let data = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+    /// let shape = Shape::from(&[2, 3]);
+    /// let tensor = Tensor::from_slice(&data, &shape, &device, false).unwrap();
+    /// println!("{:?}", tensor);
+    /// ```
+    pub fn from_slice<D>(
+        data: &[D],
+        shape: &Shape,
+        device: &Device,
+        grad_enabled: bool,
+    ) -> Result<Self, TensorError>
+    where
+        D: candle_core::WithDType,
+    {
+        let inner = match grad_enabled {
+            true => TensorInner::Var(candle_core::Var::from_slice(data, shape, device)?),
+            false => TensorInner::Tensor(candle_core::Tensor::from_slice(data, shape, device)?),
         };
 
         Ok(Self {
