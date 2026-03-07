@@ -28,9 +28,10 @@ impl Optimizer for Sgd {
                         .ok_or(OptimizerError::OtherError(
                             "Sgd: parameter gradient is None".to_string(),
                         ))?
-                        .affine(-self.learning_rate, 0f64)?,
+                        .affine(self.learning_rate, 0f64)?,
                 )?,
             )?;
+            param.clear_grad()?;
         }
         Ok(())
     }

@@ -176,6 +176,16 @@ impl Model for CNN {
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, ModelError> {
         let (mut input, _training) = input;
         for layer in &mut self.layers {
+            // Flatten the input tensor before Linear layer
+            if let CNNLayer::Linear(_) = layer {
+                let shape = input.shape()?;
+                if shape.dims().len() == 4 {
+                    let batch_size = shape.dims()[0];
+                    let flattened_size = shape.dims()[1] * shape.dims()[2] * shape.dims()[3];
+                    input =
+                        input.reshape(&nove_tensor::Shape::from(&[batch_size, flattened_size]))?;
+                }
+            }
             input = layer.forward(input)?;
         }
         Ok(input)
@@ -212,8 +222,11 @@ impl Model for CNN {
 
     fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
         let mut params = HashMap::new();
-        for layer in &self.layers {
-            params.extend(layer.named_parameters()?);
+        for (i, layer) in self.layers.iter().enumerate() {
+            let prefix = format!("cnn{}.", i);
+            for (name, tensor) in layer.named_parameters()? {
+                params.insert(format!("{}{}", prefix, name), tensor);
+            }
         }
         Ok(params)
     }

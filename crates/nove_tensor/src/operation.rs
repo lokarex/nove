@@ -642,7 +642,7 @@ impl Tensor {
     /// * `rhs` - The tensor to compare with.
     ///
     /// # Returns
-    /// * `Ok(Tensor)` - The result tensor with boolean values.
+    /// * `Ok(Tensor)` - The result tensor with boolean values(dtype: U8).
     /// * `Err(TensorError)` - The error when comparing the tensors.
     ///
     /// # Examples
@@ -890,6 +890,43 @@ impl Tensor {
 
         let new_inner =
             TensorInner::Tensor(inner_tensor.max_pool2d_with_stride(kernel_size, stride)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    /// Permute the dimensions of the tensor.
+    ///
+    /// # Parameters
+    /// * `dims` - The new dimensions order.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The tensor after permuting the dimensions.
+    /// * `Err(TensorError)` - The error when permuting the dimensions.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::rand(0.0f32, 1.0f32, &Shape::from_dims(&[1, 3, 5, 5]), &device, false).unwrap();
+    /// let result = t.permute(&[0, 3, 1, 2]).unwrap();
+    /// println!("{:?}", result);
+    /// ```
+    pub fn permute(&self, dims: &[usize]) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.permute(dims)?);
 
         Ok(Self {
             data: Arc::new(RwLock::new(TensorData {

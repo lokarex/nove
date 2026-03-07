@@ -25,6 +25,7 @@ use crate::{LossFn, LossFnError};
 ///   - `input`: A 2D tensor of shape (batch_size, num_classes) containing log-probabilities
 ///   - `target`: A 1D tensor of shape (batch_size) containing real class indices
 /// * The output is A scalar tensor representing the average NLL loss over the batch.
+#[derive(Debug, Clone)]
 pub struct Nll;
 
 impl Nll {

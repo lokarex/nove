@@ -1701,6 +1701,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mnist_cnn"
+version = "0.1.2"
+dependencies = [
+ "nove",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.7.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1750,7 +1757,7 @@ checksum = "0676bb32a98c1a483ce53e500a81ad9c3d5b3f7c920c28c24e9cb0980d0b5bc8"
 
 [[package]]
 name = "nove"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "nove_dataloader",
  "nove_dataset",
@@ -1765,7 +1772,7 @@ dependencies = [
 
 [[package]]
 name = "nove_dataloader"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "image",
  "nove",
@@ -1777,7 +1784,7 @@ dependencies = [
 
 [[package]]
 name = "nove_dataset"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "bincode",
  "flate2",
@@ -1795,7 +1802,7 @@ dependencies = [
 
 [[package]]
 name = "nove_learner"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "nove",
  "nove_dataloader",
@@ -1809,7 +1816,7 @@ dependencies = [
 
 [[package]]
 name = "nove_lossfn"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "nove",
  "nove_tensor",
@@ -1818,7 +1825,7 @@ dependencies = [
 
 [[package]]
 name = "nove_macro"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1827,7 +1834,7 @@ dependencies = [
 
 [[package]]
 name = "nove_metric"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "nove",
  "nove_lossfn",
@@ -1838,7 +1845,7 @@ dependencies = [
 
 [[package]]
 name = "nove_model"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "indexmap",
  "nove",
@@ -1851,7 +1858,7 @@ dependencies = [
 
 [[package]]
 name = "nove_optimizer"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "nove_tensor",
  "thiserror 2.0.18",
@@ -1859,7 +1866,7 @@ dependencies = [
 
 [[package]]
 name = "nove_tensor"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "candle-core",
  "crossbeam",

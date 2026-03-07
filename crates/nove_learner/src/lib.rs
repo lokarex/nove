@@ -3,7 +3,7 @@ use nove_lossfn::LossFnError;
 use nove_metric::AnyMetric;
 use nove_model::ModelError;
 use nove_optimizer::OptimizerError;
-use nove_tensor::TensorError;
+use nove_tensor::{DeviceError, TensorError};
 use thiserror::Error;
 
 pub mod common;
@@ -13,6 +13,10 @@ pub enum LearnerError {
     /// Tensor errors from the `nove_tensor` crate.
     #[error(transparent)]
     TensorError(#[from] TensorError),
+
+    /// Device errors from the `nove_tensor` crate.
+    #[error(transparent)]
+    DeviceError(#[from] DeviceError),
 
     /// Dataloader errors from the `nove_dataloader` crate.
     #[error(transparent)]
@@ -53,6 +57,6 @@ pub enum LearnerError {
 
 pub trait Learner {
     fn train(&mut self) -> Result<(), LearnerError>;
-    fn validate(&mut self) -> Result<&[AnyMetric], LearnerError>;
-    fn test(&mut self) -> Result<&[AnyMetric], LearnerError>;
+    fn validate(&mut self) -> Result<Vec<AnyMetric>, LearnerError>;
+    fn test(&mut self) -> Result<Vec<AnyMetric>, LearnerError>;
 }

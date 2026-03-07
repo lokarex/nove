@@ -1,5 +1,6 @@
 mod device;
 pub use device::Device;
+pub use device::DeviceError;
 
 mod shape;
 pub use shape::Shape;

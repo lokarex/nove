@@ -11,6 +11,7 @@ members = [
     "crates/nove_model",
     "crates/nove_optimizer",
     "crates/nove_tensor",
+    "examples/mnist_cnn",
 ]
 
 [workspace.package]

@@ -9,8 +9,8 @@ repository.workspace = true
 
 [dependencies]
 thiserror = { workspace = true }
-nove_lossfn = { path = "../nove_lossfn", version = "=0.1.1" }
-nove_tensor = { path = "../nove_tensor", version = "=0.1.1" }
+nove_lossfn = { path = "../nove_lossfn", version = "=0.1.2" }
+nove_tensor = { path = "../nove_tensor", version = "=0.1.2" }
 sysinfo = "0.32"
 
 [dev-dependencies]

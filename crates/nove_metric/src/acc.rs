@@ -16,7 +16,7 @@ use crate::{EvaluationMetric, Metric, MetricError, MetricValue};
 /// # Examples
 /// ```
 /// use nove::tensor::{Device, Tensor};
-/// use nove::metric::{MetricValue, AccuracyMetric, EvaluationMetric};
+/// use nove::metric::{MetricValue, AccuracyMetric, EvaluationMetric, Metric};
 ///
 /// let device = Device::cpu();
 /// let output = Tensor::from_data(vec![
@@ -26,13 +26,17 @@ use crate::{EvaluationMetric, Metric, MetricError, MetricValue};
 /// ], &device, false).unwrap();
 /// let target = Tensor::from_data(vec![2u32, 1u32, 1u32], &device, false).unwrap();
 ///
-/// let metric = AccuracyMetric::new();
-/// let accuracy = metric.evaluate(&output, &target).unwrap();
+/// let mut metric = AccuracyMetric::new();
+/// metric.evaluate(&output, &target).unwrap();
+/// let accuracy = metric.value().unwrap();
 /// assert_eq!(accuracy, MetricValue::Scalar(0.6666666666666666));
 /// ```
+#[derive(Debug, Clone)]
 pub struct AccuracyMetric {
     name: String,
     value: MetricValue,
+    total_samples: usize,
+    correct_samples: usize,
 }
 
 impl AccuracyMetric {
@@ -40,6 +44,8 @@ impl AccuracyMetric {
         Self {
             name: "Accuracy".to_string(),
             value: MetricValue::Scalar(0.0),
+            total_samples: 0,
+            correct_samples: 0,
         }
     }
 }
@@ -57,17 +63,36 @@ impl Metric for AccuracyMetric {
         self.value = value;
         Ok(())
     }
+
+    fn clear(&mut self) -> Result<(), MetricError> {
+        self.value = MetricValue::Scalar(0.0);
+        self.total_samples = 0;
+        self.correct_samples = 0;
+        Ok(())
+    }
 }
 
 impl EvaluationMetric for AccuracyMetric {
-    fn evaluate(&self, output: &Tensor, target: &Tensor) -> Result<MetricValue, MetricError> {
+    fn evaluate(&mut self, output: &Tensor, target: &Tensor) -> Result<(), MetricError> {
         let correct = output
             .argmax((1, false))?
             .eq(&target)?
             .to_dtype(&DType::F64)?;
-        let accuracy = correct.mean(None)?;
-        Ok(MetricValue::Scalar(
-            accuracy.to_dtype(&DType::F64)?.to_scalar()?,
-        ))
+
+        let batch_size = output.shape()?.dims()[0];
+        let correct_count = correct.sum(None)?.to_scalar::<f64>()? as usize;
+
+        self.total_samples += batch_size;
+        self.correct_samples += correct_count;
+
+        let new_acc = if self.total_samples > 0 {
+            (self.correct_samples as f64) / (self.total_samples as f64)
+        } else {
+            0.0
+        };
+
+        self.value = MetricValue::Scalar(new_acc);
+
+        Ok(())
     }
 }

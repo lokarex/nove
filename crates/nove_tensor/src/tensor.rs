@@ -229,6 +229,17 @@ impl Tensor {
         Ok(())
     }
 
+    /// Clear the gradient tensor of the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(())` - The tensor's gradient tensor is successfully cleared.
+    /// * `Err(TensorError)` - The error when clearing the tensor's gradient tensor.
+    pub fn clear_grad(&mut self) -> Result<(), TensorError> {
+        let mut data = self.data.write()?;
+        data.grad = None;
+        Ok(())
+    }
+
     /// Backpropagate the gradient of the tensor to its parent tensors.
     ///
     /// # Returns
@@ -368,6 +379,35 @@ impl Tensor {
             }
             TensorInner::Var(var) => {
                 var.set(other_inner_tensor)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Clear the gradient tensor of the tensor and the computational graph.
+    ///
+    /// # Returns
+    /// * `Ok(())` - The tensor's gradient tensor is successfully cleared and disconnected.
+    /// * `Err(TensorError)` - The error when clearing the tensor's gradient tensor and disconnecting it from the computational graph.
+    pub fn clear_graph(&self) -> Result<(), TensorError> {
+        let queue = SegQueue::new();
+        let visited = DashMap::new();
+
+        queue.push(self.clone());
+        visited.insert(Arc::as_ptr(&self.data) as usize, true);
+
+        while let Some(current) = queue.pop() {
+            let current_parents = {
+                let mut data = current.data.write()?;
+                std::mem::take(&mut data.parents)
+            };
+
+            for parent in current_parents {
+                let parent_id = Arc::as_ptr(&parent.data) as usize;
+                if visited.insert(parent_id, true).is_none() {
+                    queue.push(parent);
+                }
             }
         }
 

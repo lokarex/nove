@@ -1,15 +1,16 @@
 use std::fmt::Display;
-
-#[cfg(any(feature = "cuda", feature = "metal"))]
 use thiserror::Error;
 
 /// Error type from device operations.
-#[cfg(any(feature = "cuda", feature = "metal"))]
 #[derive(Error, Debug)]
 pub enum DeviceError {
     /// Error from Candle library.
     #[error("Error from Candle: {0}")]
     CandleError(#[from] candle_core::Error),
+
+    /// Other errors.
+    #[error("Other error: {0}")]
+    OtherError(String),
 }
 
 /// The type of the device.
@@ -261,6 +262,28 @@ impl Device {
     #[cfg(feature = "metal")]
     pub fn is_metal(&self) -> bool {
         self.kind == DeviceKind::Metal
+    }
+
+    /// Synchronize the device.
+    ///
+    /// This method blocks until all previously submitted operations on the device
+    /// have completed. This is useful for ensuring that GPU operations are finished
+    /// before proceeding, which can help with memory management.
+    ///
+    /// # Returns
+    /// * `Ok(())` - The device is synchronized successfully.
+    /// * `Err(DeviceError)` - The error when synchronizing the device.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::Device;
+    ///
+    /// let device = Device::cpu();
+    /// device.synchronize().unwrap();
+    /// ```
+    pub fn synchronize(&self) -> Result<(), DeviceError> {
+        self.inner.synchronize()?;
+        Ok(())
     }
 }
 

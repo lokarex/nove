@@ -13,6 +13,8 @@ type CollateFn = dyn Fn(Vec<(Tensor, Tensor)>) -> Result<(Tensor, Tensor), Datal
 /// resizes them, converts them to tensors, and batches them together.
 ///
 /// # Note
+/// * This struct cannot be constructed directly. Use [`ImageClassificationDataloaderBuilder`]
+///   to create instances.
 /// * This dataloader is designed for datasets where `Dataset::Item` is `(String, usize)`,
 ///   representing `(image_path, label)`.
 /// * Images are resized to the specified dimensions and converted to RGB format.
@@ -23,7 +25,7 @@ type CollateFn = dyn Fn(Vec<(Tensor, Tensor)>) -> Result<(Tensor, Tensor), Datal
 ///
 /// # Output
 /// * `Output` - A tuple `(Tensor, Tensor)` where:
-///   - The first tensor is the batched images with shape `[batch_size, height, width, 3]`.
+///   - The first tensor is the batched images with shape `[batch_size, 3, height, width]`.
 ///   - The second tensor is the batched labels with shape `[batch_size]`.
 ///
 /// # Examples
@@ -293,8 +295,7 @@ where
             let shape = Shape::from(&[height as usize, width as usize, 3]);
             let image_tensor = Tensor::from_vec(data, &shape, &device, grad_enabled)?;
 
-            let label_tensor =
-                Tensor::from_slice(&[label as i64], &Shape::from(&[1]), &device, false)?;
+            let label_tensor = Tensor::from_scalar(label as u32, &device, false)?;
 
             Ok((image_tensor, label_tensor))
         });
@@ -308,6 +309,7 @@ where
             let labels: Vec<Tensor> = batch.iter().map(|(_, lbl)| lbl.clone()).collect();
 
             let batch_images = Tensor::stack(&images, 0)?;
+            let batch_images = batch_images.permute(&[0, 3, 1, 2])?;
             let batch_labels = Tensor::stack(&labels, 0)?;
 
             Ok((batch_images, batch_labels))

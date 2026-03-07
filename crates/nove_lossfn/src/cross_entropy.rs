@@ -18,6 +18,7 @@ use crate::{LossFn, LossFnError, Nll, common::log_softmax};
 ///   - `input`: A 2D tensor of shape (batch_size, num_classes) containing raw logits
 ///   - `target`: A 1D tensor of shape (batch_size) containing real class indices
 /// * The output is A scalar tensor representing the average cross entropy loss over the batch.
+#[derive(Debug, Clone)]
 pub struct CrossEntropy {
     nll_lossfn: Nll,
 }

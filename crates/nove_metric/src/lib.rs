@@ -57,8 +57,22 @@ pub enum MetricValue {
 impl Display for MetricValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MetricValue::Scalar(v) => write!(f, "{}", v),
-            MetricValue::Vector(v) => write!(f, "{:?}", v),
+            MetricValue::Scalar(v) => {
+                if let Some(precision) = f.precision() {
+                    write!(f, "{:.1$}", v, precision)
+                } else {
+                    write!(f, "{}", v)
+                }
+            }
+            MetricValue::Vector(v) => {
+                if let Some(precision) = f.precision() {
+                    let formatted: Vec<String> =
+                        v.iter().map(|x| format!("{:.1$}", x, precision)).collect();
+                    write!(f, "{:?}", formatted)
+                } else {
+                    write!(f, "{:?}", v)
+                }
+            }
         }
     }
 }
@@ -143,6 +157,15 @@ pub trait Metric {
     /// * `Ok(())` - If the metric value is updated successfully.
     /// * `Err(MetricError)` - If an error occurs while updating the metric value.
     fn update(&mut self, value: MetricValue) -> Result<(), MetricError>;
+
+    /// Clears the metric value.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the metric value is cleared successfully.
+    /// * `Err(MetricError)` - If an error occurs while clearing the metric value.
+    fn clear(&mut self) -> Result<(), MetricError> {
+        self.update(MetricValue::Scalar(0.0))
+    }
 }
 
 pub trait EvaluationMetric: Metric {
@@ -155,7 +178,7 @@ pub trait EvaluationMetric: Metric {
     /// # Returns
     /// * `Ok(MetricValue)` - The evaluated metric value.
     /// * `Err(MetricError)` - If an error occurs while evaluating the metric.
-    fn evaluate(&self, output: &Tensor, target: &Tensor) -> Result<MetricValue, MetricError>;
+    fn evaluate(&mut self, output: &Tensor, target: &Tensor) -> Result<(), MetricError>;
 }
 
 pub trait ResourceMetric: Metric {
@@ -164,63 +187,129 @@ pub trait ResourceMetric: Metric {
     /// # Returns
     /// * `Ok(MetricValue)` - The sampled metric value.
     /// * `Err(MetricError)` - If an error occurs while sampling the metric.
-    fn sample(&self) -> Result<MetricValue, MetricError>;
+    fn sample(&mut self) -> Result<(), MetricError>;
 }
 
-pub enum AnyMetric {
-    Evaluation(Box<dyn EvaluationMetric>),
-    Resource(Box<dyn ResourceMetric>),
+macro_rules! define_any_metric {
+    (
+        evaluation: [$($eval_name:ident($eval_type:ty)),* $(,)?],
+        resource: [$($res_name:ident($res_type:ty)),* $(,)?],
+    ) => {
+        #[derive(Debug, Clone)]
+        pub enum AnyMetric {
+            $($eval_name($eval_type),)*
+            $($res_name($res_type),)*
+        }
+
+        impl AnyMetric {
+            pub fn is_evaluation(&self) -> bool {
+                match self {
+                    $(AnyMetric::$eval_name(_) => true,)*
+                    $(AnyMetric::$res_name(_) => false,)*
+                }
+            }
+
+            pub fn is_resource(&self) -> bool {
+                match self {
+                    $(AnyMetric::$eval_name(_) => false,)*
+                    $(AnyMetric::$res_name(_) => true,)*
+                }
+            }
+        }
+
+        impl Metric for AnyMetric {
+            fn name(&self) -> Result<String, MetricError> {
+                match self {
+                    $(AnyMetric::$eval_name(m) => m.name(),)*
+                    $(AnyMetric::$res_name(m) => m.name(),)*
+                }
+            }
+
+            fn value(&self) -> Result<MetricValue, MetricError> {
+                match self {
+                    $(AnyMetric::$eval_name(m) => m.value(),)*
+                    $(AnyMetric::$res_name(m) => m.value(),)*
+                }
+            }
+
+            fn update(&mut self, value: MetricValue) -> Result<(), MetricError> {
+                match self {
+                    $(AnyMetric::$eval_name(m) => m.update(value),)*
+                    $(AnyMetric::$res_name(m) => m.update(value),)*
+                }
+            }
+        }
+
+        impl EvaluationMetric for AnyMetric {
+            fn evaluate(&mut self, output: &Tensor, target: &Tensor) -> Result<(), MetricError> {
+                match self {
+                    $(AnyMetric::$eval_name(m) => m.evaluate(output, target),)*
+                    $(AnyMetric::$res_name(_) => Err(MetricError::InvalidOperation(
+                        concat!("Cannot evaluate ", stringify!($res_name)).to_string(),
+                    )),)*
+                }
+            }
+        }
+
+        impl ResourceMetric for AnyMetric {
+            fn sample(&mut self) -> Result<(), MetricError> {
+                match self {
+                    $(AnyMetric::$eval_name(_) => Err(MetricError::InvalidOperation(
+                        concat!("Cannot sample ", stringify!($eval_name)).to_string(),
+                    )),)*
+                    $(AnyMetric::$res_name(m) => m.sample(),)*
+                }
+            }
+        }
+    };
 }
 
-impl AnyMetric {
-    pub fn name(&self) -> Result<String, MetricError> {
-        match self {
-            AnyMetric::Evaluation(m) => m.name(),
-            AnyMetric::Resource(m) => m.name(),
-        }
+define_any_metric! {
+    evaluation: [
+        AccuracyMetric(AccuracyMetric),
+        LossMetric(LossMetric),
+    ],
+    resource: [
+        CpuUsageMetric(CpuUsageMetric),
+        CpuFrequencyMetric(CpuFrequencyMetric),
+    ],
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_metric_value_display_with_precision() {
+        let value = MetricValue::Scalar(3.141592653589793);
+
+        assert_eq!(format!("{:.4}", value), "3.1416");
+        assert_eq!(format!("{:.2}", value), "3.14");
+        assert_eq!(format!("{:.0}", value), "3");
     }
 
-    pub fn value(&self) -> Result<MetricValue, MetricError> {
-        match self {
-            AnyMetric::Evaluation(m) => m.value(),
-            AnyMetric::Resource(m) => m.value(),
-        }
+    #[test]
+    fn test_metric_value_display_without_precision() {
+        let value = MetricValue::Scalar(3.141592653589793);
+
+        assert_eq!(format!("{}", value), "3.141592653589793");
     }
 
-    pub fn update(&mut self, value: MetricValue) -> Result<(), MetricError> {
-        match self {
-            AnyMetric::Evaluation(m) => m.update(value),
-            AnyMetric::Resource(m) => m.update(value),
-        }
+    #[test]
+    fn test_metric_value_display_vector_without_precision() {
+        let value = MetricValue::Vector(vec![1.0, 2.0, 3.0]);
+
+        assert_eq!(format!("{}", value), "[1.0, 2.0, 3.0]");
     }
 
-    pub fn clear(&mut self) -> Result<(), MetricError> {
-        self.update(MetricValue::Scalar(0.0))
-    }
+    #[test]
+    fn test_metric_value_display_vector_with_precision() {
+        let value = MetricValue::Vector(vec![1.234567, 2.345678, 3.456789]);
 
-    pub fn sample(&self) -> Result<MetricValue, MetricError> {
-        match self {
-            AnyMetric::Evaluation(_) => Err(MetricError::InvalidOperation(
-                "Cannot sample EvaluationMetric".to_string(),
-            )),
-            AnyMetric::Resource(m) => m.sample(),
-        }
-    }
-
-    pub fn evaluate(&self, output: &Tensor, target: &Tensor) -> Result<MetricValue, MetricError> {
-        match self {
-            AnyMetric::Evaluation(m) => m.evaluate(output, target),
-            AnyMetric::Resource(_) => Err(MetricError::InvalidOperation(
-                "Cannot evaluate ResourceMetric".to_string(),
-            )),
-        }
-    }
-
-    pub fn is_evaluation(&self) -> bool {
-        matches!(self, AnyMetric::Evaluation(_))
-    }
-
-    pub fn is_resource(&self) -> bool {
-        matches!(self, AnyMetric::Resource(_))
+        assert_eq!(format!("{:.2}", value), "[\"1.23\", \"2.35\", \"3.46\"]");
+        assert_eq!(
+            format!("{:.4}", value),
+            "[\"1.2346\", \"2.3457\", \"3.4568\"]"
+        );
     }
 }
