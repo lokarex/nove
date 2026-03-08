@@ -48,6 +48,12 @@ impl ReLU {
     }
 }
 
+impl Default for ReLU {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Model for ReLU {
     type Input = Tensor;
 

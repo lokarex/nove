@@ -34,6 +34,12 @@ impl Nll {
     }
 }
 
+impl Default for Nll {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LossFn for Nll {
     type Input = (Tensor, Tensor);
     type Output = Tensor;

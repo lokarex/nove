@@ -14,7 +14,6 @@ pub use conv::Conv2dBuilder;
 
 mod pool;
 pub use pool::MaxPool2d;
-pub use pool::MaxPool2dBuilder;
 
 mod cnn;
 pub use cnn::CNN;

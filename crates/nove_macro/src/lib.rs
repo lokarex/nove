@@ -14,21 +14,20 @@ pub fn derive_model(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut output_type: Option<Path> = None;
 
     for attr in &input.attrs {
-        if attr.path().is_ident("model") {
-            if let Meta::List(list) = &attr.meta {
-                let nested =
-                    list.parse_args_with(Punctuated::<MetaNameValue, Comma>::parse_terminated);
-                if let Ok(items) = nested {
-                    for item in items {
-                        if item.path.is_ident("input") {
-                            if let Expr::Path(expr_path) = item.value {
-                                input_type = Some(expr_path.path);
-                            }
-                        } else if item.path.is_ident("output") {
-                            if let Expr::Path(expr_path) = item.value {
-                                output_type = Some(expr_path.path);
-                            }
-                        }
+        if attr.path().is_ident("model")
+            && let Meta::List(list) = &attr.meta
+        {
+            let nested = list.parse_args_with(Punctuated::<MetaNameValue, Comma>::parse_terminated);
+            if let Ok(items) = nested {
+                for item in items {
+                    if item.path.is_ident("input")
+                        && let Expr::Path(expr_path) = item.value
+                    {
+                        input_type = Some(expr_path.path);
+                    } else if item.path.is_ident("output")
+                        && let Expr::Path(expr_path) = item.value
+                    {
+                        output_type = Some(expr_path.path);
                     }
                 }
             }

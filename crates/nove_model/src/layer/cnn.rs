@@ -8,7 +8,7 @@ use nove_tensor::{DType, Device, Tensor};
 
 use crate::{Model, ModelError};
 
-use super::{Conv2d, Conv2dBuilder, Linear, LinearBuilder, MaxPool2d, MaxPool2dBuilder, ReLU};
+use super::{Conv2d, Conv2dBuilder, Linear, LinearBuilder, MaxPool2d, ReLU};
 
 static ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -713,7 +713,7 @@ impl CNNBuilder {
                 .stride(block.stride)
                 .padding(block.padding)
                 .device(self.device.clone())
-                .dtype(self.dtype.clone())
+                .dtype(self.dtype)
                 .grad_enabled(self.grad_enabled)
                 .build()?;
             layers.push(CNNLayer::Conv2d(conv));
@@ -723,10 +723,7 @@ impl CNNBuilder {
             }
 
             if block.use_pool {
-                let pool = MaxPool2dBuilder::default()
-                    .kernel_size(block.pool_kernel_size)
-                    .stride(block.pool_stride)
-                    .build()?;
+                let pool = MaxPool2d::new(block.pool_kernel_size, Some(block.pool_stride))?;
                 layers.push(CNNLayer::MaxPool2d(pool));
             }
         }
@@ -737,7 +734,7 @@ impl CNNBuilder {
                 .out_features(block.out_features)
                 .bias_enabled(block.bias_enabled)
                 .device(self.device.clone())
-                .dtype(self.dtype.clone())
+                .dtype(self.dtype)
                 .grad_enabled(self.grad_enabled)
                 .build()?;
             layers.push(CNNLayer::Linear(linear));

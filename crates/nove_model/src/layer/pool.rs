@@ -12,7 +12,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// 2D max pooling layer.
 ///
 /// # Notes
-/// * The `MaxPool2d` is now only created by the `MaxPool2dBuilder`.
+/// * The `MaxPool2d` is now only created by the [`MaxPool2d::new()`] method.
 ///
 /// # Fields
 /// * `kernel_size` - The size of the pooling kernel (height, width).
@@ -21,12 +21,9 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Examples
 /// ```
-/// use nove::model::layer::MaxPool2dBuilder;
+/// use nove::model::layer::MaxPool2d;
 ///
-/// let pool = MaxPool2dBuilder::default()
-///     .kernel_size((2, 2))      // Required
-///     .stride((2, 2))           // Optional, default is kernel_size
-///     .build();
+/// let max_pool2d = MaxPool2d::new((2, 2), None).unwrap();
 /// ```
 #[derive(Debug, Clone)]
 pub struct MaxPool2d {
@@ -36,6 +33,44 @@ pub struct MaxPool2d {
 }
 
 impl MaxPool2d {
+    /// Create a new 2D max pooling layer.
+    ///
+    /// # Arguments
+    /// * `kernel_size` - The size of the pooling kernel (height, width).
+    /// * `stride` - The stride of the pooling operation (height, width).
+    ///   Default is `kernel_size` when `None`.
+    ///
+    /// # Returns
+    /// * `Ok(MaxPool2d)` - The new max pooling layer if successful.
+    /// * `Err(ModelError)` - The error when creating the max pooling layer.
+    pub fn new(
+        kernel_size: (usize, usize),
+        stride: Option<(usize, usize)>,
+    ) -> Result<Self, ModelError> {
+        Self::validate_positive(kernel_size, "kernel_size")?;
+
+        let stride = stride.unwrap_or(kernel_size);
+        Self::validate_positive(stride, "stride")?;
+
+        let id = ID.fetch_add(1, Ordering::Relaxed);
+
+        Ok(Self {
+            kernel_size,
+            stride,
+            id,
+        })
+    }
+
+    fn validate_positive(size: (usize, usize), name: &str) -> Result<(), ModelError> {
+        if size.0 == 0 || size.1 == 0 {
+            return Err(ModelError::InvalidArgument(format!(
+                "{} in MaxPool2d must be greater than 0",
+                name
+            )));
+        }
+        Ok(())
+    }
+
     /// Get the kernel size of the pooling layer.
     ///
     /// # Returns
@@ -99,125 +134,5 @@ impl Display for MaxPool2d {
             "maxpool2d.{}(kernel_size={:?}, stride={:?})",
             self.id, self.kernel_size, self.stride,
         )
-    }
-}
-
-/// The builder for the 2D max pooling layer.
-///
-/// # Notes
-/// * The `MaxPool2dBuilder` implements the `Default` trait, so you can
-///   use `MaxPool2dBuilder::default()` to create a builder with default values.
-///
-/// # Required Arguments
-/// * `kernel_size` - The size of the pooling kernel (height, width).
-///
-/// # Optional Arguments
-/// * `stride` - The stride of the pooling operation (height, width). Default is `kernel_size`.
-///
-/// # Fields
-/// * `kernel_size` - The size of the pooling kernel (height, width).
-/// * `stride` - The stride of the pooling operation (height, width).
-///
-/// # Examples
-/// ```
-/// use nove::model::layer::MaxPool2dBuilder;
-///
-/// let pool = MaxPool2dBuilder::default()
-///     .kernel_size((2, 2))      // Required
-///     .stride((2, 2))           // Optional, default is kernel_size
-///     .build();
-/// ```
-pub struct MaxPool2dBuilder {
-    kernel_size: Option<(usize, usize)>,
-    stride: Option<(usize, usize)>,
-}
-
-impl Default for MaxPool2dBuilder {
-    fn default() -> Self {
-        Self {
-            kernel_size: None,
-            stride: None,
-        }
-    }
-}
-
-impl MaxPool2dBuilder {
-    /// Configure the size of the pooling kernel.
-    ///
-    /// # Arguments
-    /// * `kernel_size` - The size of the pooling kernel (height, width).
-    ///
-    /// # Returns
-    /// * `&mut Self` - The builder with the configured kernel size.
-    ///
-    /// # Examples
-    /// ```
-    /// use nove::model::layer::MaxPool2dBuilder;
-    /// let mut pool_builder = MaxPool2dBuilder::default();
-    /// pool_builder.kernel_size((2, 2));
-    /// ```
-    pub fn kernel_size(&mut self, kernel_size: (usize, usize)) -> &mut Self {
-        self.kernel_size = Some(kernel_size);
-        self
-    }
-
-    /// Configure the stride of the pooling operation.
-    ///
-    /// # Arguments
-    /// * `stride` - The stride of the pooling operation (height, width).
-    ///
-    /// # Returns
-    /// * `&mut Self` - The builder with the configured stride.
-    ///
-    /// # Examples
-    /// ```
-    /// use nove::model::layer::MaxPool2dBuilder;
-    /// let mut pool_builder = MaxPool2dBuilder::default();
-    /// pool_builder.stride((2, 2));
-    /// ```
-    pub fn stride(&mut self, stride: (usize, usize)) -> &mut Self {
-        self.stride = Some(stride);
-        self
-    }
-
-    /// Build the 2D max pooling layer.
-    ///
-    /// # Returns
-    /// * `Ok(MaxPool2d)` - The built 2D max pooling layer.
-    /// * `Err(ModelError)` - The error when building the 2D max pooling layer.
-    ///
-    /// # Examples
-    /// ```
-    /// use nove::model::layer::MaxPool2dBuilder;
-    /// let mut pool_builder = MaxPool2dBuilder::default();
-    /// pool_builder.kernel_size((2, 2));
-    /// let pool = pool_builder.build().unwrap();
-    /// ```
-    pub fn build(&self) -> Result<MaxPool2d, ModelError> {
-        let kernel_size = self.kernel_size.ok_or(ModelError::MissingArgument(
-            "kernel_size in MaxPool2dBuilder".to_string(),
-        ))?;
-
-        if kernel_size.0 == 0 || kernel_size.1 == 0 {
-            return Err(ModelError::InvalidArgument(
-                "kernel_size in MaxPool2dBuilder must be greater than 0".to_string(),
-            ));
-        }
-
-        let stride = self.stride.unwrap_or(kernel_size);
-
-        if stride.0 == 0 || stride.1 == 0 {
-            return Err(ModelError::InvalidArgument(
-                "stride in MaxPool2dBuilder must be greater than 0".to_string(),
-            ));
-        }
-
-        let id = ID.fetch_add(1, Ordering::Relaxed);
-
-        Ok(MaxPool2d {
-            kernel_size,
-            stride,
-            id,
-        })
     }
 }

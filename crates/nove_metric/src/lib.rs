@@ -261,6 +261,18 @@ macro_rules! define_any_metric {
                 }
             }
         }
+
+        $(impl From<$eval_type> for AnyMetric {
+            fn from(metric: $eval_type) -> Self {
+                AnyMetric::$eval_name(metric)
+            }
+        })*
+
+        $(impl From<$res_type> for AnyMetric {
+            fn from(metric: $res_type) -> Self {
+                AnyMetric::$res_name(metric)
+            }
+        })*
     };
 }
 

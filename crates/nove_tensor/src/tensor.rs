@@ -33,7 +33,7 @@ pub enum TensorError {
     DTypeMismatch(DType, DType),
 
     #[error("Device mismatch: expected {0:?}, found {1:?}")]
-    DeviceMismatch(Device, Device),
+    DeviceMismatch(Box<Device>, Box<Device>),
 }
 
 impl<T> From<std::sync::PoisonError<T>> for TensorError {

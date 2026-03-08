@@ -20,18 +20,17 @@ pub fn model(device: Device) -> Result<nove::model::layer::CNN, nove::model::Mod
         .build()
 }
 
+type MnistDataloader = (
+    ImageClassificationDataloader<MnistDataset>,
+    ImageClassificationDataloader<MnistDataset>,
+    ImageClassificationDataloader<MnistDataset>,
+);
+
 pub fn dataloader(
     batch_size: usize,
     shuffle_seed: Option<usize>,
     device: Device,
-) -> Result<
-    (
-        ImageClassificationDataloader<MnistDataset>,
-        ImageClassificationDataloader<MnistDataset>,
-        ImageClassificationDataloader<MnistDataset>,
-    ),
-    DataloaderError,
-> {
+) -> Result<MnistDataloader, DataloaderError> {
     let mnist = Mnist::new("data")?;
 
     let train_dataloader = ImageClassificationDataloaderBuilder::default()

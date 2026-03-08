@@ -140,14 +140,13 @@ impl Model for Conv2d {
     }
 
     fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
-        Ok(self
-            .parameters()?
+        self.parameters()?
             .into_iter()
             .map(|t| match t.name()? {
                 Some(name) => Ok((name, t)),
                 None => Err(ModelError::ParameterMissingName),
             })
-            .collect::<Result<HashMap<_, _>, ModelError>>()?)
+            .collect::<Result<HashMap<_, _>, ModelError>>()
     }
 }
 

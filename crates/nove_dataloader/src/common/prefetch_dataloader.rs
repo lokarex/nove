@@ -10,7 +10,7 @@ use crate::{Dataloader, DataloaderError};
 ///
 /// # Note
 /// * This struct cannot be constructed directly. Use [`PrefetchDataloaderBuilder`]
-/// to create instances.
+///   to create instances.
 ///
 /// # Generic Type Parameters
 /// * `D` - The type of the inner dataloader.

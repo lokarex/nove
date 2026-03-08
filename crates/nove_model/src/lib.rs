@@ -158,7 +158,7 @@ pub trait Model: Display {
                             for (old_part, new_part) in
                                 old_param_name.split('.').zip(new_param_name.split('.'))
                             {
-                                if !old_part.parse::<usize>().is_ok() && old_part != new_part {
+                                if old_part.parse::<usize>().is_err() && old_part != new_part {
                                     return false;
                                 }
                             }

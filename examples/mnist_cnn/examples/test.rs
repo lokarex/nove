@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Creating CNN model...");
     let mut model = model(device.clone())?;
     println!("Loading pre-trained model...");
-    model.load("result/CNN_5.safetensors", &device)?;
+    model.load("result/CNN_best.safetensors", &device)?;
 
     println!("Creating loss function and optimizer...");
     let lossfn = lossfn();

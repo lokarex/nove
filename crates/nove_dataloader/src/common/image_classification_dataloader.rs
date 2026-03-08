@@ -7,6 +7,13 @@ use crate::{Dataloader, DataloaderError};
 
 type ProcessFn = dyn Fn((String, usize)) -> Result<(Tensor, Tensor), DataloaderError>;
 type CollateFn = dyn Fn(Vec<(Tensor, Tensor)>) -> Result<(Tensor, Tensor), DataloaderError>;
+type DataloaderInner<D> = crate::common::BatchDataloader<
+    D,
+    (Tensor, Tensor),
+    (Tensor, Tensor),
+    Box<ProcessFn>,
+    Box<CollateFn>,
+>;
 
 /// The `ImageClassificationDataloader` struct provides a specialized data loader
 /// for image classification datasets, which loads images from file paths,
@@ -58,13 +65,7 @@ pub struct ImageClassificationDataloader<D>
 where
     D: Dataset<Item = (String, usize)>,
 {
-    inner: crate::common::BatchDataloader<
-        D,
-        (Tensor, Tensor),
-        (Tensor, Tensor),
-        Box<ProcessFn>,
-        Box<CollateFn>,
-    >,
+    inner: DataloaderInner<D>,
 }
 
 impl<D> Dataloader for ImageClassificationDataloader<D>

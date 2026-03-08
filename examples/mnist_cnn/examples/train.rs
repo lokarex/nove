@@ -1,10 +1,9 @@
 use mnist_cnn::{dataloader, lossfn, model, optimizer};
 use nove::learner::Learner;
 use nove::learner::common::ImageClassificationLearnerBuilder;
-use nove::metric::{AnyMetric, CpuFrequencyMetric, CpuUsageMetric};
+use nove::metric::{CpuFrequencyMetric, CpuUsageMetric};
 use nove::model::Model;
 use nove::tensor::Device;
-use std::vec;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let device = Device::cuda(0)?;
@@ -35,10 +34,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .epoch(5)
         .log_interval(10)
         .result_dir("result")
-        .metrics(vec![
-            AnyMetric::CpuUsageMetric(CpuUsageMetric::new(true)),
-            AnyMetric::CpuFrequencyMetric(CpuFrequencyMetric::new(true)),
-        ])
+        .metric(CpuUsageMetric::new(true))
+        .metric(CpuFrequencyMetric::new(true))
         .build()?;
 
     println!("Starting training...");

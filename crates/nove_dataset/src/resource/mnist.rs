@@ -224,7 +224,7 @@ impl Mnist {
             };
             entries
                 .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().map_or(false, |ext| ext == "png"))
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "png"))
                 .count()
         }
 
@@ -443,11 +443,11 @@ impl Mnist {
                 let entry = entry?;
                 let path = entry.path();
 
-                if path.extension().map_or(false, |ext| ext == "png") {
-                    if let Some(path_str) = path.to_str() {
-                        samples.push((path_str.to_string(), label_usize));
-                        count += 1;
-                    }
+                if path.extension().is_some_and(|ext| ext == "png")
+                    && let Some(path_str) = path.to_str()
+                {
+                    samples.push((path_str.to_string(), label_usize));
+                    count += 1;
                 }
             }
 

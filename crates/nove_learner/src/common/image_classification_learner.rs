@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use nove_dataloader::Dataloader;
 use nove_lossfn::LossFn;
 use nove_metric::{
-    AccuracyMetric, AnyMetric, EvaluationMetric, LossMetric, Metric, ResourceMetric,
+    AccuracyMetric, AnyMetric, EvaluationMetric, LossMetric, Metric, MetricValue, ResourceMetric,
 };
 use nove_model::Model;
 use nove_optimizer::Optimizer;
@@ -30,6 +30,7 @@ where
     log_interval: usize,
     model_name: String,
     result_dir: PathBuf,
+    best_accuracy: f64,
 }
 
 impl<D, M, L, O> Learner for ImageClassificationLearner<D, M, L, O>
@@ -91,17 +92,30 @@ where
             println!();
 
             self.model.save(
-                &self
-                    .result_dir
+                self.result_dir
                     .join(format!("{}_{}.safetensors", self.model_name, epoch + 1))
                     .to_str()
                     .ok_or(LearnerError::InvalidPath(
                         "result_dir in ImageClassificationLearnerBuilder".to_string(),
                     ))?,
             )?;
-        }
 
-        self.test()?;
+            if let AnyMetric::AccuracyMetric(accuracy) = &mut self.metrics[0]
+                && let MetricValue::Scalar(accuracy) = accuracy.value()?
+                && accuracy > self.best_accuracy
+            {
+                self.best_accuracy = accuracy;
+
+                self.model.save(
+                    self.result_dir
+                        .join(format!("{}_best.safetensors", self.model_name))
+                        .to_str()
+                        .ok_or(LearnerError::InvalidPath(
+                            "result_dir in ImageClassificationLearnerBuilder".to_string(),
+                        ))?,
+                )?;
+            }
+        }
 
         Ok(())
     }
@@ -256,7 +270,12 @@ where
     }
 
     pub fn metrics(&mut self, metrics: Vec<AnyMetric>) -> &mut Self {
-        self.metrics = metrics;
+        self.metrics.extend(metrics);
+        self
+    }
+
+    pub fn metric<MT: Into<AnyMetric>>(&mut self, metric: MT) -> &mut Self {
+        self.metrics.push(metric.into());
         self
     }
 
@@ -342,6 +361,7 @@ where
             log_interval: self.log_interval,
             model_name,
             result_dir: PathBuf::from(result_dir),
+            best_accuracy: 0.0,
         })
     }
 }

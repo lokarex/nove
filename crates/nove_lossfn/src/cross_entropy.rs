@@ -31,6 +31,12 @@ impl CrossEntropy {
     }
 }
 
+impl Default for CrossEntropy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LossFn for CrossEntropy {
     type Input = (Tensor, Tensor);
     type Output = Tensor;

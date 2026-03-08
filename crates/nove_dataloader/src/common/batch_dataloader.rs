@@ -91,10 +91,10 @@ where
     type Output = B;
 
     fn next(&mut self) -> Result<Option<Self::Output>, DataloaderError> {
-        if self.index == 0 {
-            if let Some(seed) = self.shuffle_seed {
-                self.shuffle_indices(seed);
-            }
+        if self.index == 0
+            && let Some(seed) = self.shuffle_seed
+        {
+            self.shuffle_indices(seed);
         }
 
         if self.index >= self.dataset_len {
