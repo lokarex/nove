@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Loading MNIST dataset and creating dataloaders...");
     let batch_size = 128;
-    let (train_dataloader, validate_dataloader, test_dataloader) =
+    let (train_dataloader, validate_dataloader, _) =
         dataloader(batch_size, Some(42), device.clone())?;
 
     println!("Creating CNN model...");
@@ -27,7 +27,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut learner = ImageClassificationLearnerBuilder::default()
         .train_dataloader(train_dataloader)
         .validate_dataloader(validate_dataloader)
-        .test_dataloader(test_dataloader)
         .model(model)
         .lossfn(lossfn)
         .optimizer(optimizer)
