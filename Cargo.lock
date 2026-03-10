@@ -1860,6 +1860,7 @@ dependencies = [
 name = "nove_optimizer"
 version = "0.1.2"
 dependencies = [
+ "nove",
  "nove_tensor",
  "thiserror 2.0.18",
 ]

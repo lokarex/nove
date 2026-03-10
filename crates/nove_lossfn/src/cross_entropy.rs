@@ -13,6 +13,12 @@ use crate::{LossFn, LossFnError, Nll, common::log_softmax};
 ///
 /// $$ \text{CrossEntropy}(x, y) = \text{NLL}(\text{LogSoftmax}(x), y) $$
 ///
+/// Where:
+/// - x is the input tensor of shape (batch_size, num_classes) containing raw logits
+/// - y is the target tensor of shape (batch_size) containing class indices
+/// - NLL is the Negative Log Likelihood loss function
+/// - LogSoftmax is the log-softmax function applied along the class dimension
+///
 /// # Note:
 /// * The input is a `(input, target)` tuple
 ///   - `input`: A 2D tensor of shape (batch_size, num_classes) containing raw logits

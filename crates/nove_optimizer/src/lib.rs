@@ -4,11 +4,22 @@ use thiserror::Error;
 mod sgd;
 pub use sgd::Sgd;
 
+mod adam;
+pub use adam::{Adam, AdamBuilder};
+
 #[derive(Debug, Error)]
 pub enum OptimizerError {
     /// Tensor errors from the `nove_tensor` crate.
     #[error(transparent)]
     TensorError(#[from] TensorError),
+
+    /// Missing argument error.
+    #[error("Missing argument: {0}")]
+    MissingArgument(String),
+
+    /// Invalid argument error.
+    #[error("Invalid argument: {0}")]
+    InvalidArgument(String),
 
     /// Other errors.
     #[error("{0}")]

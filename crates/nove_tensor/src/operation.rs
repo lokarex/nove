@@ -938,4 +938,125 @@ impl Tensor {
             })),
         })
     }
+
+    /// Compute the square root of the tensor element-wise.
+    ///
+    /// # Arguments
+    /// * `self` - The input tensor.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor after square root.
+    /// * `Err(TensorError)` - The error when computing the square root.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![1.0, 4.0, 9.0], &device, false).unwrap();
+    ///
+    /// let result = t.sqrt().unwrap();
+    /// println!("{:?}", result);
+    /// ```
+    pub fn sqrt(&self) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.sqrt()?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    /// Divide two tensors with broadcasting.
+    ///
+    /// # Arguments
+    /// * `rhs` - The tensor to divide by.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor after division.
+    /// * `Err(TensorError)` - The error when dividing the tensors.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t1 = Tensor::from_data(vec![6.0, 8.0], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![2.0, 4.0], &device, false).unwrap();
+    ///
+    /// let t3 = t1.div(&t2).unwrap();
+    /// println!("{:?}", t3);
+    /// ```
+    pub fn div(&self, rhs: &Self) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let rhs_inner = rhs.data.read()?;
+        let rhs_inner_tensor = match &rhs_inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.broadcast_div(rhs_inner_tensor)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone(), rhs.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    /// Compute the power of the tensor element-wise.
+    ///
+    /// # Arguments
+    /// * `exponent` - The exponent to raise the tensor to.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor after power operation.
+    /// * `Err(TensorError)` - The error when computing the power.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(vec![2.0, 3.0, 4.0], &device, false).unwrap();
+    ///
+    /// let result = t.powf(2.0).unwrap();
+    /// println!("{:?}", result);
+    /// ```
+    pub fn powf(&self, exponent: f64) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.powf(exponent)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.clone()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
 }
