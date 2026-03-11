@@ -6,36 +6,6 @@ use crate::{
 };
 
 impl Tensor {
-    /// Deep clone the data from this tensor to a new tensor.
-    ///
-    /// # Notes
-    /// * Because the cloned tensor is a new tensor, it will not be connected to the previous computation graph.
-    ///
-    /// # Returns
-    /// * `Ok(tensor)` - The cloned tensor if successful.
-    /// * `Err(TensorError)` - The error when cloning the tensor.
-    pub fn deep_clone(&self) -> Result<Self, TensorError> {
-        let inner = match &self.data.read()?.inner {
-            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.copy()?),
-            TensorInner::Var(var) => TensorInner::Var(candle_core::Var::from_tensor(&var.copy()?)?),
-        };
-        let device = self.data.read()?.device.clone();
-        let grad = if let Some(grad) = self.data.read()?.grad.as_ref() {
-            Some(grad.deep_clone()?)
-        } else {
-            None
-        };
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner,
-                device,
-                grad,
-                parents: vec![],
-                name: None,
-            })),
-        })
-    }
-
     /// Create a new tensor with random values uniformly distributed in the specified range.
     ///
     /// # Parameters

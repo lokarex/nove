@@ -103,7 +103,7 @@ impl Metric for LossMetric {
 
 impl EvaluationMetric for LossMetric {
     fn evaluate(&mut self, output: &Tensor, target: &Tensor) -> Result<(), MetricError> {
-        let loss = self.lossfn.loss((output.clone(), target.clone()))?;
+        let loss = self.lossfn.loss((output.copy(), target.copy()))?;
 
         let batch_size = output.shape()?.dims()[0];
         let batch_loss = loss.to_dtype(&DType::F64)?.to_scalar::<f64>()?;

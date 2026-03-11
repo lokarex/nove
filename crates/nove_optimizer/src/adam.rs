@@ -264,8 +264,13 @@ impl AdamBuilder {
     pub fn build(&self) -> Result<Adam, OptimizerError> {
         let params = self
             .params
-            .clone()
-            .ok_or_else(|| OptimizerError::MissingArgument("params in AdamBuilder".to_string()))?;
+            .as_ref()
+            .ok_or(OptimizerError::MissingArgument(
+                "params in AdamBuilder".to_string(),
+            ))?
+            .iter()
+            .map(|param| param.copy())
+            .collect::<Vec<_>>();
 
         let learning_rate = self.learning_rate.ok_or_else(|| {
             OptimizerError::MissingArgument("learning_rate in AdamBuilder".to_string())
@@ -362,8 +367,6 @@ impl Optimizer for Adam {
             let update = m_hat.div(&denom)?.affine(-self.learning_rate, 0.0)?;
             let new_param = adam_param.param.add(&update)?;
             adam_param.param.update_from_tensor(&new_param)?;
-
-            adam_param.param.clear_grad()?;
         }
 
         Ok(())

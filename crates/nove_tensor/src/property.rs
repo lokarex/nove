@@ -17,7 +17,7 @@ impl Tensor {
     pub fn to_device(&self, device: &Device) -> Result<Tensor, TensorError> {
         // Check the device, if the device is the same, return the original tensor
         if self.device()? == *device {
-            return Ok(self.clone());
+            return Ok(self.copy());
         }
 
         let new_inner = match &self.data.read()?.inner {
@@ -37,7 +37,7 @@ impl Tensor {
                 inner: new_inner,
                 grad: new_grad,
                 device: device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 name: self.data.read()?.name.clone(),
             })),
         })
@@ -84,7 +84,7 @@ impl Tensor {
 
         // If already the target dtype, return the tensor itself
         if current_dtype == *dtype {
-            return Ok(self.clone());
+            return Ok(self.copy());
         }
 
         let new_inner = match &self.data.read()?.inner {
@@ -104,7 +104,7 @@ impl Tensor {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
                 grad: new_grad,
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 name: self.data.read()?.name.clone(),
             })),
         })
@@ -175,7 +175,7 @@ impl Tensor {
                 inner: new_inner,
                 grad: new_grad,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 name: self.data.read()?.name.clone(),
             })),
         })
@@ -275,7 +275,7 @@ impl Tensor {
     /// println!("The name of the tensor is: {:?}", name);
     /// ```
     pub fn require_name(&self, name: &str) -> Result<Tensor, TensorError> {
-        let new_tensor = self.deep_clone()?;
+        let new_tensor = self.copy();
         new_tensor.data.write()?.name = Some(name.to_string());
         Ok(new_tensor)
     }

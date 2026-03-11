@@ -80,7 +80,6 @@ impl Optimizer for Sgd {
                         .affine(self.learning_rate, 0f64)?,
                 )?,
             )?;
-            param.clear_grad()?;
         }
         Ok(())
     }

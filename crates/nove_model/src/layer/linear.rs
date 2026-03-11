@@ -50,7 +50,7 @@ impl Linear {
     /// # Returns
     /// * `Tensor` - The weight tensor.
     pub fn weight(&self) -> Tensor {
-        self.weight.clone()
+        self.weight.copy()
     }
 
     /// Get the bias tensor in the linear layer.
@@ -58,7 +58,7 @@ impl Linear {
     /// # Returns
     /// * `Option<Tensor>` - The bias tensor if enabled, otherwise None.
     pub fn bias(&self) -> Option<Tensor> {
-        self.bias.clone()
+        self.bias.as_ref().map(|b| b.copy())
     }
 }
 
@@ -112,8 +112,8 @@ impl Model for Linear {
 
     fn parameters(&self) -> Result<Vec<Tensor>, ModelError> {
         match &self.bias {
-            Some(bias) => Ok(vec![self.weight.clone(), bias.clone()]),
-            None => Ok(vec![self.weight.clone()]),
+            Some(bias) => Ok(vec![self.weight.copy(), bias.copy()]),
+            None => Ok(vec![self.weight.copy()]),
         }
     }
 

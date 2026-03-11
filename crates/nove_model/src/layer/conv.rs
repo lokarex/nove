@@ -65,7 +65,7 @@ impl Conv2d {
     /// # Returns
     /// * `Tensor` - The weight tensor with shape [out_channels, in_channels/groups, kernel_height, kernel_width].
     pub fn weight(&self) -> Tensor {
-        self.weight.clone()
+        self.weight.copy()
     }
 
     /// Get the bias tensor in the convolution layer.
@@ -73,7 +73,7 @@ impl Conv2d {
     /// # Returns
     /// * `Option<Tensor>` - The bias tensor if enabled, otherwise None.
     pub fn bias(&self) -> Option<Tensor> {
-        self.bias.clone()
+        self.bias.as_ref().map(|b| b.copy())
     }
 }
 
@@ -134,8 +134,8 @@ impl Model for Conv2d {
 
     fn parameters(&self) -> Result<Vec<Tensor>, ModelError> {
         match &self.bias {
-            Some(bias) => Ok(vec![self.weight.clone(), bias.clone()]),
-            None => Ok(vec![self.weight.clone()]),
+            Some(bias) => Ok(vec![self.weight.copy(), bias.copy()]),
+            None => Ok(vec![self.weight.copy()]),
         }
     }
 

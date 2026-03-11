@@ -42,7 +42,7 @@ impl Tensor {
 
         let new_inner = TensorInner::Tensor(inner1_tensor.broadcast_add(inner2_tensor)?);
 
-        let parents = vec![self.clone(), rhs.clone()];
+        let parents = vec![self.copy(), rhs.copy()];
 
         Ok(Self {
             data: Arc::new(RwLock::new(TensorData {
@@ -92,7 +92,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), rhs.clone()],
+                parents: vec![self.copy(), rhs.copy()],
                 grad: None,
                 name: None,
             })),
@@ -149,7 +149,7 @@ impl Tensor {
         //  Set the parents
         let parents = tensors
             .iter()
-            .map(|tensor| tensor.as_ref().clone())
+            .map(|tensor| tensor.as_ref().copy())
             .collect::<Vec<_>>();
 
         Ok(Self {
@@ -200,7 +200,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), rhs.clone()],
+                parents: vec![self.copy(), rhs.copy()],
                 grad: None,
                 name: None,
             })),
@@ -249,7 +249,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -295,7 +295,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -330,7 +330,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -378,7 +378,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -413,7 +413,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -458,7 +458,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), rhs.clone()],
+                parents: vec![self.copy(), rhs.copy()],
                 grad: None,
                 name: None,
             })),
@@ -496,7 +496,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -545,7 +545,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), indices.clone()],
+                parents: vec![self.copy(), indices.copy()],
                 grad: None,
                 name: None,
             })),
@@ -584,7 +584,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -629,7 +629,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), rhs.clone()],
+                parents: vec![self.copy(), rhs.copy()],
                 grad: None,
                 name: None,
             })),
@@ -674,7 +674,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), rhs.clone()],
+                parents: vec![self.copy(), rhs.copy()],
                 grad: None,
                 name: None,
             })),
@@ -746,7 +746,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -807,7 +807,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), kernel.clone()],
+                parents: vec![self.copy(), kernel.copy()],
                 grad: None,
                 name: None,
             })),
@@ -852,7 +852,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -895,7 +895,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -932,7 +932,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -970,7 +970,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
@@ -1015,7 +1015,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone(), rhs.clone()],
+                parents: vec![self.copy(), rhs.copy()],
                 grad: None,
                 name: None,
             })),
@@ -1053,7 +1053,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.clone()],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),

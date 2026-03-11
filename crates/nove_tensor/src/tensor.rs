@@ -88,14 +88,92 @@ pub(crate) struct TensorData {
 
 /// The tensor struct.
 ///
-/// # Notes
-/// * The `clone` method is cheap because the inner data is wrapped in an `Arc`.
-///
 /// # Fields
 /// * `data` - The data structure of the tensor.
-#[derive(Clone, Debug)]
+///
+/// # See Also
+/// * [`try_clone`](crate::tensor::Tensor::try_clone) - The fallible version for cloning a tensor that returns `Result`.
+/// * [`clone`](crate::tensor::Tensor::clone) - The unfallible version for cloning a tensor that panics on failure.
+/// * [`copy`](crate::tensor::Tensor::copy) - Shallow copy that shares underlying data.
+#[derive(Debug)]
 pub struct Tensor {
     pub(crate) data: Arc<RwLock<TensorData>>,
+}
+
+impl Clone for Tensor {
+    /// Clone the tensor.
+    ///
+    /// This is a convenience method that calls [`try_clone`](crate::tensor::Tensor::try_clone)
+    /// and unwraps the result. If cloning fails, it will panic.
+    ///
+    /// For error-safe cloning, use [`try_clone`](crate::tensor::Tensor::try_clone) instead.
+    ///
+    /// # See Also
+    /// * [`try_clone`](crate::tensor::Tensor::try_clone) - The fallible version that returns `Result`.
+    /// * [`copy`](crate::tensor::Tensor::copy) - Shallow copy that shares underlying data.
+    fn clone(&self) -> Self {
+        self.try_clone().unwrap()
+    }
+}
+
+impl Tensor {
+    /// Create a shallow copy of the tensor.
+    ///
+    /// This method only clones the `Arc` reference to the underlying data,
+    /// creating a new tensor that shares the same underlying data with the original.
+    /// Unlike [`try_clone`](crate::tensor::Tensor::try_clone), this does NOT perform
+    /// a deep copy of the actual tensor data.
+    ///
+    /// The copied tensor will:
+    /// - Share the same underlying data allocation (shallow copy)
+    /// - Share the same computational graph
+    /// - Share the same gradient
+    ///
+    /// # See Also
+    /// * [`try_clone`](crate::tensor::Tensor::try_clone) - The fallible version for cloning a tensor that returns `Result`.
+    /// * [`clone`](crate::tensor::Tensor::clone) - The unfallible version for cloning a tensor that panics on failure.
+    pub fn copy(&self) -> Self {
+        Tensor {
+            data: Arc::clone(&self.data),
+        }
+    }
+
+    /// Try to clone the tensor.
+    ///
+    /// This method performs a deep copy of the tensor data, creating a completely
+    /// independent tensor. The cloned tensor will:
+    /// - Have a new underlying data allocation
+    /// - Be disconnected from the computational graph
+    /// - Have a gradient tensor if the original tensor had one (gradient also calls `try_clone`)
+    /// - Preserve the device, dtype, shape, and name from the original tensor
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - A new tensor with cloned data if successful.
+    /// * `Err(TensorError)` - The error when cloning the tensor data.
+    ///
+    /// # See Also
+    /// * [`clone`](crate::tensor::Tensor::clone) - The unfallible version that panics on failure.
+    /// * [`copy`](crate::tensor::Tensor::copy) - Shallow copy that shares underlying data.
+    pub fn try_clone(&self) -> Result<Self, TensorError> {
+        let data = self.data.read()?;
+        Ok(Tensor {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: match &data.inner {
+                    TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.copy()?),
+                    TensorInner::Var(var) => {
+                        TensorInner::Var(candle_core::Var::from_tensor(&var.copy()?)?)
+                    }
+                },
+                device: data.device.clone(),
+                grad: match &data.grad {
+                    Some(grad) => Some(grad.try_clone()?),
+                    None => None,
+                },
+                parents: vec![],
+                name: data.name.clone(),
+            })),
+        })
+    }
 }
 
 impl AsRef<Tensor> for Tensor {
@@ -166,7 +244,7 @@ impl Tensor {
     pub fn require_grad(&mut self, grad_enabled: bool) -> Result<Tensor, TensorError> {
         // Check if the gradient status is already as required
         if self.grad_enabled()? == grad_enabled {
-            return Ok(self.clone());
+            return Ok(self.copy());
         }
 
         let inner_tensor = {
@@ -210,7 +288,7 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when getting the tensor's gradient tensor.
     pub fn grad(&self) -> Result<Option<Tensor>, TensorError> {
         let data = self.data.read()?;
-        Ok(data.grad.clone())
+        Ok(data.grad.as_ref().map(|grad| grad.copy()))
     }
 
     /// Zero the gradient tensor of the tensor.
@@ -273,14 +351,17 @@ impl Tensor {
         let visited = DashMap::new();
 
         // Add the self tensor to the queue and mark it as visited
-        queue.push(self.clone());
+        queue.push(self.copy());
         visited.insert(Arc::as_ptr(&self.data) as usize, true);
 
         while let Some(current) = queue.pop() {
             // Get the parent tensors of the current tensor
             let current_parents = {
                 let data = current.data.read()?;
-                data.parents.clone()
+                data.parents
+                    .iter()
+                    .map(|parent| parent.copy())
+                    .collect::<Vec<_>>()
             };
 
             // Filter out the gradient enabled parent tensors
@@ -292,10 +373,10 @@ impl Tensor {
                         true => None,
                         false => {
                             // Add the parent tensor to the queue for further processing
-                            queue.push(parent.clone());
+                            queue.push(parent.copy());
 
                             match parent.grad_enabled().unwrap_or(false) {
-                                true => Some(parent.clone()),
+                                true => Some(parent.copy()),
                                 false => None,
                             }
                         }
@@ -331,7 +412,7 @@ impl Tensor {
                             TensorInner::Var(var) => var.as_tensor().clone(),
                         };
                         parent_grad_write.inner =
-                            TensorInner::Tensor(new_grad.add(&parent_grad_inner_tensor)?);
+                            TensorInner::Tensor(new_grad.add(&parent_grad_inner_tensor)?.detach());
                     }
                     // If the parent tensor does not have a gradient, set it to the new gradient
                     None => {
@@ -385,21 +466,24 @@ impl Tensor {
         Ok(())
     }
 
-    /// Clear the gradient tensor of the tensor and the computational graph.
+    /// Clear the computational graph.
     ///
     /// # Returns
-    /// * `Ok(())` - The tensor's gradient tensor is successfully cleared and disconnected.
-    /// * `Err(TensorError)` - The error when clearing the tensor's gradient tensor and disconnecting it from the computational graph.
+    /// * `Ok(())` - The tensor's computational graph is successfully cleared.
+    /// * `Err(TensorError)` - The error when clearing the tensor's computational graph.
     pub fn clear_graph(&self) -> Result<(), TensorError> {
         let queue = SegQueue::new();
         let visited = DashMap::new();
 
-        queue.push(self.clone());
+        queue.push(self.copy());
         visited.insert(Arc::as_ptr(&self.data) as usize, true);
 
         while let Some(current) = queue.pop() {
             let current_parents = {
                 let mut data = current.data.write()?;
+                if let Some(grad) = data.grad.as_ref() {
+                    queue.push(grad.copy());
+                }
                 std::mem::take(&mut data.parents)
             };
 
