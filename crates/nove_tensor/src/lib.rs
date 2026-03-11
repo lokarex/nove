@@ -9,6 +9,7 @@ mod tensor;
 pub use tensor::Tensor;
 pub use tensor::TensorError;
 
+mod activation;
 mod conversion;
 mod creation;
 mod operation;

@@ -8,6 +8,18 @@ pub use dropout::Dropout;
 mod relu;
 pub use relu::ReLU;
 
+mod silu;
+pub use silu::SiLU;
+
+mod gelu;
+pub use gelu::GELU;
+
+mod tanh;
+pub use tanh::Tanh;
+
+mod sigmoid;
+pub use sigmoid::Sigmoid;
+
 mod conv;
 pub use conv::Conv2d;
 pub use conv::Conv2dBuilder;

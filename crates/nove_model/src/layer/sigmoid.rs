@@ -10,50 +10,52 @@ use crate::{Model, ModelError};
 
 static ID: AtomicUsize = AtomicUsize::new(0);
 
-/// Rectified Linear Unit (ReLU) layer.
+/// Sigmoid layer.
 ///
 /// <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
 ///
-/// The Rectified Linear Unit (ReLU) is an activation function that introduces non-linearity
-/// to the model. It is defined as the positive part of its input.
+/// The sigmoid function is a smooth, non-linear activation function that maps
+/// input values to the range (0, 1). It is commonly used in binary classification
+/// problems and as the output activation function in neural networks where
+/// probability-like outputs are needed.
 ///
-/// The ReLU function is computed as:
+/// The Sigmoid function is computed as:
 ///
-/// $$ \text{ReLU}(x) = \max(0, x) $$
+/// $$ \text{Sigmoid}(x) = \frac{1}{1 + e^{-x}} = \frac{e^x}{e^x + 1} $$
 ///
 /// Where:
 /// - x is the input value
-/// - max(0, x) returns x if x is positive, otherwise returns 0
+/// - e is the base of the natural logarithm
 ///
 /// # Notes
-/// * The `ReLU` is now only created by the `ReLU::new()` function.
+/// * The `Sigmoid` is now only created by the `Sigmoid::new()` function.
 ///
 /// # Fields
-/// * `id` - The unique ID of the ReLU layer.
+/// * `id` - The unique ID of the Sigmoid layer.
 ///
 /// # Examples
 /// ```
 /// use nove::tensor::{Device, Tensor};
-/// use nove::model::layer::ReLU;
+/// use nove::model::layer::Sigmoid;
 /// use nove::model::Model;
 ///
-/// let mut relu = ReLU::new();
-/// println!("{}", relu);
+/// let mut sigmoid = Sigmoid::new();
+/// println!("{}", sigmoid);
 ///
-/// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &Device::cpu(), false).unwrap();
-/// let output = relu.forward(input).unwrap();
+/// let input = Tensor::from_data(&[-1.0f32, 0.0f32, 1.0f32], &Device::cpu(), false).unwrap();
+/// let output = sigmoid.forward(input).unwrap();
 /// println!("{}", output);
 /// ```
 #[derive(Debug, Clone)]
-pub struct ReLU {
+pub struct Sigmoid {
     id: usize,
 }
 
-impl ReLU {
-    /// Create a new Rectified Linear Unit (ReLU) layer.
+impl Sigmoid {
+    /// Create a new sigmoid layer.
     ///
     /// # Returns
-    /// * `ReLU` - The new ReLU layer.
+    /// * `Sigmoid` - The new Sigmoid layer.
     pub fn new() -> Self {
         Self {
             id: ID.fetch_add(1, Ordering::Relaxed),
@@ -61,39 +63,39 @@ impl ReLU {
     }
 }
 
-impl Default for ReLU {
+impl Default for Sigmoid {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Model for ReLU {
+impl Model for Sigmoid {
     type Input = Tensor;
 
     type Output = Tensor;
 
-    /// Apply the Rectified Linear Unit (ReLU) layer to the input tensor.
+    /// Apply the sigmoid layer to the input tensor.
     ///
     /// # Arguments
     /// * `input: Tensor` - The input tensor.
     ///
     /// # Returns
-    /// * `Ok(Tensor)` - The tensor after applying the ReLU activation function.
-    /// * `Err(ModelError)` - The error when applying the ReLU activation function.
+    /// * `Ok(Tensor)` - The tensor after applying the sigmoid activation function.
+    /// * `Err(ModelError)` - The error when applying the sigmoid activation function.
     ///
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// use nove::model::layer::ReLU;
+    /// use nove::model::layer::Sigmoid;
     /// use nove::model::Model;
     ///
-    /// let mut relu = ReLU::new();
-    /// let input = Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &Device::cpu(), false).unwrap();
-    /// let output = relu.forward(input).unwrap();
-    /// assert_eq!(output.to_vec::<f64>().unwrap(), vec![0.0, 2.0, 0.0, 4.0]);
+    /// let mut sigmoid = Sigmoid::new();
+    /// let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::cpu(), false).unwrap();
+    /// let output = sigmoid.forward(input).unwrap();
+    /// assert_eq!(output.to_vec::<f64>().unwrap(), vec![0.2689414213699951, 0.5, 0.7310585786300049]);
     /// ```
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, crate::ModelError> {
-        Ok(input.relu()?)
+        Ok(input.sigmoid()?)
     }
 
     fn require_grad(&mut self, _: bool) -> Result<(), crate::ModelError> {
@@ -117,8 +119,8 @@ impl Model for ReLU {
     }
 }
 
-impl Display for ReLU {
+impl Display for Sigmoid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "relu.{}()", self.id)
+        write!(f, "sigmoid.{}()", self.id)
     }
 }

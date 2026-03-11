@@ -113,4 +113,36 @@ impl Tensor {
             })),
         })
     }
+
+    /// Create a new tensor filled with ones.
+    ///
+    /// # Parameters
+    /// * `shape` - The shape of the tensor.
+    /// * `dtype` - The data type of the tensor.
+    /// * `device` - The device to store the tensor.
+    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The new tensor if successful.
+    /// * `Err(TensorError)` - The error when creating the tensor.
+    pub fn ones(
+        shape: &Shape,
+        dtype: &DType,
+        device: &Device,
+        grad_enabled: bool,
+    ) -> Result<Self, TensorError> {
+        let inner = match grad_enabled {
+            true => TensorInner::Var(candle_core::Var::ones(shape, *dtype, device)?),
+            false => TensorInner::Tensor(candle_core::Tensor::ones(shape, *dtype, device)?),
+        };
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner,
+                device: device.clone(),
+                parents: vec![],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
 }

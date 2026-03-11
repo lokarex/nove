@@ -718,41 +718,6 @@ impl Tensor {
         })
     }
 
-    /// Apply the Rectified Linear Unit (ReLU) activation function element-wise.
-    ///
-    /// # Returns
-    /// * `Ok(Tensor)` - The tensor after applying the ReLU activation function.
-    /// * `Err(TensorError)` - The error when applying the ReLU activation function.
-    ///
-    /// # Examples
-    /// ```
-    /// use nove::tensor::{Device, Tensor};
-    /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &device, false).unwrap();
-    ///
-    /// let result = t.relu().unwrap();
-    /// println!("{:?}", result);
-    /// ```
-    pub fn relu(&self) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.relu()?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
-    }
-
     /// Apply the 2D convolutional operation.
     ///
     /// # Parameters
@@ -1039,6 +1004,7 @@ impl Tensor {
     ///
     /// let result = t.powf(2.0).unwrap();
     /// println!("{:?}", result);
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![4.0, 9.0, 16.0]);
     /// ```
     pub fn powf(&self, exponent: f64) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
