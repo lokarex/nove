@@ -824,6 +824,58 @@ impl Tensor {
         })
     }
 
+    /// Compute the variance along the specified axis.
+    ///
+    /// # Parameters
+    /// * `dim` - The dimension to compute variance.
+    /// * `keep_dim` - Whether to keep the dimension (size becomes 1).
+    /// * `unbiased` - Whether to use unbiased estimation.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The tensor after applying the variance operation.
+    /// * `Err(TensorError)` - The error when applying the variance operation.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::rand(0.0f32, 1.0f32, &Shape::from_dims(&[1, 3, 5, 5]), &device, false).unwrap();
+    /// let result = t.var(1, false, true).unwrap();
+    /// println!("{:?}", result);
+    /// ```
+    pub fn var(&self, dim: usize, keep_dim: bool, unbiased: bool) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner_tensor = match (dim, keep_dim) {
+            (dim, false) => inner_tensor.var(dim)?,
+            (dim, true) => inner_tensor.var_keepdim(dim)?,
+        };
+
+        let new_inner = match unbiased {
+            false => {
+                let total_size = inner_tensor.shape().dims().iter().product::<usize>();
+                let num_features = inner_tensor.shape().dims()[dim];
+                let n = total_size / num_features;
+                TensorInner::Tensor(new_inner_tensor.affine((n as f64 - 1f64) / n as f64, 0f64)?)
+            }
+            true => TensorInner::Tensor(new_inner_tensor),
+        };
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.copy()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
     /// Apply the 2D max pooling operation.
     ///
     /// # Parameters
@@ -1024,5 +1076,49 @@ impl Tensor {
                 name: None,
             })),
         })
+    }
+
+    /// Apply batch normalization to the tensor.
+    ///
+    /// # Arguments
+    /// * `mean` - The mean tensor.
+    /// * `var` - The variance tensor.
+    /// * `epsilon` - A small value added to variance for numerical stability.
+    /// * `gamma` - The scale tensor for scaling.
+    /// * `beta` - The shift tensor for shifting.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor after batch normalization.
+    /// * `Err(TensorError)` - The error when applying batch normalization.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor, DType, Shape};
+    /// let device = Device::cpu();
+    /// let x = Tensor::rand(0.0f32, 1.0f32, &Shape::from_dims(&[2, 3, 4, 4]), &device, false).unwrap();
+    /// let mean = Tensor::zeros(&Shape::from_dims(&[1, 3, 1, 1]), &DType::F32, &device, false).unwrap();
+    /// let var = Tensor::ones(&Shape::from_dims(&[1, 3, 1, 1]), &DType::F32, &device, false).unwrap();
+    /// let gamma = Tensor::ones(&Shape::from_dims(&[1, 3, 1, 1]), &DType::F32, &device, false).unwrap();
+    /// let beta = Tensor::zeros(&Shape::from_dims(&[1, 3, 1, 1]), &DType::F32, &device, false).unwrap();
+    ///
+    /// let result = x.batch_norm2d(&mean, &var, 1e-5, &gamma, &beta).unwrap();
+    /// println!("{:?}", result);
+    /// ```
+    pub fn batch_norm2d(
+        &self,
+        mean: &Self,
+        var: &Self,
+        epsilon: f64,
+        gamma: &Self,
+        beta: &Self,
+    ) -> Result<Self, TensorError> {
+        let normalized = Tensor::div(
+            &self.sub(mean)?,
+            &Tensor::sqrt(&var.affine(1f64, epsilon)?)?,
+        )?;
+
+        let affined = normalized.mul(gamma)?.add(beta)?;
+
+        Ok(affined)
     }
 }

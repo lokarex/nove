@@ -70,6 +70,9 @@ impl Optimizer for Sgd {
 
     fn step(&mut self) -> Result<Self::StepOutput, OptimizerError> {
         for param in &mut self.params {
+            if !param.grad_enabled()? {
+                continue;
+            }
             param.update_from_tensor(
                 &param.sub(
                     &param

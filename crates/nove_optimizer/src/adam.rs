@@ -345,9 +345,13 @@ impl Optimizer for Adam {
         let bias_correction2 = 1.0 - self.beta2.powi(self.t as i32);
 
         for adam_param in &mut self.params {
-            let grad = adam_param.param.grad()?.ok_or_else(|| {
-                OptimizerError::OtherError("Adam: parameter gradient is None".to_string())
-            })?;
+            if !adam_param.param.grad_enabled()? {
+                continue;
+            }
+
+            let grad = adam_param.param.grad()?.ok_or(OptimizerError::OtherError(
+                "Adam: parameter gradient is None".to_string(),
+            ))?;
 
             let m_update = grad.affine(1.0 - self.beta1, 0.0)?;
             let m_scaled = adam_param.m.affine(self.beta1, 0.0)?;

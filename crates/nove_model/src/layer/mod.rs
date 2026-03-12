@@ -27,6 +27,10 @@ pub use conv::Conv2dBuilder;
 mod pool;
 pub use pool::MaxPool2d;
 
+mod batch_norm;
+pub use batch_norm::BatchNorm2d;
+pub use batch_norm::BatchNorm2dBuilder;
+
 mod cnn;
 pub use cnn::CNN;
 pub use cnn::CNNBuilder;
