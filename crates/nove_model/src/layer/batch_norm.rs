@@ -19,10 +19,10 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// * During inference, it uses the running mean and variance.
 ///
 /// # Fields
-/// * `gamma` - The learnable scale parameter (gamma) with shape [num_features].
-/// * `beta` - The learnable shift parameter (beta) with shape [num_features].
-/// * `running_mean` - The running mean with shape [num_features].
-/// * `running_var` - The running variance with shape [num_features].
+/// * `gamma` - The learnable scale parameter (gamma) with shape \[num_features\].
+/// * `beta` - The learnable shift parameter (beta) with shape \[num_features\].
+/// * `running_mean` - The running mean with shape \[num_features\].
+/// * `running_var` - The running variance with shape \[num_features\].
 /// * `num_features` - The number of features (channels).
 /// * `epsilon` - A small value added to the variance for numerical stability.
 /// * `momentum` - The momentum for updating running statistics.

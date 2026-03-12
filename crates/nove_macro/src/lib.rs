@@ -140,7 +140,16 @@ pub fn derive_model(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .filter_map(|ident| {
             ident.as_ref().map(|i| {
                 quote! {
-                    writeln!(f, "  {}: {}", stringify!(#i), self.#i)?;
+                    {
+                        let field_value = format!("{}", self.#i);
+                        for (idx, line) in field_value.lines().enumerate() {
+                            if idx == 0 {
+                                writeln!(f, "  {}: {}", stringify!(#i), line)?;
+                            } else {
+                                writeln!(f, "    {}", line)?;
+                            }
+                        }
+                    }
                 }
             })
         })
