@@ -1,6 +1,7 @@
 use nove::dataloader::DataloaderError;
 use nove::dataloader::common::{
-    ImageClassificationDataloader, ImageClassificationDataloaderBuilder,
+    ImageClassificationDataloader, ImageClassificationDataloaderBuilder, PrefetchDataloader,
+    PrefetchDataloaderBuilder,
 };
 use nove::dataset::resource::{Mnist, MnistDataset};
 use nove::lossfn::CrossEntropy;
@@ -23,14 +24,15 @@ pub fn model(device: Device) -> Result<nove::model::layer::CNN, nove::model::Mod
 }
 
 type MnistDataloader = (
-    ImageClassificationDataloader<MnistDataset>,
-    ImageClassificationDataloader<MnistDataset>,
-    ImageClassificationDataloader<MnistDataset>,
+    PrefetchDataloader<ImageClassificationDataloader<MnistDataset>>,
+    PrefetchDataloader<ImageClassificationDataloader<MnistDataset>>,
+    PrefetchDataloader<ImageClassificationDataloader<MnistDataset>>,
 );
 
 pub fn dataloader(
     batch_size: usize,
     shuffle_seed: Option<usize>,
+    buffer_size: usize,
     device: Device,
 ) -> Result<MnistDataloader, DataloaderError> {
     let mnist = Mnist::new("data")?;
@@ -42,6 +44,10 @@ pub fn dataloader(
         .device(device.clone())
         .shuffle_seed(shuffle_seed)
         .build()?;
+    let train_dataloader = PrefetchDataloaderBuilder::default()
+        .dataloader(train_dataloader)
+        .buffer_size(buffer_size)
+        .build()?;
 
     let validate_dataloader = ImageClassificationDataloaderBuilder::default()
         .dataset(mnist.test()?)
@@ -50,6 +56,10 @@ pub fn dataloader(
         .device(device.clone())
         .shuffle_seed(None)
         .build()?;
+    let validate_dataloader = PrefetchDataloaderBuilder::default()
+        .dataloader(validate_dataloader)
+        .buffer_size(buffer_size)
+        .build()?;
 
     let test_dataloader = ImageClassificationDataloaderBuilder::default()
         .dataset(mnist.test()?)
@@ -57,6 +67,10 @@ pub fn dataloader(
         .resize(28, 28)
         .device(device.clone())
         .shuffle_seed(None)
+        .build()?;
+    let test_dataloader = PrefetchDataloaderBuilder::default()
+        .dataloader(test_dataloader)
+        .buffer_size(buffer_size)
         .build()?;
 
     Ok((train_dataloader, validate_dataloader, test_dataloader))

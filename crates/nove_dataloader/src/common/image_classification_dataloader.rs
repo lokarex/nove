@@ -5,8 +5,10 @@ use nove_tensor::{Device, Shape, Tensor};
 
 use crate::{Dataloader, DataloaderError};
 
-type ProcessFn = dyn Fn((String, usize)) -> Result<(Tensor, Tensor), DataloaderError>;
-type CollateFn = dyn Fn(Vec<(Tensor, Tensor)>) -> Result<(Tensor, Tensor), DataloaderError>;
+type ProcessFn =
+    dyn Fn((String, usize)) -> Result<(Tensor, Tensor), DataloaderError> + Send + 'static;
+type CollateFn =
+    dyn Fn(Vec<(Tensor, Tensor)>) -> Result<(Tensor, Tensor), DataloaderError> + Send + 'static;
 type DataloaderInner<D> = crate::common::BatchDataloader<
     D,
     (Tensor, Tensor),

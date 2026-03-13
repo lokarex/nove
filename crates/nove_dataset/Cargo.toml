@@ -12,6 +12,7 @@ bincode = { workspace = true }
 flate2 = { workspace = true }
 futures-util = { workspace = true }
 indicatif = { workspace = true }
+md5 = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true }
 sha2 = { workspace = true }
@@ -21,5 +22,4 @@ tokio = { workspace = true }
 
 [dev-dependencies]
 nove = { path = "../nove" }
-rand = { workspace = true }
 tempfile = { workspace = true }

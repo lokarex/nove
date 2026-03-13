@@ -15,8 +15,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let device = Device::cuda(0)?;
 
     println!("Loading MNIST dataset and creating dataloaders...");
-    let batch_size = 128;
-    let (_, _, test_dataloader) = dataloader(batch_size, Some(42), device.clone())?;
+    let batch_size = 64;
+    let (_, _, test_dataloader) = dataloader(batch_size, Some(84), 16, device.clone())?;
 
     println!("Creating CNN model...");
     let mut model = model(device.clone())?;

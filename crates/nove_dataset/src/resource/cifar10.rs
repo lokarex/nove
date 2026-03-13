@@ -2,43 +2,50 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::common::extract_archive;
-use crate::common::{ChecksumType, download_and_verify};
+use crate::common::{ChecksumType, download_and_verify, extract_archive};
 use crate::{Dataset, DatasetError};
 
-const MNIST_PNG_URL: &str = "https://github.com/myleott/mnist_png/raw/master/mnist_png.tar.gz";
-const MNIST_PNG_SHA256: &str = "9e18edaa3a08b065d8f80a019ca04329e6d9b3e391363414a9bd1ada30563672";
+const CIFAR10_URL: &str = "https://s3.amazonaws.com/fast-ai-sample/cifar10.tgz";
+const CIFAR10_SHA256: &str = "c47812bd9e6a0f0a09f56719f20edb3d513e42462ce55e2b45ce7f9be1da5d59";
 
-/// MNIST handwritten digit dataset manager.
+const CIFAR10_LABELS: &[&str] = &[
+    "airplane",
+    "automobile",
+    "bird",
+    "cat",
+    "deer",
+    "dog",
+    "frog",
+    "horse",
+    "ship",
+    "truck",
+];
+
+/// CIFAR-10 image dataset manager.
 ///
-/// The MNIST database (Modified National Institute of Standards and Technology database)
-/// is a large database of handwritten digits commonly used for training various image
-/// processing systems. It contains 60,000 training images and 10,000 testing images.
+/// The CIFAR-10 dataset consists of 60,000 32x32 colour images in 10 classes,
+/// with 6,000 images per class. There are 50,000 training images and 10,000 test images.
 ///
 /// The dataset is downloaded from a remote source and extracted to a local directory.
-/// Use [`Mnist::train()`] or [`Mnist::test()`] methods to get the specific split of the dataset.
+/// Use [`Cifar10::train()`] or [`Cifar10::test()`] methods to get the specific split of the dataset.
 ///
 /// # Data Source
-/// The PNG version of MNIST is downloaded from:
-/// <https://github.com/myleott/mnist_png>
+/// The PNG version of CIFAR-10 is downloaded from:
+/// <https://s3.amazonaws.com/fast-ai-sample/cifar10.tgz>
 ///
 /// # License
-/// The original MNIST dataset is made available under the terms of the
-/// [Creative Commons Attribution-Share Alike 3.0 license](https://creativecommons.org/licenses/by-sa/3.0/).
-/// The `mnist_png` repository converts the original binary format to PNG images.
+/// The CIFAR-10 dataset is available from the official website:
+/// <https://www.cs.toronto.edu/~kriz/cifar.html>
+/// If you use this dataset, please cite the tech report.
 ///
 /// # Citation
 /// If you use this dataset in your research, please cite:
 /// ```text
-/// @article{lecun1998mnist,
-///   title={Gradient-based learning applied to document recognition},
-///   author={LeCun, Yann and Bottou, L{\'e}on and Bengio, Yoshua and Haffner, Patrick},
-///   journal={Proceedings of the IEEE},
-///   volume={86},
-///   number={11},
-///   pages={2278--2324},
-///   year={1998},
-///   publisher={IEEE}
+/// @techreport{krizhevsky2009learning,
+///   title={Learning multiple layers of features from tiny images},
+///   author={Krizhevsky, Alex and Hinton, Geoffrey},
+///   year={2009},
+///   institution={University of Toronto}
 /// }
 /// ```
 ///
@@ -46,19 +53,19 @@ const MNIST_PNG_SHA256: &str = "9e18edaa3a08b065d8f80a019ca04329e6d9b3e391363414
 /// After extraction, the dataset will have the following structure:
 /// ```text
 /// <root_dir>/
-/// ├── mnist_png/
-/// │   ├── training/
-/// │   │   ├── 0/
+/// ├── cifar10/
+/// │   ├── train/
+/// │   │   ├── airplane/
 /// │   │   │   ├── 1.png
 /// │   │   │   ├── 2.png
 /// │   │   │   └── ...
-/// │   │   ├── 1/
+/// │   │   ├── automobile/
 /// │   │   ├── ...
-/// │   │   └── 9/
-/// │   └── testing/
-/// │       ├── 0/
+/// │   │   └── truck/
+/// │   └── test/
+/// │       ├── airplane/
 /// │       ├── ...
-/// │       └── 9/
+/// │       └── truck/
 /// ```
 ///
 /// # Fields
@@ -66,38 +73,39 @@ const MNIST_PNG_SHA256: &str = "9e18edaa3a08b065d8f80a019ca04329e6d9b3e391363414
 ///
 /// # Examples
 /// ```rust,no_run
-/// use nove::dataset::resource::Mnist;
+/// use nove::dataset::resource::Cifar10;
 /// use nove::dataset::Dataset;
 ///
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     // Create MNIST manager (downloads and extracts if needed)
-///     let mnist = Mnist::new("path/to/data")?;
+///     // Create CIFAR-10 manager (downloads and extracts if needed)
+///     let cifar10 = Cifar10::new("path/to/data")?;
 ///
 ///     // Get training dataset
-///     let train_dataset = mnist.train()?;
+///     let train_dataset = cifar10.train()?;
 ///     let (image_path, label) = train_dataset.get(0)?;
 ///     println!("Train Image: {}, Label: {}", image_path, label);
 ///
 ///     // Get testing dataset
-///     let test_dataset = mnist.test()?;
+///     let test_dataset = cifar10.test()?;
 ///     println!("Test samples: {}", test_dataset.len()?);
 ///     Ok(())
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Mnist {
+///
+/// # See Also
+/// * [`Cifar100`](crate::resource::Cifar100) - CIFAR dataset with 100 fine-grained classes
+pub struct Cifar10 {
     dataset_dir: PathBuf,
 }
 
-/// The split of MNIST dataset (training or testing).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum MnistSplit {
-    Training,
-    Testing,
+/// The split of CIFAR-10 dataset (training or testing).
+enum Cifar10Split {
+    Train,
+    Test,
 }
 
-impl Mnist {
-    /// Creates a new MNIST manager.
+impl Cifar10 {
+    /// Creates a new CIFAR-10 manager.
     ///
     /// If the dataset is not present in the specified directory, it will be
     /// downloaded and extracted automatically.
@@ -106,21 +114,21 @@ impl Mnist {
     /// * `root_dir` - The root directory where the dataset will be stored.
     ///
     /// # Returns
-    /// * `Ok(Self)` - A new Mnist instance.
+    /// * `Ok(Self)` - A new Cifar10 instance.
     /// * `Err(DatasetError)` - An error occurred during creation.
     ///
     /// # Examples
     /// ```rust,no_run
-    /// use nove::dataset::resource::Mnist;
+    /// use nove::dataset::resource::Cifar10;
     ///
     /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let mnist = Mnist::new("data/mnist")?;
+    ///     let cifar10 = Cifar10::new("data/cifar10")?;
     ///     Ok(())
     /// }
     /// ```
     pub fn new<P: AsRef<Path>>(root_dir: P) -> Result<Self, DatasetError> {
         let root_dir = root_dir.as_ref().to_path_buf();
-        let dataset_dir = root_dir.join("mnist_png");
+        let dataset_dir = root_dir.join("cifar10");
 
         Self::download_and_extract(&root_dir)?;
 
@@ -130,27 +138,27 @@ impl Mnist {
     /// Returns the training dataset.
     ///
     /// # Returns
-    /// * `Ok(MnistDataset)` - The training dataset.
+    /// * `Ok(Cifar10Dataset)` - The training dataset.
     /// * `Err(DatasetError)` - An error occurred during loading.
-    pub fn train(&self) -> Result<MnistDataset, DatasetError> {
-        let samples = Self::load_samples(&self.dataset_dir, MnistSplit::Training)?;
+    pub fn train(&self) -> Result<Cifar10Dataset, DatasetError> {
+        let samples = Self::load_samples(&self.dataset_dir, Cifar10Split::Train)?;
         if samples.is_empty() {
             return Err(DatasetError::EmptyDataset);
         }
-        Ok(MnistDataset { samples })
+        Ok(Cifar10Dataset { samples })
     }
 
     /// Returns the testing dataset.
     ///
     /// # Returns
-    /// * `Ok(MnistDataset)` - The testing dataset.
+    /// * `Ok(Cifar10Dataset)` - The testing dataset.
     /// * `Err(DatasetError)` - An error occurred during loading.
-    pub fn test(&self) -> Result<MnistDataset, DatasetError> {
-        let samples = Self::load_samples(&self.dataset_dir, MnistSplit::Testing)?;
+    pub fn test(&self) -> Result<Cifar10Dataset, DatasetError> {
+        let samples = Self::load_samples(&self.dataset_dir, Cifar10Split::Test)?;
         if samples.is_empty() {
             return Err(DatasetError::EmptyDataset);
         }
-        Ok(MnistDataset { samples })
+        Ok(Cifar10Dataset { samples })
     }
 
     /// Returns the dataset directory path.
@@ -161,7 +169,7 @@ impl Mnist {
         &self.dataset_dir
     }
 
-    /// Downloads and extracts the MNIST dataset if it is not already present.
+    /// Downloads and extracts the CIFAR-10 dataset if it is not already present.
     ///
     /// # Arguments
     /// * `root_dir` - The root directory where the dataset will be stored.
@@ -172,15 +180,15 @@ impl Mnist {
     fn download_and_extract(root_dir: &Path) -> Result<(), DatasetError> {
         fs::create_dir_all(root_dir)?;
 
-        let archive_path = root_dir.join("mnist_png.tar.gz");
-        let dataset_dir = root_dir.join("mnist_png");
+        let archive_path = root_dir.join("cifar10.tgz");
+        let dataset_dir = root_dir.join("cifar10");
 
         if !archive_path.exists() {
             download_and_verify(
-                MNIST_PNG_URL,
+                CIFAR10_URL,
                 &archive_path,
                 ChecksumType::Sha256,
-                MNIST_PNG_SHA256,
+                CIFAR10_SHA256,
                 true,
             )?;
         } else {
@@ -198,11 +206,11 @@ impl Mnist {
 
     fn load_samples(
         dataset_dir: &Path,
-        split: MnistSplit,
+        split: Cifar10Split,
     ) -> Result<Vec<(String, usize)>, DatasetError> {
         let split_dir = match split {
-            MnistSplit::Training => dataset_dir.join("training"),
-            MnistSplit::Testing => dataset_dir.join("testing"),
+            Cifar10Split::Train => dataset_dir.join("train"),
+            Cifar10Split::Test => dataset_dir.join("test"),
         };
 
         let mut samples = Vec::new();
@@ -210,7 +218,7 @@ impl Mnist {
 
         for label in 0u8..=9 {
             let label_usize = label as usize;
-            let label_dir = split_dir.join(label.to_string());
+            let label_dir = split_dir.join(CIFAR10_LABELS[label_usize]);
             if !label_dir.exists() {
                 return Err(DatasetError::InvalidLabelDir(label_dir));
             }
@@ -245,35 +253,58 @@ impl Mnist {
             "Loaded {} samples for {} split:",
             samples.len(),
             match split {
-                MnistSplit::Training => "training",
-                MnistSplit::Testing => "testing",
+                Cifar10Split::Train => "train",
+                Cifar10Split::Test => "test",
             }
         );
         for label in 0usize..=9 {
             if let Some(count) = label_counts.get(&label) {
-                println!("  Label {}: {} samples", label, count);
+                println!(
+                    "  Label {} ({}): {} samples",
+                    label, CIFAR10_LABELS[label], count
+                );
             }
         }
 
         Ok(samples)
     }
+
+    /// Returns the human-readable label name for a given label index.
+    ///
+    /// # Arguments
+    /// * `label` - The label index (0-9).
+    ///
+    /// # Returns
+    /// * `Some(&str)` - The label name if the index is valid.
+    /// * `None` - If the index is out of range.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use nove::dataset::resource::Cifar10;
+    ///
+    /// let label_name = Cifar10::label_name(0);
+    /// assert_eq!(label_name, Some("airplane"));
+    /// ```
+    pub fn label_name(label: usize) -> Option<&'static str> {
+        CIFAR10_LABELS.get(label).copied()
+    }
 }
 
-/// MNIST dataset containing samples for a specific split (training or testing).
+/// CIFAR-10 dataset containing samples for a specific split (training or testing).
 ///
 /// Each sample is represented as a tuple of (image_path, label).
 ///
-/// This struct cannot be instantiated directly. Use [`Mnist::train()`] or
-/// [`Mnist::test()`] to obtain a `MnistDataset` instance.
+/// This struct cannot be instantiated directly. Use [`Cifar10::train()`] or
+/// [`Cifar10::test()`] to obtain a `Cifar10Dataset` instance.
 ///
 /// # Fields
 /// * `samples` - A vector of (image_path, label) tuples.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MnistDataset {
+pub struct Cifar10Dataset {
     samples: Vec<(String, usize)>,
 }
 
-impl MnistDataset {
+impl Cifar10Dataset {
     /// Returns the number of samples for each label.
     ///
     /// # Returns
@@ -287,7 +318,7 @@ impl MnistDataset {
     }
 }
 
-impl Dataset for MnistDataset {
+impl Dataset for Cifar10Dataset {
     type Item = (String, usize);
 
     fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {

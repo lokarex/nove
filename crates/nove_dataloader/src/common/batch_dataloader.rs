@@ -74,8 +74,8 @@ pub struct BatchDataloader<D: Dataset, O, B, P, C> {
 
 impl<D: Dataset, O, B, P, C> BatchDataloader<D, O, B, P, C>
 where
-    P: Fn(D::Item) -> Result<O, DataloaderError>,
-    C: Fn(Vec<O>) -> Result<B, DataloaderError>,
+    P: Fn(D::Item) -> Result<O, DataloaderError> + Send + 'static,
+    C: Fn(Vec<O>) -> Result<B, DataloaderError> + Send + 'static,
 {
     fn shuffle_indices(&mut self, seed: usize) {
         self.indices
@@ -85,8 +85,8 @@ where
 
 impl<D: Dataset, O, B, P, C> Dataloader for BatchDataloader<D, O, B, P, C>
 where
-    P: Fn(D::Item) -> Result<O, DataloaderError>,
-    C: Fn(Vec<O>) -> Result<B, DataloaderError>,
+    P: Fn(D::Item) -> Result<O, DataloaderError> + Send + 'static,
+    C: Fn(Vec<O>) -> Result<B, DataloaderError> + Send + 'static,
 {
     type Output = B;
 
@@ -195,8 +195,8 @@ impl<D: Dataset, O, B, P, C> Default for BatchDataloaderBuilder<D, O, B, P, C> {
 
 impl<D: Dataset, O, B, P, C> BatchDataloaderBuilder<D, O, B, P, C>
 where
-    P: Fn(D::Item) -> Result<O, DataloaderError>,
-    C: Fn(Vec<O>) -> Result<B, DataloaderError>,
+    P: Fn(D::Item) -> Result<O, DataloaderError> + Send + 'static,
+    C: Fn(Vec<O>) -> Result<B, DataloaderError> + Send + 'static,
 {
     /// Configures the dataset for the dataloader.
     ///

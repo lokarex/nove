@@ -2,6 +2,8 @@
 //! provides some real datasets and achieves a few practical `Dataset` structs
 //! to handle datasets.
 
+use std::path::PathBuf;
+
 use thiserror::Error;
 
 pub mod common;
@@ -40,6 +42,10 @@ pub enum DatasetError {
     /// Extraction errors.
     #[error("Extraction failed: {0}")]
     ExtractionError(String),
+
+    /// Invalid label directory.
+    #[error("Invalid label directory: {0}")]
+    InvalidLabelDir(PathBuf),
 
     /// Other errors.
     #[error("{0}")]

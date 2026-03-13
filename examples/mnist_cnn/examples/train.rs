@@ -9,9 +9,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let device = Device::cuda(0)?;
 
     println!("Loading MNIST dataset and creating dataloaders...");
-    let batch_size = 128;
+    let batch_size = 64;
     let (train_dataloader, validate_dataloader, _) =
-        dataloader(batch_size, Some(42), device.clone())?;
+        dataloader(batch_size, Some(42), 16, device.clone())?;
 
     println!("Creating CNN model...");
     let model = model(device.clone())?;

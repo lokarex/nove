@@ -126,7 +126,7 @@ where
     /// Configures the prefetch buffer size.
     ///
     /// # Arguments
-    /// * `buffer_size` - The number of batches to prefetch. Default is 2.
+    /// * `buffer_size` - The number of items to prefetch. Default is 2.
     ///
     /// # Returns
     /// * `&mut Self` - The builder itself.

@@ -19,7 +19,7 @@ fn test_batched_dataloader() {
     let device = Device::cpu();
     let batch_size = 12;
     let shuffle_seed = 42;
-    let process_fn = |x: usize| -> Result<Tensor, DataloaderError> {
+    let process_fn = move |x: usize| -> Result<Tensor, DataloaderError> {
         Ok(Tensor::from_data(&[x as i64], &device, false).unwrap())
     };
     let collate_fn = |x: Vec<Tensor>| -> Result<Tensor, DataloaderError> {
