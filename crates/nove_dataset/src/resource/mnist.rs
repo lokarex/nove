@@ -76,7 +76,7 @@ const MNIST_PNG_SHA256: &str = "9e18edaa3a08b065d8f80a019ca04329e6d9b3e391363414
 ///     // Get training dataset
 ///     let train_dataset = mnist.train()?;
 ///     let (image_path, label) = train_dataset.get(0)?;
-///     println!("Train Image: {}, Label: {}", image_path, label);
+///     println!("Train Image: {:?}, Label: {}", image_path, label);
 ///
 ///     // Get testing dataset
 ///     let test_dataset = mnist.test()?;
@@ -199,7 +199,7 @@ impl Mnist {
     fn load_samples(
         dataset_dir: &Path,
         split: MnistSplit,
-    ) -> Result<Vec<(String, usize)>, DatasetError> {
+    ) -> Result<Vec<(PathBuf, usize)>, DatasetError> {
         let split_dir = match split {
             MnistSplit::Training => dataset_dir.join("training"),
             MnistSplit::Testing => dataset_dir.join("testing"),
@@ -222,10 +222,8 @@ impl Mnist {
                 let entry = entry?;
                 let path = entry.path();
 
-                if path.extension().is_some_and(|ext| ext == "png")
-                    && let Some(path_str) = path.to_str()
-                {
-                    samples.push((path_str.to_string(), label_usize));
+                if path.extension().is_some_and(|ext| ext == "png") {
+                    samples.push((path, label_usize));
                     count += 1;
                 }
             }
@@ -270,7 +268,7 @@ impl Mnist {
 /// * `samples` - A vector of (image_path, label) tuples.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MnistDataset {
-    samples: Vec<(String, usize)>,
+    samples: Vec<(PathBuf, usize)>,
 }
 
 impl MnistDataset {
@@ -288,7 +286,7 @@ impl MnistDataset {
 }
 
 impl Dataset for MnistDataset {
-    type Item = (String, usize);
+    type Item = (PathBuf, usize);
 
     fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
         self.samples

@@ -201,9 +201,9 @@ const CIFAR100_COARSE_LABELS: &[&str] = &[
 ///
 ///     // Get training dataset
 ///     let train_dataset = cifar100.train()?;
-///     let (image_path, fine_label, coarse_label) = train_dataset.get(0)?;
-///     println!("Train Image: {}, Fine Label: {}, Coarse Label: {}",
-///              image_path, fine_label, coarse_label);
+///     let (image_path, fine_label) = train_dataset.get(0)?;
+///     println!("Train Image: {:?}, Fine Label: {}",
+///              image_path, fine_label);
 ///
 ///     // Get testing dataset
 ///     let test_dataset = cifar100.test()?;
@@ -327,7 +327,7 @@ impl Cifar100 {
     fn load_samples(
         dataset_dir: &Path,
         split: Cifar100Split,
-    ) -> Result<Vec<(String, usize, usize)>, DatasetError> {
+    ) -> Result<Vec<(PathBuf, usize, usize)>, DatasetError> {
         let split_dir = match split {
             Cifar100Split::Train => dataset_dir.join("train"),
             Cifar100Split::Test => dataset_dir.join("test"),
@@ -353,10 +353,8 @@ impl Cifar100 {
                 let entry = entry?;
                 let path = entry.path();
 
-                if path.extension().is_some_and(|ext| ext == "png")
-                    && let Some(path_str) = path.to_str()
-                {
-                    samples.push((path_str.to_string(), fine_label, coarse_label));
+                if path.extension().is_some_and(|ext| ext == "png") {
+                    samples.push((path, coarse_label, fine_label));
                     fine_count += 1;
                 }
             }
@@ -366,7 +364,11 @@ impl Cifar100 {
         }
 
         samples.sort_by(|a, b| {
-            let fine_cmp = a.1.cmp(&b.1);
+            let coarse_cmp = a.1.cmp(&b.1);
+            if coarse_cmp != std::cmp::Ordering::Equal {
+                return coarse_cmp;
+            }
+            let fine_cmp = a.2.cmp(&b.2);
             if fine_cmp != std::cmp::Ordering::Equal {
                 return fine_cmp;
             }
@@ -471,16 +473,16 @@ impl Cifar100 {
 
 /// CIFAR-100 dataset containing samples for a specific split (training or testing).
 ///
-/// Each sample is represented as a tuple of (image_path, fine_label, coarse_label).
+/// Each sample is represented as a tuple of (image_path, coarse_label, fine_label).
 ///
 /// This struct cannot be instantiated directly. Use [`Cifar100::train()`] or
 /// [`Cifar100::test()`] to obtain a `Cifar100Dataset` instance.
 ///
 /// # Fields
-/// * `samples` - A vector of (image_path, fine_label, coarse_label) tuples.
+/// * `samples` - A vector of (image_path, coarse_label, fine_label) tuples.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cifar100Dataset {
-    samples: Vec<(String, usize, usize)>,
+    samples: Vec<(PathBuf, usize, usize)>,
 }
 
 impl Cifar100Dataset {
@@ -490,7 +492,7 @@ impl Cifar100Dataset {
     /// * `HashMap<usize, usize>` - A map where keys are fine-grained labels (0-99) and values are the number of samples for each label.
     pub fn fine_label_distribution(&self) -> HashMap<usize, usize> {
         let mut distribution = HashMap::new();
-        for (_, fine_label, _) in &self.samples {
+        for (_, _, fine_label) in &self.samples {
             *distribution.entry(*fine_label).or_insert(0) += 1;
         }
         distribution
@@ -502,7 +504,7 @@ impl Cifar100Dataset {
     /// * `HashMap<usize, usize>` - A map where keys are coarse-grained labels (0-19) and values are the number of samples for each label.
     pub fn coarse_label_distribution(&self) -> HashMap<usize, usize> {
         let mut distribution = HashMap::new();
-        for (_, _, coarse_label) in &self.samples {
+        for (_, coarse_label, _) in &self.samples {
             *distribution.entry(*coarse_label).or_insert(0) += 1;
         }
         distribution
@@ -510,13 +512,13 @@ impl Cifar100Dataset {
 }
 
 impl Dataset for Cifar100Dataset {
-    type Item = (String, usize, usize);
+    type Item = (PathBuf, usize);
 
     fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
         self.samples
             .get(index)
             .ok_or(DatasetError::IndexOutOfBounds(index, self.samples.len()))
-            .cloned()
+            .map(|item| (item.0.clone(), item.2))
     }
 
     fn len(&self) -> Result<usize, DatasetError> {

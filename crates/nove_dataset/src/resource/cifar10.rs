@@ -83,7 +83,7 @@ const CIFAR10_LABELS: &[&str] = &[
 ///     // Get training dataset
 ///     let train_dataset = cifar10.train()?;
 ///     let (image_path, label) = train_dataset.get(0)?;
-///     println!("Train Image: {}, Label: {}", image_path, label);
+///     println!("Train Image: {:?}, Label: {}", image_path, label);
 ///
 ///     // Get testing dataset
 ///     let test_dataset = cifar10.test()?;
@@ -207,7 +207,7 @@ impl Cifar10 {
     fn load_samples(
         dataset_dir: &Path,
         split: Cifar10Split,
-    ) -> Result<Vec<(String, usize)>, DatasetError> {
+    ) -> Result<Vec<(PathBuf, usize)>, DatasetError> {
         let split_dir = match split {
             Cifar10Split::Train => dataset_dir.join("train"),
             Cifar10Split::Test => dataset_dir.join("test"),
@@ -230,10 +230,8 @@ impl Cifar10 {
                 let entry = entry?;
                 let path = entry.path();
 
-                if path.extension().is_some_and(|ext| ext == "png")
-                    && let Some(path_str) = path.to_str()
-                {
-                    samples.push((path_str.to_string(), label_usize));
+                if path.extension().is_some_and(|ext| ext == "png") {
+                    samples.push((path, label_usize));
                     count += 1;
                 }
             }
@@ -301,7 +299,7 @@ impl Cifar10 {
 /// * `samples` - A vector of (image_path, label) tuples.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cifar10Dataset {
-    samples: Vec<(String, usize)>,
+    samples: Vec<(PathBuf, usize)>,
 }
 
 impl Cifar10Dataset {
@@ -319,7 +317,7 @@ impl Cifar10Dataset {
 }
 
 impl Dataset for Cifar10Dataset {
-    type Item = (String, usize);
+    type Item = (PathBuf, usize);
 
     fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
         self.samples

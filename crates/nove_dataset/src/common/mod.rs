@@ -17,3 +17,9 @@ pub use iterable_dataset::IterableDataset;
 
 mod vec_dataset;
 pub use vec_dataset::VecDataset;
+
+mod split_dataset;
+pub use split_dataset::SplitDataset;
+
+mod merged_dataset;
+pub use merged_dataset::MergedDataset;

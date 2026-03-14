@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::path::PathBuf;
 
 use nove_dataset::Dataset;
 use nove_tensor::{Device, Shape, Tensor};
@@ -6,7 +7,7 @@ use nove_tensor::{Device, Shape, Tensor};
 use crate::{Dataloader, DataloaderError};
 
 type ProcessFn =
-    dyn Fn((String, usize)) -> Result<(Tensor, Tensor), DataloaderError> + Send + 'static;
+    dyn Fn((PathBuf, usize)) -> Result<(Tensor, Tensor), DataloaderError> + Send + 'static;
 type CollateFn =
     dyn Fn(Vec<(Tensor, Tensor)>) -> Result<(Tensor, Tensor), DataloaderError> + Send + 'static;
 type DataloaderInner<D> = crate::common::BatchDataloader<
@@ -24,13 +25,13 @@ type DataloaderInner<D> = crate::common::BatchDataloader<
 /// # Note
 /// * This struct cannot be constructed directly. Use [`ImageClassificationDataloaderBuilder`]
 ///   to create instances.
-/// * This dataloader is designed for datasets where `Dataset::Item` is `(String, usize)`,
+/// * This dataloader is designed for datasets where `Dataset::Item` is `(PathBuf, usize)`,
 ///   representing `(image_path, label)`.
 /// * Images are resized to the specified dimensions and converted to RGB format.
 /// * Pixel values are normalized to the range [0, 1].
 ///
 /// # Generic Type Parameters
-/// * `D` - The type of the dataset. Must implement `Dataset<Item = (String, usize)>`.
+/// * `D` - The type of the dataset. Must implement `Dataset<Item = (PathBuf, usize)>`.
 ///
 /// # Output
 /// * `Output` - A tuple `(Tensor, Tensor)` where:
@@ -65,14 +66,14 @@ type DataloaderInner<D> = crate::common::BatchDataloader<
 /// ```
 pub struct ImageClassificationDataloader<D>
 where
-    D: Dataset<Item = (String, usize)>,
+    D: Dataset<Item = (PathBuf, usize)>,
 {
     inner: DataloaderInner<D>,
 }
 
 impl<D> Dataloader for ImageClassificationDataloader<D>
 where
-    D: Dataset<Item = (String, usize)>,
+    D: Dataset<Item = (PathBuf, usize)>,
 {
     type Output = (Tensor, Tensor);
 
@@ -92,7 +93,7 @@ where
 ///   `ImageClassificationDataloaderBuilder::default()` to create a new builder and then configure it.
 ///
 /// # Required Arguments
-/// * `dataset` - The dataset to be used by the dataloader. Must be a dataset with `Item = (String, usize)`.
+/// * `dataset` - The dataset to be used by the dataloader. Must be a dataset with `Item = (PathBuf, usize)`.
 /// * `batch_size` - The batch size. Must be greater than 0.
 /// * `resize` - The target height and width for resizing images.
 /// * `device` - The device to place the tensors on.
@@ -102,7 +103,7 @@ where
 /// * `shuffle_seed` - The shuffle seed. Default is `None` (no shuffling).
 ///
 /// # Generic Type Parameters
-/// * `D` - The type of the dataset. Must implement `Dataset<Item = (String, usize)>`.
+/// * `D` - The type of the dataset. Must implement `Dataset<Item = (PathBuf, usize)>`.
 ///
 /// # Fields
 /// * `dataset` - The dataset to be used by the dataloader.
@@ -138,7 +139,7 @@ where
 /// ```
 pub struct ImageClassificationDataloaderBuilder<D>
 where
-    D: Dataset<Item = (String, usize)>,
+    D: Dataset<Item = (PathBuf, usize)>,
 {
     dataset: Option<D>,
     batch_size: Option<usize>,
@@ -152,7 +153,7 @@ where
 
 impl<D> Default for ImageClassificationDataloaderBuilder<D>
 where
-    D: Dataset<Item = (String, usize)>,
+    D: Dataset<Item = (PathBuf, usize)>,
 {
     fn default() -> Self {
         Self {
@@ -170,7 +171,7 @@ where
 
 impl<D> ImageClassificationDataloaderBuilder<D>
 where
-    D: Dataset<Item = (String, usize)>,
+    D: Dataset<Item = (PathBuf, usize)>,
 {
     /// Configures the dataset for the dataloader.
     ///
@@ -277,9 +278,13 @@ where
         let grad_enabled = self.grad_enabled;
         let shuffle_seed = self.shuffle_seed;
 
-        let process_fn: Box<ProcessFn> = Box::new(move |(image_path, label): (String, usize)| {
+        let process_fn: Box<ProcessFn> = Box::new(move |(image_path, label): (PathBuf, usize)| {
             let img = image::open(&image_path).map_err(|e| {
-                DataloaderError::ImageError(format!("Failed to open {}: {}", image_path, e))
+                DataloaderError::ImageError(format!(
+                    "Failed to open {}: {}",
+                    image_path.display(),
+                    e
+                ))
             })?;
 
             let img = img.resize_exact(

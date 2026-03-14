@@ -171,13 +171,13 @@ impl Downloader {
     /// * `Self` - The downloader with checksum computation disabled.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::dataset::common::{Downloader, ChecksumType};
     ///
     /// let downloader = Downloader::new()
     ///     .with_checksum(ChecksumType::Sha256)
     ///     .without_checksum();
-    /// ```no_run
+    /// ```
     pub fn without_checksum(mut self) -> Self {
         self.checksum_type = None;
         self

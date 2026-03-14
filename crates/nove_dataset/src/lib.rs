@@ -47,6 +47,10 @@ pub enum DatasetError {
     #[error("Invalid label directory: {0}")]
     InvalidLabelDir(PathBuf),
 
+    /// Invalid index.
+    #[error("Invalid index: {0}")]
+    InvalidIndex(usize),
+
     /// Other errors.
     #[error("{0}")]
     OtherError(String),
