@@ -82,8 +82,8 @@ const ACL_IMDB2_LABELS: &[&str] = &["neg", "pos"];
 ///
 ///     // Get training dataset
 ///     let train_dataset = imdb.train()?;
-///     let (review_path, label) = train_dataset.get(0)?;
-///     println!("Review: {:?}, Label: {}", review_path, label);
+///     let (review_text, label) = train_dataset.get(0)?;
+///     println!("Review: {}, Label: {}", review_text.chars().take(50).collect::<String>(), label);
 ///
 ///     // Get testing dataset
 ///     let test_dataset = imdb.test()?;
@@ -282,8 +282,8 @@ impl AclImdb2 {
 
 /// ACL IMDB binary sentiment dataset containing samples for a specific split.
 ///
-/// Each sample is represented as a tuple of (review_path, label) where:
-/// - `review_path` is the path to the text file containing the movie review
+/// Each sample is represented as a tuple of (review_text, label) where:
+/// - `review_text` is the text content of the movie review (read from file)
 /// - `label` is 0 for negative sentiment, 1 for positive sentiment
 ///
 /// This struct cannot be instantiated directly. Use [`AclImdb2::train()`] or
@@ -311,13 +311,15 @@ impl AclImdb2Dataset {
 }
 
 impl Dataset for AclImdb2Dataset {
-    type Item = (PathBuf, usize);
+    type Item = (String, usize);
 
     fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
-        self.samples
+        let (path, label) = self
+            .samples
             .get(index)
-            .ok_or(DatasetError::IndexOutOfBounds(index, self.samples.len()))
-            .cloned()
+            .ok_or(DatasetError::IndexOutOfBounds(index, self.samples.len()))?;
+        let content = fs::read_to_string(path)?;
+        Ok((content, *label))
     }
 
     fn len(&self) -> Result<usize, DatasetError> {

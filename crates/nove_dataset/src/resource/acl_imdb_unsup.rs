@@ -70,8 +70,8 @@ const ACL_IMDB_SHA256: &str = "c40f74a18d3b61f90feba1e17730e0d38e8b97c05fde70089
 ///
 ///     // Get unsupervised dataset
 ///     let unsup_dataset = imdb.unsup()?;
-///     let review_path = unsup_dataset.get(0)?;
-///     println!("Review: {:?}", review_path);
+///     let review_text = unsup_dataset.get(0)?;
+///     println!("Review: {}", review_text.chars().take(50).collect::<String>());
 ///     println!("Total unsupervised samples: {}", unsup_dataset.len()?);
 ///     Ok(())
 /// }
@@ -192,8 +192,9 @@ impl AclImdbUnsup {
 
 /// ACL IMDB unsupervised dataset containing unlabeled reviews.
 ///
-/// Each sample is represented as a `PathBuf` pointing to a review text file.
-/// Unlike the supervised datasets, this does not include labels.
+/// Each sample is represented as a `String` containing the review text.
+/// The review text is read from the file when [`get()`] is called.
+/// Unlike supervised datasets, this does not include labels.
 ///
 /// This struct cannot be instantiated directly. Use [`AclImdbUnsup::unsup()`]
 /// to obtain an `AclImdbUnsupDataset` instance.
@@ -206,13 +207,15 @@ pub struct AclImdbUnsupDataset {
 }
 
 impl Dataset for AclImdbUnsupDataset {
-    type Item = PathBuf;
+    type Item = String;
 
     fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
-        self.samples
+        let path = self
+            .samples
             .get(index)
-            .ok_or(DatasetError::IndexOutOfBounds(index, self.samples.len()))
-            .cloned()
+            .ok_or(DatasetError::IndexOutOfBounds(index, self.samples.len()))?;
+        let content = fs::read_to_string(path)?;
+        Ok(content)
     }
 
     fn len(&self) -> Result<usize, DatasetError> {

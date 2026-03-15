@@ -5,26 +5,19 @@ pub use linear::LinearBuilder;
 mod dropout;
 pub use dropout::Dropout;
 
-mod relu;
-pub use relu::ReLU;
-
-mod silu;
-pub use silu::SiLU;
-
-mod gelu;
-pub use gelu::GELU;
-
-mod tanh;
-pub use tanh::Tanh;
-
-mod sigmoid;
-pub use sigmoid::Sigmoid;
+mod activation;
+pub use activation::GELU;
+pub use activation::ReLU;
+pub use activation::SiLU;
+pub use activation::Sigmoid;
+pub use activation::Tanh;
 
 mod conv;
 pub use conv::Conv2d;
 pub use conv::Conv2dBuilder;
 
 mod pool;
+pub use pool::AvgPool2d;
 pub use pool::MaxPool2d;
 
 mod batch_norm;

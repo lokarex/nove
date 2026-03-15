@@ -11,9 +11,9 @@ use nove::tensor::{DType, Device, Tensor};
 
 pub fn model(device: Device) -> Result<nove::model::layer::CNN, nove::model::ModelError> {
     let cnn = CNNBuilder::default()
-        .conv_block(CNNConvBlock::new(3, 32).use_pool(true))
-        .conv_block(CNNConvBlock::new(32, 64).use_pool(true))
-        .linear_block(CNNLinearBlock::new(3136, 128).use_relu(true))
+        .conv_block(CNNConvBlock::new(3, 32, (3, 3), 1, 1).use_max_pool((2, 2), (2, 2)))
+        .conv_block(CNNConvBlock::new(32, 64, (3, 3), 1, 1).use_max_pool((2, 2), (2, 2)))
+        .linear_block(CNNLinearBlock::new(3136, 128).use_relu())
         .linear_block(CNNLinearBlock::new(128, 10))
         .device(device)
         .dtype(DType::F32)
