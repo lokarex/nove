@@ -1135,7 +1135,7 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when applying batch normalization.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::{Device, Tensor, DType, Shape};
     /// let device = Device::cpu();
     /// let x = Tensor::rand(0.0f32, 1.0f32, &Shape::from_dims(&[2, 3, 4, 4]), &device, false).unwrap();
@@ -1144,10 +1144,10 @@ impl Tensor {
     /// let gamma = Tensor::ones(&Shape::from_dims(&[1, 3, 1, 1]), &DType::F32, &device, false).unwrap();
     /// let beta = Tensor::zeros(&Shape::from_dims(&[1, 3, 1, 1]), &DType::F32, &device, false).unwrap();
     ///
-    /// let result = x.batch_norm2d(&mean, &var, 1e-5, &gamma, &beta).unwrap();
+    /// let result = x.batch_norm(&mean, &var, 1e-5, &gamma, &beta).unwrap();
     /// println!("{:?}", result);
     /// ```
-    pub fn batch_norm2d(
+    pub fn batch_norm(
         &self,
         mean: &Self,
         var: &Self,

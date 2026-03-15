@@ -1,6 +1,6 @@
-use mnist_cnn::{dataloader, model};
+use cifar10_cnn::{dataloader, model};
 use nove::lossfn::CrossEntropy;
-use nove::optimizer::Sgd;
+use nove::optimizer::Adam;
 use nove::{
     learner::{
         Learner,
@@ -14,17 +14,17 @@ use nove::{
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let device = Device::cuda(0)?;
 
-    println!("Loading MNIST dataset and creating dataloaders...");
+    println!("Loading CIFAR-10 dataset and creating dataloaders...");
     let batch_size = 64;
     let (_, _, test_dataloader) =
-        dataloader("data/mnist_cnn", batch_size, Some(84), 16, device.clone())?;
+        dataloader("data/cifar10_cnn", batch_size, Some(84), 16, device.clone())?;
 
     println!("Creating CNN model...");
     let mut model = model(device.clone())?;
     println!("Loading pre-trained model...");
-    model.load("result/mnist_cnn/CNN_best.safetensors", &device)?;
+    model.load("result/cifar10_cnn/CNN_best.safetensors", &device)?;
 
-    let mut learner: ImageClassificationLearner<_, _, CrossEntropy, Sgd> =
+    let mut learner: ImageClassificationLearner<_, _, CrossEntropy, Adam> =
         ImageClassificationLearnerBuilder::default()
             .test_dataloader(test_dataloader)
             .model(model)

@@ -9,8 +9,8 @@ use nove_tensor::{DType, Device, Tensor};
 use crate::{Model, ModelError};
 
 use super::{
-    AvgPool2d, BatchNorm2d, BatchNorm2dBuilder, Conv2d, Conv2dBuilder, GELU, Linear, LinearBuilder,
-    MaxPool2d, ReLU, SiLU, Sigmoid, Tanh,
+    AvgPool2d, BatchNorm1d, BatchNorm1dBuilder, BatchNorm2d, BatchNorm2dBuilder, Conv2d,
+    Conv2dBuilder, Dropout, GELU, Linear, LinearBuilder, MaxPool2d, ReLU, SiLU, Sigmoid, Tanh,
 };
 
 static ID: AtomicUsize = AtomicUsize::new(0);
@@ -31,7 +31,9 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// * `MaxPool2d` - 2D max pooling layer.
 /// * `AvgPool2d` - 2D average pooling layer.
 /// * `BatchNorm2d` - 2D batch normalization layer.
+/// * `BatchNorm1d` - 1D batch normalization layer.
 /// * `Linear` - Fully connected linear layer.
+/// * `Dropout` - Dropout layer.
 #[derive(Debug, Clone)]
 pub enum CNNLayer {
     Conv2d(Conv2d),
@@ -43,7 +45,9 @@ pub enum CNNLayer {
     MaxPool2d(MaxPool2d),
     AvgPool2d(AvgPool2d),
     BatchNorm2d(BatchNorm2d),
+    BatchNorm1d(BatchNorm1d),
     Linear(Linear),
+    Dropout(Dropout),
 }
 
 impl Model for CNNLayer {
@@ -54,7 +58,7 @@ impl Model for CNNLayer {
     ///
     /// # Arguments
     /// * `input: (Tensor, bool)` - A tuple containing the input tensor and a boolean flag
-    ///   indicating whether the layer is in training mode. This is used by BatchNorm2d.
+    ///   indicating whether the layer is in training mode. This is used by BatchNorm2d and BatchNorm1d.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The output tensor if successful.
@@ -70,7 +74,9 @@ impl Model for CNNLayer {
             CNNLayer::MaxPool2d(layer) => layer.forward(input.0),
             CNNLayer::AvgPool2d(layer) => layer.forward(input.0),
             CNNLayer::BatchNorm2d(layer) => layer.forward(input),
+            CNNLayer::BatchNorm1d(layer) => layer.forward(input),
             CNNLayer::Linear(layer) => layer.forward(input.0),
+            CNNLayer::Dropout(layer) => layer.forward(input),
         }
     }
 
@@ -85,7 +91,9 @@ impl Model for CNNLayer {
             CNNLayer::MaxPool2d(layer) => layer.require_grad(grad_enabled),
             CNNLayer::AvgPool2d(layer) => layer.require_grad(grad_enabled),
             CNNLayer::BatchNorm2d(layer) => layer.require_grad(grad_enabled),
+            CNNLayer::BatchNorm1d(layer) => layer.require_grad(grad_enabled),
             CNNLayer::Linear(layer) => layer.require_grad(grad_enabled),
+            CNNLayer::Dropout(layer) => layer.require_grad(grad_enabled),
         }
     }
 
@@ -100,7 +108,9 @@ impl Model for CNNLayer {
             CNNLayer::MaxPool2d(layer) => layer.to_device(device),
             CNNLayer::AvgPool2d(layer) => layer.to_device(device),
             CNNLayer::BatchNorm2d(layer) => layer.to_device(device),
+            CNNLayer::BatchNorm1d(layer) => layer.to_device(device),
             CNNLayer::Linear(layer) => layer.to_device(device),
+            CNNLayer::Dropout(layer) => layer.to_device(device),
         }
     }
 
@@ -115,7 +125,9 @@ impl Model for CNNLayer {
             CNNLayer::MaxPool2d(layer) => layer.to_dtype(dtype),
             CNNLayer::AvgPool2d(layer) => layer.to_dtype(dtype),
             CNNLayer::BatchNorm2d(layer) => layer.to_dtype(dtype),
+            CNNLayer::BatchNorm1d(layer) => layer.to_dtype(dtype),
             CNNLayer::Linear(layer) => layer.to_dtype(dtype),
+            CNNLayer::Dropout(layer) => layer.to_dtype(dtype),
         }
     }
 
@@ -130,7 +142,9 @@ impl Model for CNNLayer {
             CNNLayer::MaxPool2d(layer) => layer.parameters(),
             CNNLayer::AvgPool2d(layer) => layer.parameters(),
             CNNLayer::BatchNorm2d(layer) => layer.parameters(),
+            CNNLayer::BatchNorm1d(layer) => layer.parameters(),
             CNNLayer::Linear(layer) => layer.parameters(),
+            CNNLayer::Dropout(layer) => layer.parameters(),
         }
     }
 
@@ -145,7 +159,9 @@ impl Model for CNNLayer {
             CNNLayer::MaxPool2d(layer) => layer.named_parameters(),
             CNNLayer::AvgPool2d(layer) => layer.named_parameters(),
             CNNLayer::BatchNorm2d(layer) => layer.named_parameters(),
+            CNNLayer::BatchNorm1d(layer) => layer.named_parameters(),
             CNNLayer::Linear(layer) => layer.named_parameters(),
+            CNNLayer::Dropout(layer) => layer.named_parameters(),
         }
     }
 }
@@ -162,7 +178,9 @@ impl Display for CNNLayer {
             CNNLayer::MaxPool2d(layer) => write!(f, "{}", layer),
             CNNLayer::AvgPool2d(layer) => write!(f, "{}", layer),
             CNNLayer::BatchNorm2d(layer) => write!(f, "{}", layer),
+            CNNLayer::BatchNorm1d(layer) => write!(f, "{}", layer),
             CNNLayer::Linear(layer) => write!(f, "{}", layer),
+            CNNLayer::Dropout(layer) => write!(f, "{}", layer),
         }
     }
 }
@@ -305,9 +323,9 @@ impl Display for CNN {
 ///
 /// # Notes
 /// * The `CNNConvBlock` is used to configure a convolutional layer with optional
-///   activation function, batch normalization, and pooling.
+///   activation function, batch normalization (2D), and pooling.
 /// * The kernel size, stride, and padding must be specified when creating a block.
-/// * The default configuration uses ReLU activation enabled, batch normalization disabled,
+/// * The default configuration uses ReLU activation enabled, batch normalization (2D) disabled,
 ///   and pooling disabled.
 /// * **Important**: Only one activation function can be enabled at a time.
 ///   When you call any `use_xxx()` method (e.g., `use_relu()`, `use_gelu()`, etc.),
@@ -329,9 +347,9 @@ impl Display for CNN {
 /// * `use_silu` - Whether SiLU activation is enabled after convolution.
 /// * `use_tanh` - Whether Tanh activation is enabled after convolution.
 /// * `use_sigmoid` - Whether Sigmoid activation is enabled after convolution.
-/// * `use_batch_norm` - Whether batch normalization is enabled after convolution.
-/// * `use_max_pool` - Whether max pooling is enabled after activation/BatchNorm.
-/// * `use_avg_pool` - Whether average pooling is enabled after activation/BatchNorm.
+/// * `use_batch_norm2d` - Whether 2D batch normalization is enabled after convolution.
+/// * `use_max_pool` - Whether max pooling is enabled after activation/BatchNorm2d.
+/// * `use_avg_pool` - Whether average pooling is enabled after activation/BatchNorm2d.
 /// * `pool_kernel_size` - The size of the pooling kernel (height, width).
 /// * `pool_stride` - The stride of the pooling operation (height, width).
 ///
@@ -341,7 +359,7 @@ impl Display for CNN {
 ///
 /// let block = CNNConvBlock::new(1, 16, (3, 3), 1, 1)
 ///     .use_gelu()
-///     .use_batch_norm()
+///     .use_batch_norm2d()
 ///     .use_avg_pool((2, 2), (2, 2));
 /// ```
 #[derive(Debug, Clone)]
@@ -356,7 +374,7 @@ pub struct CNNConvBlock {
     use_silu: bool,
     use_tanh: bool,
     use_sigmoid: bool,
-    use_batch_norm: bool,
+    use_batch_norm2d: bool,
     use_max_pool: bool,
     use_avg_pool: bool,
     pool_kernel_size: (usize, usize),
@@ -399,7 +417,7 @@ impl CNNConvBlock {
             use_silu: false,
             use_tanh: false,
             use_sigmoid: false,
-            use_batch_norm: false,
+            use_batch_norm2d: false,
             use_max_pool: false,
             use_avg_pool: false,
             pool_kernel_size: (2, 2),
@@ -527,22 +545,22 @@ impl CNNConvBlock {
         self
     }
 
-    /// Use batch normalization after convolution.
+    /// Use 2D batch normalization after convolution.
     ///
     /// # Returns
-    /// * `Self` - The convolutional block with batch normalization enabled.
+    /// * `Self` - The convolutional block with 2D batch normalization enabled.
     ///
     /// # Examples
     /// ```
     /// use nove::model::layer::CNNConvBlock;
-    /// let block = CNNConvBlock::new(1, 16, (3, 3), 1, 1).use_batch_norm();
+    /// let block = CNNConvBlock::new(1, 16, (3, 3), 1, 1).use_batch_norm2d();
     /// ```
-    pub fn use_batch_norm(mut self) -> Self {
-        self.use_batch_norm = true;
+    pub fn use_batch_norm2d(mut self) -> Self {
+        self.use_batch_norm2d = true;
         self
     }
 
-    /// Use max pooling after activation/BatchNorm.
+    /// Use max pooling after activation/BatchNorm2d.
     ///
     /// # Notes
     /// * When this method is called, average pooling flag
@@ -574,7 +592,7 @@ impl CNNConvBlock {
         self
     }
 
-    /// Use average pooling after activation/BatchNorm.
+    /// Use average pooling after activation/BatchNorm2d.
     ///
     /// # Notes
     /// * When this method is called, max pooling flag
@@ -625,18 +643,18 @@ impl CNNConvBlock {
         self
     }
 
-    /// Disable batch normalization.
+    /// Disable 2D batch normalization.
     ///
     /// # Returns
-    /// * `Self` - The convolutional block with batch normalization disabled.
+    /// * `Self` - The convolutional block with 2D batch normalization disabled.
     ///
     /// # Examples
     /// ```
     /// use nove::model::layer::CNNConvBlock;
-    /// let block = CNNConvBlock::new(1, 16, (3, 3), 1, 1).use_batch_norm().disable_batch_norm();
+    /// let block = CNNConvBlock::new(1, 16, (3, 3), 1, 1).use_batch_norm2d().disable_batch_norm2d();
     /// ```
-    pub fn disable_batch_norm(mut self) -> Self {
-        self.use_batch_norm = false;
+    pub fn disable_batch_norm2d(mut self) -> Self {
+        self.use_batch_norm2d = false;
         self
     }
 
@@ -661,8 +679,9 @@ impl CNNConvBlock {
 ///
 /// # Notes
 /// * The `CNNLinearBlock` is used to configure a linear layer with optional
-///   activation function.
-/// * The default configuration has bias enabled and ReLU activation disabled.
+///   activation function and batch normalization (1D).
+/// * The default configuration has bias enabled, ReLU activation disabled,
+///   batch normalization (1D) disabled, and dropout disabled.
 /// * **Important**: Only one activation function can be enabled at a time.
 ///   When you call any `use_xxx()` method (e.g., `use_relu()`, `use_gelu()`, etc.),
 ///   all other activation function flags will be automatically set to `false`
@@ -676,7 +695,9 @@ impl CNNConvBlock {
 /// * `use_silu` - Whether SiLU activation is enabled after the linear layer.
 /// * `use_tanh` - Whether Tanh activation is enabled after the linear layer.
 /// * `use_sigmoid` - Whether Sigmoid activation is enabled after the linear layer.
+/// * `use_batch_norm1d` - Whether 1D batch normalization is enabled after the linear layer.
 /// * `bias_enabled` - Whether the bias term is enabled.
+/// * `dropout_probability` - The dropout probability (0.0 means no dropout).
 ///
 /// # Examples
 /// ```
@@ -684,6 +705,7 @@ impl CNNConvBlock {
 ///
 /// let block = CNNLinearBlock::new(800, 10)
 ///     .use_gelu()
+///     .use_batch_norm1d()
 ///     .bias_enabled(true);
 /// ```
 #[derive(Debug, Clone)]
@@ -695,7 +717,9 @@ pub struct CNNLinearBlock {
     use_silu: bool,
     use_tanh: bool,
     use_sigmoid: bool,
+    use_batch_norm1d: bool,
     bias_enabled: bool,
+    dropout_probability: f32,
 }
 
 impl CNNLinearBlock {
@@ -722,7 +746,9 @@ impl CNNLinearBlock {
             use_silu: false,
             use_tanh: false,
             use_sigmoid: false,
+            use_batch_norm1d: false,
             bias_enabled: true,
+            dropout_probability: 0.0,
         }
     }
 
@@ -865,6 +891,36 @@ impl CNNLinearBlock {
         self
     }
 
+    /// Use 1D batch normalization after the linear layer.
+    ///
+    /// # Returns
+    /// * `Self` - The linear block with 1D batch normalization enabled.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::model::layer::CNNLinearBlock;
+    /// let block = CNNLinearBlock::new(800, 10).use_batch_norm1d();
+    /// ```
+    pub fn use_batch_norm1d(mut self) -> Self {
+        self.use_batch_norm1d = true;
+        self
+    }
+
+    /// Disable 1D batch normalization.
+    ///
+    /// # Returns
+    /// * `Self` - The linear block with 1D batch normalization disabled.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::model::layer::CNNLinearBlock;
+    /// let block = CNNLinearBlock::new(800, 10).use_batch_norm1d().disable_batch_norm1d();
+    /// ```
+    pub fn disable_batch_norm1d(mut self) -> Self {
+        self.use_batch_norm1d = false;
+        self
+    }
+
     /// Configure whether to enable the bias term.
     ///
     /// # Arguments
@@ -880,6 +936,39 @@ impl CNNLinearBlock {
     /// ```
     pub fn bias_enabled(mut self, bias_enabled: bool) -> Self {
         self.bias_enabled = bias_enabled;
+        self
+    }
+
+    /// Use dropout after the linear layer.
+    ///
+    /// # Arguments
+    /// * `probability` - The dropout probability (must be in range [0, 1)).
+    ///
+    /// # Returns
+    /// * `Self` - The linear block with dropout enabled.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::model::layer::CNNLinearBlock;
+    /// let block = CNNLinearBlock::new(800, 10).use_dropout(0.5);
+    /// ```
+    pub fn use_dropout(mut self, probability: f32) -> Self {
+        self.dropout_probability = probability;
+        self
+    }
+
+    /// Disable dropout.
+    ///
+    /// # Returns
+    /// * `Self` - The linear block with dropout disabled.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::model::layer::CNNLinearBlock;
+    /// let block = CNNLinearBlock::new(800, 10).use_dropout(0.5).disable_dropout();
+    /// ```
+    pub fn disable_dropout(mut self) -> Self {
+        self.dropout_probability = 0.0;
         self
     }
 }
@@ -1067,7 +1156,7 @@ impl CNNBuilder {
                 .build()?;
             layers.push(CNNLayer::Conv2d(conv));
 
-            if block.use_batch_norm {
+            if block.use_batch_norm2d {
                 let bn = BatchNorm2dBuilder::default()
                     .num_features(block.out_channels)
                     .device(self.device.clone())
@@ -1109,6 +1198,16 @@ impl CNNBuilder {
                 .build()?;
             layers.push(CNNLayer::Linear(linear));
 
+            if block.use_batch_norm1d {
+                let bn = BatchNorm1dBuilder::default()
+                    .num_features(block.out_features)
+                    .device(self.device.clone())
+                    .dtype(self.dtype)
+                    .affine(self.grad_enabled)
+                    .build()?;
+                layers.push(CNNLayer::BatchNorm1d(bn));
+            }
+
             if block.use_relu {
                 layers.push(CNNLayer::ReLU(ReLU::new()));
             } else if block.use_gelu {
@@ -1119,6 +1218,11 @@ impl CNNBuilder {
                 layers.push(CNNLayer::Tanh(Tanh::new()));
             } else if block.use_sigmoid {
                 layers.push(CNNLayer::Sigmoid(Sigmoid::new()));
+            }
+
+            if block.dropout_probability > 0.0 {
+                let dropout = Dropout::new(block.dropout_probability)?;
+                layers.push(CNNLayer::Dropout(dropout));
             }
         }
 

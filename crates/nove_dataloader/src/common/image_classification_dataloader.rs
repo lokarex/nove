@@ -148,6 +148,10 @@ where
     device: Option<Device>,
     grad_enabled: bool,
     shuffle_seed: Option<usize>,
+    use_normalization: bool,
+    normalization_mean: [f32; 3],
+    normalization_std: [f32; 3],
+    use_min_max_normalization: bool,
     phantom: PhantomData<D>,
 }
 
@@ -164,6 +168,10 @@ where
             device: None,
             grad_enabled: false,
             shuffle_seed: None,
+            use_normalization: false,
+            normalization_mean: [0.0, 0.0, 0.0],
+            normalization_std: [1.0, 1.0, 1.0],
+            use_min_max_normalization: true,
             phantom: PhantomData,
         }
     }
@@ -247,6 +255,56 @@ where
         self
     }
 
+    /// Enables normalization with specified mean and standard deviation.
+    ///
+    /// # Notes
+    /// * When this method is called, min-max normalization will be automatically disabled.
+    ///
+    /// # Arguments
+    /// * `mean` - The mean values for each channel.
+    /// * `std` - The standard deviation values for each channel.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
+    pub fn use_normalization(&mut self, mean: [f32; 3], std: [f32; 3]) -> &mut Self {
+        self.use_min_max_normalization = false;
+        self.use_normalization = true;
+        self.normalization_mean = mean;
+        self.normalization_std = std;
+        self
+    }
+
+    /// Enables min-max normalization to the range [0, 1].
+    ///
+    /// # Notes
+    /// * When this method is called, normalization will be automatically disabled.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
+    pub fn use_min_max_normalization(&mut self) -> &mut Self {
+        self.use_normalization = false;
+        self.use_min_max_normalization = true;
+        self
+    }
+
+    /// Disables normalization.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
+    pub fn disable_normalization(&mut self) -> &mut Self {
+        self.use_normalization = false;
+        self
+    }
+
+    /// Disables min-max normalization.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
+    pub fn disable_min_max_normalization(&mut self) -> &mut Self {
+        self.use_min_max_normalization = false;
+        self
+    }
+
     /// Builds the dataloader.
     ///
     /// # Returns
@@ -278,6 +336,11 @@ where
         let grad_enabled = self.grad_enabled;
         let shuffle_seed = self.shuffle_seed;
 
+        let use_normalization = self.use_normalization;
+        let normalization_mean = self.normalization_mean;
+        let normalization_std = self.normalization_std;
+        let use_min_max_normalization = self.use_min_max_normalization;
+
         let process_fn: Box<ProcessFn> = Box::new(move |(image_path, label): (PathBuf, usize)| {
             let img = image::open(&image_path).map_err(|e| {
                 DataloaderError::ImageError(format!(
@@ -297,7 +360,27 @@ where
             let (width, height) = img.dimensions();
             let data: Vec<f32> = img
                 .pixels()
-                .flat_map(|p| p.0.iter().map(|&v| v as f32 / 255.0))
+                .flat_map(|p| {
+                    if use_normalization {
+                        let r =
+                            (p[0] as f32 / 255.0 - normalization_mean[0]) / normalization_std[0];
+                        let g =
+                            (p[1] as f32 / 255.0 - normalization_mean[1]) / normalization_std[1];
+                        let b =
+                            (p[2] as f32 / 255.0 - normalization_mean[2]) / normalization_std[2];
+                        vec![r, g, b]
+                    } else if use_min_max_normalization {
+                        let r = p[0] as f32 / 255.0;
+                        let g = p[1] as f32 / 255.0;
+                        let b = p[2] as f32 / 255.0;
+                        vec![r, g, b]
+                    } else {
+                        let r = p[0] as f32;
+                        let g = p[1] as f32;
+                        let b = p[2] as f32;
+                        vec![r, g, b]
+                    }
+                })
                 .collect();
 
             let shape = Shape::from(&[height as usize, width as usize, 3]);

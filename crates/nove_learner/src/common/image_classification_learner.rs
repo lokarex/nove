@@ -132,7 +132,7 @@ where
                     Some((inputs, targets)) => (inputs, targets),
                     None => break,
                 };
-                let outputs = self.model.forward((inputs, false))?;
+                let outputs = self.model.forward((inputs, true))?;
 
                 for metric in self.metrics.iter_mut() {
                     if metric.is_evaluation() {
@@ -170,7 +170,7 @@ where
                     Some((inputs, targets)) => (inputs, targets),
                     None => break,
                 };
-                let outputs = self.model.forward((inputs, true))?;
+                let outputs = self.model.forward((inputs, false))?;
                 for metric in self.metrics.iter_mut() {
                     if metric.is_evaluation() {
                         metric.evaluate(&outputs, &targets)?
@@ -231,7 +231,7 @@ where
                 Some((inputs, targets)) => (inputs, targets),
                 None => break,
             };
-            let outputs = self.model.forward((inputs, true))?;
+            let outputs = self.model.forward((inputs, false))?;
 
             for metric in self.metrics.iter_mut() {
                 if metric.is_evaluation() {
@@ -261,7 +261,7 @@ where
                 Some((inputs, targets)) => (inputs, targets),
                 None => break,
             };
-            let outputs = self.model.forward((inputs, true))?;
+            let outputs = self.model.forward((inputs, false))?;
 
             for metric in self.metrics.iter_mut() {
                 if metric.is_evaluation() {

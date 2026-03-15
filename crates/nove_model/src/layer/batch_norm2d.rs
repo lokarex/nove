@@ -19,10 +19,10 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// * During inference, it uses the running mean and variance.
 ///
 /// # Fields
-/// * `gamma` - The learnable scale parameter (gamma) with shape \[num_features\].
-/// * `beta` - The learnable shift parameter (beta) with shape \[num_features\].
-/// * `running_mean` - The running mean with shape \[num_features\].
-/// * `running_var` - The running variance with shape \[num_features\].
+/// * `gamma` - The learnable scale parameter (gamma) with shape \[num_features, 1, 1\].
+/// * `beta` - The learnable shift parameter (beta) with shape \[num_features, 1, 1\].
+/// * `running_mean` - The running mean with shape \[num_features, 1, 1\].
+/// * `running_var` - The running variance with shape \[num_features, 1, 1\].
 /// * `num_features` - The number of features (channels).
 /// * `epsilon` - A small value added to the variance for numerical stability.
 /// * `momentum` - The momentum for updating running statistics.
@@ -114,22 +114,32 @@ impl Model for BatchNorm2d {
                     total_size / self.num_features,
                 ]))?;
 
-                let feature_mean = reshaped_input.mean(Some((1, false)))?;
-                let feature_bias_var = reshaped_input.var(1, false, false)?;
-                let feature_unbias_var = reshaped_input.var(1, false, true)?;
+                let feature_mean = reshaped_input
+                    .mean(Some((1, false)))?
+                    .reshape(&Shape::from_dims(&[self.num_features, 1, 1]))?;
+                let feature_bias_var = reshaped_input
+                    .var(1, false, false)?
+                    .reshape(&Shape::from_dims(&[self.num_features, 1, 1]))?;
+                let feature_unbias_var = reshaped_input
+                    .var(1, false, true)?
+                    .reshape(&Shape::from_dims(&[self.num_features, 1, 1]))?;
 
-                self.running_mean = Tensor::add(
-                    &self.running_mean.affine(1f64 - self.momentum, 0f64)?,
-                    &feature_mean.affine(self.momentum, 0f64)?,
-                )?
-                .detach()?;
-                self.running_var = Tensor::add(
-                    &self.running_var.affine(1f64 - self.momentum, 0f64)?,
-                    &feature_unbias_var.affine(self.momentum, 0f64)?,
-                )?
-                .detach()?;
+                self.running_mean.update_from_tensor(
+                    &Tensor::add(
+                        &self.running_mean.affine(1f64 - self.momentum, 0f64)?,
+                        &feature_mean.affine(self.momentum, 0f64)?,
+                    )?
+                    .detach()?,
+                )?;
+                self.running_var.update_from_tensor(
+                    &Tensor::add(
+                        &self.running_var.affine(1f64 - self.momentum, 0f64)?,
+                        &feature_unbias_var.affine(self.momentum, 0f64)?,
+                    )?
+                    .detach()?,
+                )?;
 
-                Ok(Tensor::batch_norm2d(
+                Ok(Tensor::batch_norm(
                     &input,
                     &feature_mean,
                     &feature_bias_var,
@@ -138,7 +148,7 @@ impl Model for BatchNorm2d {
                     &self.beta,
                 )?)
             }
-            false => Ok(Tensor::batch_norm2d(
+            false => Ok(Tensor::batch_norm(
                 &input,
                 &self.running_mean,
                 &self.running_var,
@@ -453,7 +463,7 @@ impl BatchNorm2dBuilder {
         let id = ID.fetch_add(1, Ordering::Relaxed);
 
         let gamma = Tensor::ones(
-            &Shape::from_dims(&[num_features]),
+            &Shape::from_dims(&[num_features, 1, 1]),
             &self.dtype,
             &self.device,
             self.affine,
@@ -462,7 +472,7 @@ impl BatchNorm2dBuilder {
         .require_name(&format!("batch_norm2d.{}.gamma", id))?;
 
         let beta = Tensor::zeros(
-            &Shape::from_dims(&[num_features]),
+            &Shape::from_dims(&[num_features, 1, 1]),
             &self.dtype,
             &self.device,
             self.affine,
@@ -471,7 +481,7 @@ impl BatchNorm2dBuilder {
         .require_name(&format!("batch_norm2d.{}.beta", id))?;
 
         let running_mean = Tensor::zeros(
-            &Shape::from_dims(&[num_features]),
+            &Shape::from_dims(&[num_features, 1, 1]),
             &self.dtype,
             &self.device,
             false,
@@ -480,7 +490,7 @@ impl BatchNorm2dBuilder {
         .require_name(&format!("batch_norm2d.{}.running_mean", id))?;
 
         let running_var = Tensor::ones(
-            &Shape::from_dims(&[num_features]),
+            &Shape::from_dims(&[num_features, 1, 1]),
             &self.dtype,
             &self.device,
             false,

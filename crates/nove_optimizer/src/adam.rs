@@ -356,13 +356,13 @@ impl Optimizer for Adam {
             let m_update = grad.affine(1.0 - self.beta1, 0.0)?;
             let m_scaled = adam_param.m.affine(self.beta1, 0.0)?;
             let new_m = m_scaled.add(&m_update)?;
-            adam_param.m.update_from_tensor(&new_m)?;
+            adam_param.m.update_from_tensor(&new_m.detach()?)?;
 
             let grad_sq = grad.mul(&grad)?;
             let v_update = grad_sq.affine(1.0 - self.beta2, 0.0)?;
             let v_scaled = adam_param.v.affine(self.beta2, 0.0)?;
             let new_v = v_scaled.add(&v_update)?;
-            adam_param.v.update_from_tensor(&new_v)?;
+            adam_param.v.update_from_tensor(&new_v.detach()?)?;
 
             let m_hat = adam_param.m.affine(1.0 / bias_correction1, 0.0)?;
             let v_hat = adam_param.v.affine(1.0 / bias_correction2, 0.0)?;
@@ -370,7 +370,7 @@ impl Optimizer for Adam {
             let denom = v_hat_sqrt.affine(1.0, self.epsilon)?;
             let update = m_hat.div(&denom)?.affine(-self.learning_rate, 0.0)?;
             let new_param = adam_param.param.add(&update)?;
-            adam_param.param.update_from_tensor(&new_param)?;
+            adam_param.param.update_from_tensor(&new_param.detach()?)?;
         }
 
         Ok(())

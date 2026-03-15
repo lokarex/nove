@@ -1,0 +1,12 @@
+[package]
+name = "cifar10_cnn"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+nove = { path = "../../crates/nove", features = ["cuda"] }

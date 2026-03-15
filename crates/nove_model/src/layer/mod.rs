@@ -20,9 +20,13 @@ mod pool;
 pub use pool::AvgPool2d;
 pub use pool::MaxPool2d;
 
-mod batch_norm;
-pub use batch_norm::BatchNorm2d;
-pub use batch_norm::BatchNorm2dBuilder;
+mod batch_norm2d;
+pub use batch_norm2d::BatchNorm2d;
+pub use batch_norm2d::BatchNorm2dBuilder;
+
+mod batch_norm1d;
+pub use batch_norm1d::BatchNorm1d;
+pub use batch_norm1d::BatchNorm1dBuilder;
 
 mod cnn;
 pub use cnn::CNN;
