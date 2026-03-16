@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Creating CNN model...");
     let mut model = model(device.clone())?;
     println!("Loading pre-trained model...");
-    model.load("result/cifar10_cnn/CNN_best.safetensors", &device)?;
+    model.load("result/cifar10_cnn/Cifar10CNN_best.safetensors", &device)?;
 
     let mut learner: ImageClassificationLearner<_, _, CrossEntropy, Adam> =
         ImageClassificationLearnerBuilder::default()

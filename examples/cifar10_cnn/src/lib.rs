@@ -5,30 +5,69 @@ use nove::dataloader::common::{
 };
 use nove::dataset::resource::{Cifar10, Cifar10Dataset};
 use nove::lossfn::CrossEntropy;
-use nove::model::layer::{CNNBuilder, CNNConvBlock, CNNLinearBlock};
+use nove::r#macro::Model;
+use nove::model::layer::{Conv2dBlock, Conv2dBlockBuilder, LinearBlock, LinearBlockBuilder};
+use nove::model::{Model, ModelError};
 use nove::optimizer::Sgd;
-use nove::tensor::{DType, Device, Tensor};
+use nove::tensor::{Device, Shape, Tensor};
 
-pub fn model(device: Device) -> Result<nove::model::layer::CNN, nove::model::ModelError> {
-    let cnn = CNNBuilder::default()
-        .conv_block(
-            CNNConvBlock::new(3, 32, (3, 3), 1, 1)
-                .use_relu()
-                .use_max_pool((2, 2), (2, 2)),
-        )
-        .conv_block(
-            CNNConvBlock::new(32, 64, (3, 3), 1, 1)
-                .use_relu()
-                .use_max_pool((2, 2), (2, 2)),
-        )
-        .linear_block(CNNLinearBlock::new(4096, 256).use_relu())
-        .linear_block(CNNLinearBlock::new(256, 10))
-        .device(device)
-        .dtype(DType::F32)
-        .grad_enabled(true)
-        .build()?;
+pub fn model(device: Device) -> Result<Cifar10CNN, ModelError> {
+    let cnn = Cifar10CNN::new(device)?;
     println!("{}", cnn);
     Ok(cnn)
+}
+
+#[derive(Debug, Clone, Model)]
+#[model(input = "(Tensor, bool)", output = "Tensor")]
+pub struct Cifar10CNN {
+    conv1: Conv2dBlock,
+    conv2: Conv2dBlock,
+    linear1: LinearBlock,
+    linear2: LinearBlock,
+}
+
+impl Cifar10CNN {
+    fn new(device: Device) -> Result<Self, ModelError> {
+        let conv1 = Conv2dBlockBuilder::new(3, 32, (3, 3), 1, 1)
+            .with_relu()
+            .with_max_pool((2, 2), (2, 2))
+            .device(device.clone())
+            .build()?;
+        let conv2 = Conv2dBlockBuilder::new(32, 64, (3, 3), 1, 1)
+            .with_relu()
+            .with_max_pool((2, 2), (2, 2))
+            .device(device.clone())
+            .build()?;
+        let linear1 = LinearBlockBuilder::new(4096, 256)
+            .with_relu()
+            .device(device.clone())
+            .build()?;
+        let linear2 = LinearBlockBuilder::new(256, 10)
+            .device(device.clone())
+            .build()?;
+
+        Ok(Self {
+            conv1,
+            conv2,
+            linear1,
+            linear2,
+        })
+    }
+
+    fn forward(&mut self, input: (Tensor, bool)) -> Result<Tensor, ModelError> {
+        let (x, training) = input;
+        let mut x = self.conv1.forward((x, training))?;
+        x = self.conv2.forward((x, training))?;
+
+        let shape = x.shape()?;
+        let batch_size = shape.dims()[0];
+        let flattened_size = shape.dims()[1] * shape.dims()[2] * shape.dims()[3];
+        x = x.reshape(&Shape::from(&[batch_size, flattened_size]))?;
+
+        x = self.linear1.forward((x, training))?;
+        x = self.linear2.forward((x, training))?;
+        Ok(x)
+    }
 }
 
 type Cifar10Dataloader = (

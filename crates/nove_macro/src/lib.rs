@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    Data, DataStruct, DeriveInput, Expr, Meta, MetaNameValue, Path, parse_macro_input,
+    Data, DataStruct, DeriveInput, Expr, Lit, Meta, MetaNameValue, Type, parse_macro_input,
     punctuated::Punctuated, token::Comma,
 };
 
@@ -10,8 +10,8 @@ pub fn derive_model(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let struct_name = &input.ident;
 
-    let mut input_type: Option<Path> = None;
-    let mut output_type: Option<Path> = None;
+    let mut input_type: Option<Type> = None;
+    let mut output_type: Option<Type> = None;
 
     for attr in &input.attrs {
         if attr.path().is_ident("model")
@@ -20,14 +20,29 @@ pub fn derive_model(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let nested = list.parse_args_with(Punctuated::<MetaNameValue, Comma>::parse_terminated);
             if let Ok(items) = nested {
                 for item in items {
-                    if item.path.is_ident("input")
-                        && let Expr::Path(expr_path) = item.value
-                    {
-                        input_type = Some(expr_path.path);
-                    } else if item.path.is_ident("output")
-                        && let Expr::Path(expr_path) = item.value
-                    {
-                        output_type = Some(expr_path.path);
+                    let type_str = match &item.value {
+                        Expr::Lit(expr_lit) => {
+                            if let Lit::Str(lit_str) = &expr_lit.lit {
+                                Some(lit_str.value())
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
+
+                    if item.path.is_ident("input") {
+                        if let Some(type_str) = type_str {
+                            input_type = Some(
+                                syn::parse_str(&type_str).expect("Failed to parse input type"),
+                            );
+                        }
+                    } else if item.path.is_ident("output") {
+                        if let Some(type_str) = type_str {
+                            output_type = Some(
+                                syn::parse_str(&type_str).expect("Failed to parse output type"),
+                            );
+                        }
                     }
                 }
             }
@@ -68,7 +83,7 @@ pub fn derive_model(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident.as_ref().map(|_i| {
                 quote! {
                     const _: () = {
-                        fn assert_model<T: nove_model::Model>() {}
+                        fn assert_model<T: nove::model::Model>() {}
                         fn check() { assert_model::<#ty>(); }
                     };
                 }
@@ -158,36 +173,36 @@ pub fn derive_model(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let expanded = quote! {
         #(#field_type_checks)*
 
-        impl nove_model::Model for #struct_name {
+        impl nove::model::Model for #struct_name {
             type Input = #input_type;
             type Output = #output_type;
 
-            fn forward(&mut self, input: Self::Input) -> Result<Self::Output, nove_model::ModelError> {
+            fn forward(&mut self, input: Self::Input) -> Result<Self::Output, nove::model::ModelError> {
                 self.forward(input)
             }
 
-            fn require_grad(&mut self, grad_enabled: bool) -> Result<(), nove_model::ModelError> {
+            fn require_grad(&mut self, grad_enabled: bool) -> Result<(), nove::model::ModelError> {
                 #(#require_grad_calls)*
                 Ok(())
             }
 
-            fn to_device(&mut self, device: &nove_tensor::Device) -> Result<(), nove_model::ModelError> {
+            fn to_device(&mut self, device: &nove::tensor::Device) -> Result<(), nove::model::ModelError> {
                 #(#to_device_calls)*
                 Ok(())
             }
 
-            fn to_dtype(&mut self, dtype: &nove_tensor::DType) -> Result<(), nove_model::ModelError> {
+            fn to_dtype(&mut self, dtype: &nove::tensor::DType) -> Result<(), nove::model::ModelError> {
                 #(#to_dtype_calls)*
                 Ok(())
             }
 
-            fn parameters(&self) -> Result<Vec<nove_tensor::Tensor>, nove_model::ModelError> {
+            fn parameters(&self) -> Result<Vec<nove::tensor::Tensor>, nove::model::ModelError> {
                 let mut params = Vec::new();
                 #(#parameters_calls)*
                 Ok(params)
             }
 
-            fn named_parameters(&self) -> Result<std::collections::HashMap<String, nove_tensor::Tensor>, nove_model::ModelError> {
+            fn named_parameters(&self) -> Result<std::collections::HashMap<String, nove::tensor::Tensor>, nove::model::ModelError> {
                 let mut params = std::collections::HashMap::new();
                 #(#named_parameters_calls)*
                 Ok(params)

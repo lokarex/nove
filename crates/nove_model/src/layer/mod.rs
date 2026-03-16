@@ -28,9 +28,10 @@ mod batch_norm1d;
 pub use batch_norm1d::BatchNorm1d;
 pub use batch_norm1d::BatchNorm1dBuilder;
 
-mod cnn;
-pub use cnn::CNN;
-pub use cnn::CNNBuilder;
-pub use cnn::CNNConvBlock;
-pub use cnn::CNNLayer;
-pub use cnn::CNNLinearBlock;
+mod linear_block;
+pub use linear_block::LinearBlock;
+pub use linear_block::LinearBlockBuilder;
+
+mod conv2d_block;
+pub use conv2d_block::Conv2dBlock;
+pub use conv2d_block::Conv2dBlockBuilder;
