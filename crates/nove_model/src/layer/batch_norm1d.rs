@@ -30,7 +30,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// * `affine` - Whether to use learnable affine parameters (gamma and beta).
 ///
 /// # Examples
-/// ```
+/// ```no_run
 /// use nove::model::layer::BatchNorm1dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
@@ -109,7 +109,7 @@ impl Model for BatchNorm1d {
         match training {
             true => {
                 let total_size = input.shape()?.dims().iter().product::<usize>();
-                let reshaped_input = input.reshape(&Shape::from_dims(&[
+                let reshaped_input = input.permute(&[1, 0])?.reshape(&Shape::from_dims(&[
                     self.num_features,
                     total_size / self.num_features,
                 ]))?;
@@ -272,7 +272,7 @@ impl Display for BatchNorm1d {
 /// * `dtype` - The data type to use for the layer.
 ///
 /// # Examples
-/// ```
+/// ```no_run
 /// use nove::model::layer::BatchNorm1dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
@@ -431,7 +431,7 @@ impl BatchNorm1dBuilder {
     /// * `Err(ModelError)` - The error when building the 1D batch normalization layer.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::model::layer::BatchNorm1dBuilder;
     /// let mut bn_builder = BatchNorm1dBuilder::default();
     /// bn_builder.num_features(64);

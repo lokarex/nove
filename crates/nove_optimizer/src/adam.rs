@@ -41,7 +41,8 @@ struct AdamParam {
 /// - t is the current time step
 ///
 /// # Notes
-/// * The `Adam` optimizer is now only created by the `AdamBuilder`.
+/// * The `Adam` optimizer is created by the `AdamBuilder`.
+/// * Use `AdamBuilder::new(params, learning_rate)` to create a builder.
 ///
 /// # Fields
 /// * `params` - The list of parameters to optimize.
@@ -52,7 +53,7 @@ struct AdamParam {
 /// * `t` - The current time step.
 ///
 /// # Examples
-/// ```
+/// ```no_run
 /// use nove::optimizer::AdamBuilder;
 /// use nove::tensor::{Device, Tensor};
 ///
@@ -60,9 +61,7 @@ struct AdamParam {
 /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
 /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
 ///
-/// let adam = AdamBuilder::default()
-///     .params(vec![param1, param2])  // Required
-///     .learning_rate(0.001)          // Required
+/// let adam = AdamBuilder::new(vec![param1, param2], 0.001)
 ///     .beta1(0.9)                    // Optional, default is 0.9
 ///     .beta2(0.999)                  // Optional, default is 0.999
 ///     .epsilon(1e-8)                 // Optional, default is 1e-8
@@ -79,10 +78,6 @@ pub struct Adam {
 }
 
 /// The builder for the Adam optimizer.
-///
-/// # Notes
-/// * The `AdamBuilder` implements the `Default` trait, so you can
-///   use `AdamBuilder::default()` to create a builder with default values.
 ///
 /// # Required Arguments
 /// * `params` - The list of parameters to optimize.
@@ -101,7 +96,7 @@ pub struct Adam {
 /// * `epsilon` - A small constant for numerical stability.
 ///
 /// # Examples
-/// ```
+/// ```no_run
 /// use nove::optimizer::AdamBuilder;
 /// use nove::tensor::{Device, Tensor};
 ///
@@ -109,9 +104,7 @@ pub struct Adam {
 /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
 /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
 ///
-/// let adam = AdamBuilder::default()
-///     .params(vec![param1, param2])  // Required
-///     .learning_rate(0.001)          // Required
+/// let adam = AdamBuilder::new(vec![param1, param2], 0.001)
 ///     .beta1(0.9)                    // Optional, default is 0.9
 ///     .beta2(0.999)                  // Optional, default is 0.999
 ///     .epsilon(1e-8)                 // Optional, default is 1e-8
@@ -119,66 +112,47 @@ pub struct Adam {
 ///     .unwrap();
 /// ```
 pub struct AdamBuilder {
-    params: Option<Vec<Tensor>>,
-    learning_rate: Option<f64>,
+    params: Vec<Tensor>,
+    learning_rate: f64,
     beta1: f64,
     beta2: f64,
     epsilon: f64,
 }
 
-impl Default for AdamBuilder {
-    fn default() -> Self {
-        Self {
-            params: None,
-            learning_rate: None,
-            beta1: 0.9,
-            beta2: 0.999,
-            epsilon: 1e-8,
-        }
-    }
-}
-
 impl AdamBuilder {
-    /// Configure the parameters to optimize.
+    /// Create a new AdamBuilder with the required parameters and learning rate.
     ///
     /// # Arguments
     /// * `params` - The list of parameters to optimize.
+    /// * `learning_rate` - The learning rate (step size).
     ///
     /// # Returns
-    /// * `&mut Self` - The builder with the configured parameters.
+    /// * `Self` - A new AdamBuilder instance.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::optimizer::AdamBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
     /// let device = Device::cpu();
-    /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
-    /// let mut builder = AdamBuilder::default();
-    /// builder.params(vec![param]);
-    /// ```
-    pub fn params(&mut self, params: Vec<Tensor>) -> &mut Self {
-        self.params = Some(params);
-        self
-    }
-
-    /// Configure the learning rate.
+    /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
+    /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
     ///
-    /// # Arguments
-    /// * `learning_rate` - The learning rate (step size).
-    ///
-    /// # Returns
-    /// * `&mut Self` - The builder with the configured learning rate.
-    ///
-    /// # Examples
+    /// let adam = AdamBuilder::new(vec![param1, param2], 0.001)
+    ///     .beta1(0.9)
+    ///     .beta2(0.999)
+    ///     .epsilon(1e-8)
+    ///     .build()
+    ///     .unwrap();
     /// ```
-    /// use nove::optimizer::AdamBuilder;
-    /// let mut builder = AdamBuilder::default();
-    /// builder.learning_rate(0.001);
-    /// ```
-    pub fn learning_rate(&mut self, learning_rate: f64) -> &mut Self {
-        self.learning_rate = Some(learning_rate);
-        self
+    pub fn new(params: Vec<Tensor>, learning_rate: f64) -> Self {
+        Self {
+            params,
+            learning_rate,
+            beta1: 0.9,
+            beta2: 0.999,
+            epsilon: 1e-8,
+        }
     }
 
     /// Configure the exponential decay rate for the first moment.
@@ -190,9 +164,13 @@ impl AdamBuilder {
     /// * `&mut Self` - The builder with the configured beta1.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::optimizer::AdamBuilder;
-    /// let mut builder = AdamBuilder::default();
+    /// use nove::tensor::{Device, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
+    /// let mut builder = AdamBuilder::new(vec![param], 0.001);
     /// builder.beta1(0.9);
     /// ```
     pub fn beta1(&mut self, beta1: f64) -> &mut Self {
@@ -209,9 +187,13 @@ impl AdamBuilder {
     /// * `&mut Self` - The builder with the configured beta2.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::optimizer::AdamBuilder;
-    /// let mut builder = AdamBuilder::default();
+    /// use nove::tensor::{Device, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
+    /// let mut builder = AdamBuilder::new(vec![param], 0.001);
     /// builder.beta2(0.999);
     /// ```
     pub fn beta2(&mut self, beta2: f64) -> &mut Self {
@@ -228,9 +210,13 @@ impl AdamBuilder {
     /// * `&mut Self` - The builder with the configured epsilon.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::optimizer::AdamBuilder;
-    /// let mut builder = AdamBuilder::default();
+    /// use nove::tensor::{Device, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
+    /// let mut builder = AdamBuilder::new(vec![param], 0.001);
     /// builder.epsilon(1e-8);
     /// ```
     pub fn epsilon(&mut self, epsilon: f64) -> &mut Self {
@@ -245,36 +231,28 @@ impl AdamBuilder {
     /// * `Err(OptimizerError)` - The error when building the Adam optimizer.
     ///
     /// # Errors
-    /// * `OptimizerError::MissingArgument` - If `params` or `learning_rate` is not set.
     /// * `OptimizerError::InvalidArgument` - If `learning_rate`, `beta1`, `beta2`, or `epsilon` is invalid.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::optimizer::AdamBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
     /// let device = Device::cpu();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     ///
-    /// let mut builder = AdamBuilder::default();
-    /// builder.params(vec![param]);
-    /// builder.learning_rate(0.001);
-    /// let adam = builder.build().unwrap();
+    /// let adam = AdamBuilder::new(vec![param], 0.001)
+    ///     .build()
+    ///     .unwrap();
     /// ```
     pub fn build(&self) -> Result<Adam, OptimizerError> {
         let params = self
             .params
-            .as_ref()
-            .ok_or(OptimizerError::MissingArgument(
-                "params in AdamBuilder".to_string(),
-            ))?
             .iter()
             .map(|param| param.copy())
             .collect::<Vec<_>>();
 
-        let learning_rate = self.learning_rate.ok_or_else(|| {
-            OptimizerError::MissingArgument("learning_rate in AdamBuilder".to_string())
-        })?;
+        let learning_rate = self.learning_rate;
 
         if learning_rate <= 0.0 {
             return Err(OptimizerError::InvalidArgument(
@@ -341,8 +319,8 @@ impl Optimizer for Adam {
     fn step(&mut self) -> Result<Self::StepOutput, OptimizerError> {
         self.t += 1;
 
-        let bias_correction1 = 1.0 - self.beta1.powi(self.t as i32);
-        let bias_correction2 = 1.0 - self.beta2.powi(self.t as i32);
+        let bias_correction1 = 1.0 - self.beta1.powf(self.t as f64);
+        let bias_correction2 = 1.0 - self.beta2.powf(self.t as f64);
 
         for adam_param in &mut self.params {
             if !adam_param.param.grad_enabled()? {

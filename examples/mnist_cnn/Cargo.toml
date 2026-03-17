@@ -10,11 +10,3 @@ publish = false
 
 [dependencies]
 nove = { path = "../../crates/nove", features = ["cuda"] }
-
-[[example]]
-name = "test_mnist_cnn"
-path = "examples/test.rs"
-
-[[example]]
-name = "train_mnist_cnn"
-path = "examples/train.rs"

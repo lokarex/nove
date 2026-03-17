@@ -8,7 +8,7 @@ use nove::lossfn::CrossEntropy;
 use nove::r#macro::Model;
 use nove::model::layer::{Conv2dBlock, Conv2dBlockBuilder, LinearBlock, LinearBlockBuilder};
 use nove::model::{Model, ModelError};
-use nove::optimizer::Sgd;
+use nove::optimizer::{OptimizerError, Sgd};
 use nove::tensor::{Device, Shape, Tensor};
 
 pub fn model(device: Device) -> Result<Cifar10CNN, ModelError> {
@@ -29,11 +29,13 @@ pub struct Cifar10CNN {
 impl Cifar10CNN {
     fn new(device: Device) -> Result<Self, ModelError> {
         let conv1 = Conv2dBlockBuilder::new(3, 32, (3, 3), 1, 1)
+            .with_batch_norm2d()
             .with_relu()
             .with_max_pool((2, 2), (2, 2))
             .device(device.clone())
             .build()?;
         let conv2 = Conv2dBlockBuilder::new(32, 64, (3, 3), 1, 1)
+            .with_batch_norm2d()
             .with_relu()
             .with_max_pool((2, 2), (2, 2))
             .device(device.clone())
@@ -134,6 +136,6 @@ pub fn lossfn() -> CrossEntropy {
     CrossEntropy::new()
 }
 
-pub fn optimizer(params: Vec<Tensor>, learning_rate: f64) -> Sgd {
-    Sgd::new(params, learning_rate)
+pub fn optimizer(params: Vec<Tensor>, learning_rate: f64) -> Result<Sgd, OptimizerError> {
+    Ok(Sgd::new(params, learning_rate))
 }

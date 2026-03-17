@@ -23,6 +23,7 @@ where
     D: Dataloader + Send + 'static,
     D::Output: Send + 'static,
 {
+    buffer_size: usize,
     receiver: Receiver<Result<Option<D::Output>, DataloaderError>>,
     handle: Option<JoinHandle<D>>,
 }
@@ -47,8 +48,7 @@ where
             })?;
             dataloader.reset()?;
 
-            let buffer_size = 2;
-            let (sender, receiver) = mpsc::sync_channel(buffer_size);
+            let (sender, receiver) = mpsc::sync_channel(self.buffer_size);
             self.receiver = receiver;
 
             self.handle = Some(thread::spawn(move || {
@@ -179,6 +179,7 @@ where
         });
 
         Ok(PrefetchDataloader {
+            buffer_size: self.buffer_size,
             receiver,
             handle: Some(handle),
         })

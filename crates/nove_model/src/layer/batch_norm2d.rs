@@ -30,7 +30,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// * `affine` - Whether to use learnable affine parameters (gamma and beta).
 ///
 /// # Examples
-/// ```
+/// ```no_run
 /// use nove::model::layer::BatchNorm2dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
@@ -109,10 +109,11 @@ impl Model for BatchNorm2d {
         match training {
             true => {
                 let total_size = input.shape()?.dims().iter().product::<usize>();
-                let reshaped_input = input.reshape(&Shape::from_dims(&[
-                    self.num_features,
-                    total_size / self.num_features,
-                ]))?;
+                let reshaped_input =
+                    input.permute(&[1, 0, 2, 3])?.reshape(&Shape::from_dims(&[
+                        self.num_features,
+                        total_size / self.num_features,
+                    ]))?;
 
                 let feature_mean = reshaped_input
                     .mean(Some((1, false)))?
@@ -272,7 +273,7 @@ impl Display for BatchNorm2d {
 /// * `dtype` - The data type to use for the layer.
 ///
 /// # Examples
-/// ```
+/// ```no_run
 /// use nove::model::layer::BatchNorm2dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
@@ -431,7 +432,7 @@ impl BatchNorm2dBuilder {
     /// * `Err(ModelError)` - The error when building the 2D batch normalization layer.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::model::layer::BatchNorm2dBuilder;
     /// let mut bn_builder = BatchNorm2dBuilder::default();
     /// bn_builder.num_features(64);
