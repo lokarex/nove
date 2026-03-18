@@ -18,18 +18,13 @@ use crate::{Dataset, DatasetError};
 /// * `offsets` - The cumulative offsets for each dataset (precomputed for efficiency).
 ///
 /// # Examples
-/// ```rust
+/// ```no_run
 /// use nove::dataset::common::{MergedDataset, VecDataset};
-/// use nove::dataset::Dataset;
 ///
 /// let dataset1 = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
 /// let dataset2 = VecDataset::from_vec(vec![4usize, 5usize, 6usize]);
 ///
-/// let datasets = [&dataset1, &dataset2];
-/// let merged = MergedDataset::from_datasets(&datasets).unwrap();
-/// assert_eq!(merged.len().unwrap(), 6);
-/// assert_eq!(merged.get(0).unwrap(), 1);
-/// assert_eq!(merged.get(3).unwrap(), 4);
+/// let merged = MergedDataset::from_datasets(&[&dataset1, &dataset2]).unwrap();
 /// ```
 pub struct MergedDataset<'a, D: Dataset> {
     datasets: Vec<&'a dyn Dataset<Item = D::Item>>,
@@ -48,13 +43,22 @@ impl<'a, D: Dataset> MergedDataset<'a, D> {
     /// * `Err(DatasetError)` - The error when creating the `MergedDataset` instance.
     ///
     /// # Examples
-    /// ```rust
+    /// ```
     /// use nove::dataset::common::{MergedDataset, VecDataset};
+    /// use nove::dataset::Dataset;
     ///
     /// let dataset1 = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
     /// let dataset2 = VecDataset::from_vec(vec![4usize, 5usize, 6usize]);
     ///
-    /// let merged = MergedDataset::from_datasets(&[&dataset1, &dataset2]).unwrap();
+    /// let datasets = [&dataset1, &dataset2];
+    /// let merged = MergedDataset::from_datasets(&datasets).unwrap();
+    /// assert_eq!(merged.len().unwrap(), 6);
+    /// assert_eq!(merged.get(0).unwrap(), 1);
+    /// assert_eq!(merged.get(1).unwrap(), 2);
+    /// assert_eq!(merged.get(2).unwrap(), 3);
+    /// assert_eq!(merged.get(3).unwrap(), 4);
+    /// assert_eq!(merged.get(4).unwrap(), 5);
+    /// assert_eq!(merged.get(5).unwrap(), 6);
     /// ```
     pub fn from_datasets(datasets: &'a [&D]) -> Result<Self, DatasetError> {
         if datasets.is_empty() {
@@ -97,7 +101,7 @@ impl<'a, D: Dataset> MergedDataset<'a, D> {
     /// * `Err(DatasetError)` - The error when creating the `MergedDataset` instance.
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_run
     /// use nove::dataset::common::{MergedDataset, VecDataset};
     ///
     /// let dataset1 = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);

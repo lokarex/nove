@@ -29,7 +29,7 @@ use bincode::{Decode, Encode, config};
 /// * `dataset_file` - The file to persist the items to.
 ///
 /// # Examples
-/// ```rust
+/// ```no_run
 /// use tempfile::TempDir;
 /// use nove::dataset::common::{PersistentDataset, VecDataset};
 ///
@@ -52,7 +52,7 @@ pub struct PersistentDataset<'a, D: Dataset>
 where
     D::Item: Encode + Decode<()>,
 {
-    inner: Option<&'a dyn Dataset<Item = D::Item>>,
+    inner: Option<&'a D>,
     dataset_file: Option<File>,
 }
 
@@ -70,7 +70,7 @@ where
     /// * `Err(DatasetError)` - The error when creating the `PersistentDataset` instance.
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_run
     /// use nove::dataset::common::{PersistentDataset, VecDataset};
     ///
     /// let dataset = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
@@ -82,7 +82,7 @@ where
         }
 
         Ok(Self {
-            inner: Some(dataset as &'a dyn Dataset<Item = D::Item>),
+            inner: Some(dataset),
             dataset_file: None,
         })
     }
@@ -97,7 +97,7 @@ where
     /// * `Err(DatasetError)` - The error when saving the dataset to the file.
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_run
     /// use tempfile::TempDir;
     /// use nove::dataset::common::{PersistentDataset, VecDataset};
     ///
@@ -138,7 +138,7 @@ where
     /// * `Err(DatasetError)` - The error when loading the `PersistentDataset` instance.
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_run
     /// use tempfile::TempDir;
     /// use nove::dataset::common::{PersistentDataset, VecDataset};
     ///

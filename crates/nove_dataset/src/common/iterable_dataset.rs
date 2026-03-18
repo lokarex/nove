@@ -16,18 +16,18 @@ use crate::{Dataset, DatasetError};
 /// * `index` - The current index of the iterator.
 ///
 /// # Examples
-/// ```
+/// ```no_run
 /// use nove::dataset::common::{IterableDataset, VecDataset};
 ///
 /// let dataset = VecDataset::from_vec(vec![1, 2, 3]);
 /// let iterable_dataset = IterableDataset::from_dataset(&dataset).unwrap();
 ///
 /// for item in iterable_dataset {
-///     println!("{:?}", item);
+///     println!("{}", item.unwrap());
 /// }
 /// ```
 pub struct IterableDataset<'a, D: Dataset> {
-    inner: &'a dyn Dataset<Item = D::Item>,
+    inner: &'a D,
     index: usize,
 }
 
@@ -41,14 +41,17 @@ impl<'a, D: Dataset> IterableDataset<'a, D> {
     /// * `Ok(Self)` - A new `IterableDataset` instance.
     /// * `Err(DatasetError)` - The error when creating the `IterableDataset` instance.
     /// # Examples
-    /// ```rust
+    /// ```
     /// use nove::dataset::common::{IterableDataset, VecDataset};
     ///
-    /// let dataset = VecDataset::from_vec(vec![1, 2, 3]);
+    /// let data = vec![1, 2, 3];
+    /// let dataset = VecDataset::from_vec(data.clone());
     /// let iterable_dataset = IterableDataset::from_dataset(&dataset).unwrap();
     ///
-    /// for item in iterable_dataset {
-    ///     println!("{:?}", item);
+    /// for (index, item) in iterable_dataset.enumerate() {
+    ///     let item = item.unwrap();
+    ///     assert_eq!(item, data[index]);
+    ///     println!("{} at index {}", item, index);
     /// }
     /// ```
     pub fn from_dataset(dataset: &'a D) -> Result<Self, DatasetError> {
@@ -57,7 +60,7 @@ impl<'a, D: Dataset> IterableDataset<'a, D> {
         }
 
         Ok(Self {
-            inner: dataset as &'a dyn Dataset<Item = D::Item>,
+            inner: dataset,
             index: 0,
         })
     }

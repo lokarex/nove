@@ -23,3 +23,6 @@ pub use split_dataset::SplitDataset;
 
 mod merged_dataset;
 pub use merged_dataset::MergedDataset;
+
+mod augmented_dataset;
+pub use augmented_dataset::AugmentedDataset;

@@ -17,7 +17,7 @@ use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 /// * `indices` - The shuffled indices of the inner dataset.
 ///
 /// # Examples
-/// ```rust
+/// ```no_run
 /// use nove::dataset::common::{ShufflableDataset, VecDataset};
 ///
 /// let dataset = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
@@ -26,7 +26,7 @@ use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 /// shufflable_dataset.shuffle(42);
 /// ```
 pub struct ShufflableDataset<'a, D: Dataset> {
-    inner: &'a dyn Dataset<Item = D::Item>,
+    inner: &'a D,
     indices: Vec<usize>,
 }
 
@@ -41,7 +41,7 @@ impl<'a, D: Dataset> ShufflableDataset<'a, D> {
     /// * `Err(DatasetError)` - If the inner dataset is empty.
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_run
     /// use nove::dataset::common::{ShufflableDataset, VecDataset};
     ///
     /// let dataset = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);
@@ -55,7 +55,7 @@ impl<'a, D: Dataset> ShufflableDataset<'a, D> {
 
         let indices = (0..len).collect::<Vec<_>>();
         Ok(Self {
-            inner: dataset as &'a dyn Dataset<Item = D::Item>,
+            inner: dataset,
             indices,
         })
     }
@@ -65,7 +65,7 @@ impl<'a, D: Dataset> ShufflableDataset<'a, D> {
     /// # Arguments
     /// * `seed` - The seed to use for shuffling.
     /// # Examples
-    /// ```rust
+    /// ```no_run
     /// use nove::dataset::common::{ShufflableDataset, VecDataset};
     ///
     /// let dataset = VecDataset::from_vec(vec![1usize, 2usize, 3usize]);

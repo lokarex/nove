@@ -30,7 +30,7 @@ use crate::{Dataset, DatasetError};
 /// assert_eq!(split.get(0).unwrap(), 2);
 /// ```
 pub struct SplitDataset<'a, D: Dataset> {
-    inner: &'a dyn Dataset<Item = D::Item>,
+    inner: &'a D,
     start: usize,
     len: usize,
 }
@@ -68,7 +68,7 @@ impl<'a, D: Dataset> SplitDataset<'a, D> {
         }
 
         Ok(Self {
-            inner: dataset as &'a dyn Dataset<Item = D::Item>,
+            inner: dataset,
             start,
             len: actual_len,
         })
@@ -204,9 +204,15 @@ impl<'a, D: Dataset> SplitDataset<'a, D> {
 
         let mut iter = splits.into_iter();
         Ok((
-            iter.next().unwrap(),
-            iter.next().unwrap(),
-            iter.next().unwrap(),
+            iter.next().ok_or(DatasetError::OtherError(
+                "Failed to create train split".to_string(),
+            ))?,
+            iter.next().ok_or(DatasetError::OtherError(
+                "Failed to create val split".to_string(),
+            ))?,
+            iter.next().ok_or(DatasetError::OtherError(
+                "Failed to create test split".to_string(),
+            ))?,
         ))
     }
 }
