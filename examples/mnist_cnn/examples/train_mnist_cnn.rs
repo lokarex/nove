@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let learning_rate = 0.01;
     let params = model.parameters()?;
-    let optimizer = optimizer(params, learning_rate);
+    let optimizer = optimizer(params, learning_rate)?;
 
     println!("Creating learner...");
     let mut learner = ImageClassificationLearnerBuilder::default()

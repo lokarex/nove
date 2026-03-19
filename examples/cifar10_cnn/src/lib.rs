@@ -8,7 +8,7 @@ use nove::lossfn::CrossEntropy;
 use nove::r#macro::Model;
 use nove::model::layer::{Conv2dBlock, Conv2dBlockBuilder, LinearBlock, LinearBlockBuilder};
 use nove::model::{Model, ModelError};
-use nove::optimizer::{OptimizerError, Sgd};
+use nove::optimizer::{OptimizerError, Sgd, SgdBuilder};
 use nove::tensor::{Device, Shape, Tensor};
 
 pub fn model(device: Device) -> Result<Cifar10CNN, ModelError> {
@@ -137,5 +137,5 @@ pub fn lossfn() -> CrossEntropy {
 }
 
 pub fn optimizer(params: Vec<Tensor>, learning_rate: f64) -> Result<Sgd, OptimizerError> {
-    Ok(Sgd::new(params, learning_rate))
+    SgdBuilder::new(params, learning_rate).build()
 }

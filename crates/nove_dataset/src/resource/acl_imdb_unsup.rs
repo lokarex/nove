@@ -193,7 +193,7 @@ impl AclImdbUnsup {
 /// ACL IMDB unsupervised dataset containing unlabeled reviews.
 ///
 /// Each sample is represented as a `String` containing the review text.
-/// The review text is read from the file when [`get()`] is called.
+/// The review text is read from the file when [`AclImdbUnsupDataset::get()`] is called.
 /// Unlike supervised datasets, this does not include labels.
 ///
 /// This struct cannot be instantiated directly. Use [`AclImdbUnsup::unsup()`]

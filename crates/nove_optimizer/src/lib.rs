@@ -2,10 +2,13 @@ use nove_tensor::TensorError;
 use thiserror::Error;
 
 mod sgd;
-pub use sgd::Sgd;
+pub use sgd::{Sgd, SgdBuilder};
 
 mod adam;
 pub use adam::{Adam, AdamBuilder};
+
+mod adamw;
+pub use adamw::{AdamW, AdamWBuilder};
 
 #[derive(Debug, Error)]
 pub enum OptimizerError {
