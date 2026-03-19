@@ -1,5 +1,5 @@
 use cifar10_cnn::{dataloader, model};
-use nove::lossfn::CrossEntropy;
+use nove::lossfn::CrossEntropyLoss;
 use nove::optimizer::Adam;
 use nove::{
     learner::{
@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Loading pre-trained model...");
     model.load("result/cifar10_cnn/Cifar10CNN_best.safetensors", &device)?;
 
-    let mut learner: ImageClassificationLearner<_, _, CrossEntropy, Adam> =
+    let mut learner: ImageClassificationLearner<_, _, CrossEntropyLoss, Adam> =
         ImageClassificationLearnerBuilder::default()
             .test_dataloader(test_dataloader)
             .model(model)

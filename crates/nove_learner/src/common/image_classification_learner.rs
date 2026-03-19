@@ -449,7 +449,7 @@ where
         if self.lossfn.is_some() {
             self.metrics.insert(
                 1,
-                AnyMetric::LossMetric(LossMetric::new(nove_lossfn::CrossEntropy::new())),
+                AnyMetric::LossMetric(LossMetric::new(nove_lossfn::CrossEntropyLoss::new())),
             );
         }
 

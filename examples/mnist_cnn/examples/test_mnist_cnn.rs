@@ -1,5 +1,5 @@
 use mnist_cnn::{dataloader, model};
-use nove::lossfn::CrossEntropy;
+use nove::lossfn::CrossEntropyLoss;
 use nove::optimizer::Sgd;
 use nove::{
     learner::{
@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Loading pre-trained model...");
     model.load("result/mnist_cnn/MnistCNN_best.safetensors", &device)?;
 
-    let mut learner: ImageClassificationLearner<_, _, CrossEntropy, Sgd> =
+    let mut learner: ImageClassificationLearner<_, _, CrossEntropyLoss, Sgd> =
         ImageClassificationLearnerBuilder::default()
             .test_dataloader(test_dataloader)
             .model(model)

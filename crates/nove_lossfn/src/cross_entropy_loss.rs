@@ -1,6 +1,6 @@
 use nove_tensor::Tensor;
 
-use crate::{LossFn, LossFnError, Nll, common::log_softmax};
+use crate::{LossFn, LossFnError, NllLoss, common::log_softmax};
 
 /// Cross Entropy Loss function.
 ///
@@ -11,7 +11,7 @@ use crate::{LossFn, LossFnError, Nll, common::log_softmax};
 ///
 /// The loss is computed by applying LogSoftmax followed by NLL loss:
 ///
-/// $$ \text{CrossEntropy}(x, y) = \text{NLL}(\text{LogSoftmax}(x), y) $$
+/// $$ \text{CrossEntropyLoss}(x, y) = \text{NLL}(\text{LogSoftmax}(x), y) $$
 ///
 /// Where:
 /// - x is the input tensor of shape (batch_size, num_classes) containing raw logits
@@ -25,25 +25,25 @@ use crate::{LossFn, LossFnError, Nll, common::log_softmax};
 ///   - `target`: A 1D tensor of shape (batch_size) containing real class indices
 /// * The output is A scalar tensor representing the average cross entropy loss over the batch.
 #[derive(Debug, Clone)]
-pub struct CrossEntropy {
-    nll_lossfn: Nll,
+pub struct CrossEntropyLoss {
+    nll_lossfn: NllLoss,
 }
 
-impl CrossEntropy {
+impl CrossEntropyLoss {
     pub fn new() -> Self {
         Self {
-            nll_lossfn: Nll::new(),
+            nll_lossfn: NllLoss::new(),
         }
     }
 }
 
-impl Default for CrossEntropy {
+impl Default for CrossEntropyLoss {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl LossFn for CrossEntropy {
+impl LossFn for CrossEntropyLoss {
     type Input = (Tensor, Tensor);
     type Output = Tensor;
 

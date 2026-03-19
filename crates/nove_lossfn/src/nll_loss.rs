@@ -26,21 +26,21 @@ use crate::{LossFn, LossFnError};
 ///   - `target`: A 1D tensor of shape (batch_size) containing real class indices
 /// * The output is A scalar tensor representing the average NLL loss over the batch.
 #[derive(Debug, Clone)]
-pub struct Nll;
+pub struct NllLoss;
 
-impl Nll {
+impl NllLoss {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Default for Nll {
+impl Default for NllLoss {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl LossFn for Nll {
+impl LossFn for NllLoss {
     type Input = (Tensor, Tensor);
     type Output = Tensor;
 
@@ -56,7 +56,7 @@ impl LossFn for Nll {
                     .affine(-1f64 / batch_size as f64, 0f64)?)
             }
             _ => Err(LossFnError::OtherError(
-                "Nll: input and target must be 2D and 1D respectively".to_string(),
+                "NllLoss: input and target must be 2D and 1D respectively".to_string(),
             )),
         }
     }

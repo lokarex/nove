@@ -10,6 +10,12 @@ pub use adam::{Adam, AdamBuilder};
 mod adamw;
 pub use adamw::{AdamW, AdamWBuilder};
 
+mod rmsprop;
+pub use rmsprop::{Rmsprop, RmspropBuilder};
+
+mod adagrad;
+pub use adagrad::{Adagrad, AdagradBuilder};
+
 #[derive(Debug, Error)]
 pub enum OptimizerError {
     /// Tensor errors from the `nove_tensor` crate.

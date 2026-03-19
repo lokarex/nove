@@ -1,10 +1,10 @@
 use nove_tensor::TensorError;
 use thiserror::Error;
 
-mod cross_entropy;
-pub use cross_entropy::CrossEntropy;
-mod nll;
-pub use nll::Nll;
+mod cross_entropy_loss;
+pub use cross_entropy_loss::CrossEntropyLoss;
+mod nll_loss;
+pub use nll_loss::NllLoss;
 
 pub mod common;
 

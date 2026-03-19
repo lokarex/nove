@@ -19,10 +19,10 @@ use crate::{EvaluationMetric, Metric, MetricError, MetricValue};
 /// # Examples
 /// ```
 /// use nove::metric::{Metric, MetricValue, LossMetric, EvaluationMetric};
-/// use nove_lossfn::CrossEntropy;
+/// use nove_lossfn::CrossEntropyLoss;
 /// use nove_tensor::{Device, Tensor};
 ///
-/// let lossfn = CrossEntropy::new();
+/// let lossfn = CrossEntropyLoss::new();
 /// let mut metric = LossMetric::new(lossfn);
 ///
 /// let device = Device::cpu();

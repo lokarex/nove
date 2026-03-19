@@ -4,7 +4,7 @@ use nove::dataloader::common::{
     PrefetchDataloaderBuilder,
 };
 use nove::dataset::resource::{Cifar10, Cifar10Dataset};
-use nove::lossfn::CrossEntropy;
+use nove::lossfn::CrossEntropyLoss;
 use nove::r#macro::Model;
 use nove::model::layer::{Conv2dBlock, Conv2dBlockBuilder, LinearBlock, LinearBlockBuilder};
 use nove::model::{Model, ModelError};
@@ -132,8 +132,8 @@ pub fn dataloader(
     Ok((train_dataloader, validate_dataloader, test_dataloader))
 }
 
-pub fn lossfn() -> CrossEntropy {
-    CrossEntropy::new()
+pub fn lossfn() -> CrossEntropyLoss {
+    CrossEntropyLoss::new()
 }
 
 pub fn optimizer(params: Vec<Tensor>, learning_rate: f64) -> Result<Sgd, OptimizerError> {
