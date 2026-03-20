@@ -1,9 +1,9 @@
 pub mod arithmetic;
-pub mod reduction;
-pub mod comparison;
-pub mod shape;
-pub mod matrix;
-pub mod convolution;
 pub mod combination;
+pub mod comparison;
+pub mod convolution;
 pub mod elementwise;
 pub mod gradient;
+pub mod matrix;
+pub mod reduction;
+pub mod shape;

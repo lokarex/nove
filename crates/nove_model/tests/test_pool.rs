@@ -7,8 +7,8 @@ fn test_max_pool2d() {
     let mut max_pool = MaxPool2d::new((2, 2), None).unwrap();
     let input = Tensor::from_data(
         vec![
-            1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32, 9.0f32,
-            10.0f32, 11.0f32, 12.0f32, 13.0f32, 14.0f32, 15.0f32, 16.0f32,
+            1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32, 9.0f32, 10.0f32,
+            11.0f32, 12.0f32, 13.0f32, 14.0f32, 15.0f32, 16.0f32,
         ],
         &Device::cpu(),
         false,
@@ -26,8 +26,8 @@ fn test_max_pool2d_with_stride() {
     let mut max_pool = MaxPool2d::new((2, 2), Some((1, 1))).unwrap();
     let input = Tensor::from_data(
         vec![
-            1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32, 9.0f32,
-            10.0f32, 11.0f32, 12.0f32, 13.0f32, 14.0f32, 15.0f32, 16.0f32,
+            1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32, 9.0f32, 10.0f32,
+            11.0f32, 12.0f32, 13.0f32, 14.0f32, 15.0f32, 16.0f32,
         ],
         &Device::cpu(),
         false,
@@ -50,8 +50,8 @@ fn test_avg_pool2d() {
     let mut avg_pool = AvgPool2d::new((2, 2), None).unwrap();
     let input = Tensor::from_data(
         vec![
-            1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32, 9.0f32,
-            10.0f32, 11.0f32, 12.0f32, 13.0f32, 14.0f32, 15.0f32, 16.0f32,
+            1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32, 9.0f32, 10.0f32,
+            11.0f32, 12.0f32, 13.0f32, 14.0f32, 15.0f32, 16.0f32,
         ],
         &Device::cpu(),
         false,
@@ -69,8 +69,8 @@ fn test_avg_pool2d_with_stride() {
     let mut avg_pool = AvgPool2d::new((2, 2), Some((1, 1))).unwrap();
     let input = Tensor::from_data(
         vec![
-            1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32, 9.0f32,
-            10.0f32, 11.0f32, 12.0f32, 13.0f32, 14.0f32, 15.0f32, 16.0f32,
+            1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32, 9.0f32, 10.0f32,
+            11.0f32, 12.0f32, 13.0f32, 14.0f32, 15.0f32, 16.0f32,
         ],
         &Device::cpu(),
         false,

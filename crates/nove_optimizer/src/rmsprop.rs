@@ -366,9 +366,12 @@ impl Optimizer for Rmsprop {
                 continue;
             }
 
-            let grad = rmsprop_param.param.grad()?.ok_or(OptimizerError::OtherError(
-                "Rmsprop: parameter gradient is None".to_string(),
-            ))?;
+            let grad = rmsprop_param
+                .param
+                .grad()?
+                .ok_or(OptimizerError::OtherError(
+                    "Rmsprop: parameter gradient is None".to_string(),
+                ))?;
 
             // Apply weight decay if specified
             let grad_with_decay = if self.weight_decay > 0.0 {
@@ -394,12 +397,13 @@ impl Optimizer for Rmsprop {
 
             if self.momentum > 0.0 {
                 // Update momentum buffer: v_t = momentum * v_{t-1} + adaptive_term
-                let momentum_buffer = rmsprop_param
-                    .momentum_buffer
-                    .as_mut()
-                    .ok_or(OptimizerError::OtherError(
-                        "Rmsprop: momentum_buffer is None but momentum > 0".to_string(),
-                    ))?;
+                let momentum_buffer =
+                    rmsprop_param
+                        .momentum_buffer
+                        .as_mut()
+                        .ok_or(OptimizerError::OtherError(
+                            "Rmsprop: momentum_buffer is None but momentum > 0".to_string(),
+                        ))?;
 
                 let momentum_scaled = momentum_buffer.affine(self.momentum, 0.0)?;
                 let new_momentum = momentum_scaled.add(&adaptive_term)?;
@@ -408,12 +412,16 @@ impl Optimizer for Rmsprop {
                 // Update parameter: theta_t = theta_{t-1} - learning_rate * v_t
                 let update_scaled_by_lr = momentum_buffer.affine(self.learning_rate, 0.0)?;
                 let new_param = rmsprop_param.param.sub(&update_scaled_by_lr)?;
-                rmsprop_param.param.update_from_tensor(&new_param.detach()?)?;
+                rmsprop_param
+                    .param
+                    .update_from_tensor(&new_param.detach()?)?;
             } else {
                 // Update parameter directly: theta_t = theta_{t-1} - learning_rate * adaptive_term
                 let update_scaled_by_lr = adaptive_term.affine(self.learning_rate, 0.0)?;
                 let new_param = rmsprop_param.param.sub(&update_scaled_by_lr)?;
-                rmsprop_param.param.update_from_tensor(&new_param.detach()?)?;
+                rmsprop_param
+                    .param
+                    .update_from_tensor(&new_param.detach()?)?;
             }
         }
 

@@ -698,7 +698,7 @@ impl Model for LinearBlock {
 
 impl Display for LinearBlock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "linear_block{}(\n", self.id)?;
+        write!(f, "linear_block.{}(\n", self.id)?;
         write!(f, "  {},\n", self.linear)?;
         if let Some(ref bn) = self.batch_norm1d {
             write!(f, "  {},\n", bn)?;

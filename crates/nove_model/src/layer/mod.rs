@@ -12,12 +12,18 @@ pub use activation::SiLU;
 pub use activation::Sigmoid;
 pub use activation::Tanh;
 
-mod conv;
-pub use conv::Conv2d;
-pub use conv::Conv2dBuilder;
+mod conv2d;
+pub use conv2d::Conv2d;
+pub use conv2d::Conv2dBuilder;
+
+mod conv1d;
+pub use conv1d::Conv1d;
+pub use conv1d::Conv1dBuilder;
 
 mod pool;
+pub use pool::AvgPool1d;
 pub use pool::AvgPool2d;
+pub use pool::MaxPool1d;
 pub use pool::MaxPool2d;
 
 mod batch_norm2d;
@@ -35,3 +41,7 @@ pub use linear_block::LinearBlockBuilder;
 mod conv2d_block;
 pub use conv2d_block::Conv2dBlock;
 pub use conv2d_block::Conv2dBlockBuilder;
+
+mod conv1d_block;
+pub use conv1d_block::Conv1dBlock;
+pub use conv1d_block::Conv1dBlockBuilder;

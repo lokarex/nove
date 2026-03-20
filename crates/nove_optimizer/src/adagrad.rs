@@ -277,9 +277,12 @@ impl Optimizer for Adagrad {
                 continue;
             }
 
-            let grad = adagrad_param.param.grad()?.ok_or(OptimizerError::OtherError(
-                "Adagrad: parameter gradient is None".to_string(),
-            ))?;
+            let grad = adagrad_param
+                .param
+                .grad()?
+                .ok_or(OptimizerError::OtherError(
+                    "Adagrad: parameter gradient is None".to_string(),
+                ))?;
 
             // Apply weight decay if specified
             let grad_with_decay = if self.weight_decay > 0.0 {
@@ -302,7 +305,9 @@ impl Optimizer for Adagrad {
             let adaptive_term = grad_with_decay.div(&denom)?;
             let update_scaled_by_lr = adaptive_term.affine(self.learning_rate, 0.0)?;
             let new_param = adagrad_param.param.sub(&update_scaled_by_lr)?;
-            adagrad_param.param.update_from_tensor(&new_param.detach()?)?;
+            adagrad_param
+                .param
+                .update_from_tensor(&new_param.detach()?)?;
         }
 
         Ok(())

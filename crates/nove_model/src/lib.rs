@@ -38,6 +38,10 @@ pub enum ModelError {
     /// Missing argument.
     #[error("Missing argument: {0}")]
     MissingArgument(String),
+
+    /// Invalid input shape.
+    #[error("Invalid input shape: {0}")]
+    InvalidInputShape(String),
 }
 
 pub trait Model: Display {

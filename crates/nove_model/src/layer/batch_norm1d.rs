@@ -88,6 +88,126 @@ impl BatchNorm1d {
     pub fn running_var(&self) -> Tensor {
         self.running_var.copy()
     }
+
+    /// Apply batch normalization to 2D input tensor with shape [batch_size, num_features].
+    ///
+    /// # Arguments
+    /// * `input` - The input tensor with shape [batch_size, num_features].
+    /// * `training` - Whether the layer is in training mode.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The output tensor with the same shape as input if successful.
+    /// * `Err(ModelError)` - The error when applying batch normalization.
+    fn forward_batch_features(
+        &mut self,
+        input: Tensor,
+        training: bool,
+    ) -> Result<Tensor, ModelError> {
+        let perm = &[1, 0];
+        let stat_shape = Shape::from_dims(&[self.num_features]);
+        self.apply_batch_norm(input, training, perm, &stat_shape)
+    }
+
+    /// Apply batch normalization to 3D input tensor with shape [batch_size, num_features, length].
+    ///
+    /// # Arguments
+    /// * `input` - The input tensor with shape [batch_size, num_features, length].
+    /// * `training` - Whether the layer is in training mode.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The output tensor with the same shape as input if successful.
+    /// * `Err(ModelError)` - The error when applying batch normalization.
+    fn forward_batch_features_length(
+        &mut self,
+        input: Tensor,
+        training: bool,
+    ) -> Result<Tensor, ModelError> {
+        let perm = &[1, 0, 2];
+        let stat_shape = Shape::from_dims(&[self.num_features, 1]);
+        self.apply_batch_norm(input, training, perm, &stat_shape)
+    }
+
+    /// Internal helper function to apply batch normalization with given parameters.
+    ///
+    /// # Arguments
+    /// * `input` - The input tensor.
+    /// * `training` - Whether the layer is in training mode.
+    /// * `perm` - The permutation vector to rearrange dimensions for statistics computation.
+    /// * `stat_shape` - The shape for statistics tensors (mean, variance) to allow broadcasting.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The output tensor after batch normalization.
+    /// * `Err(ModelError)` - The error when applying batch normalization.
+    fn apply_batch_norm(
+        &mut self,
+        input: Tensor,
+        training: bool,
+        perm: &[usize],
+        stat_shape: &Shape,
+    ) -> Result<Tensor, ModelError> {
+        let input_shape = input.shape()?;
+        let total_size = input_shape.dims().iter().product::<usize>();
+
+        match training {
+            true => {
+                let reshaped_input = input.permute(perm)?.reshape(&Shape::from_dims(&[
+                    self.num_features,
+                    total_size / self.num_features,
+                ]))?;
+
+                let feature_mean = reshaped_input.mean(Some((1, false)))?.reshape(stat_shape)?;
+                let feature_bias_var = reshaped_input.var(1, false, false)?.reshape(stat_shape)?;
+                let feature_unbias_var = reshaped_input.var(1, false, true)?.reshape(stat_shape)?;
+
+                let feature_mean_flat =
+                    feature_mean.reshape(&Shape::from_dims(&[self.num_features]))?;
+                let feature_unbias_var_flat =
+                    feature_unbias_var.reshape(&Shape::from_dims(&[self.num_features]))?;
+
+                self.running_mean.update_from_tensor(
+                    &Tensor::add(
+                        &self.running_mean.affine(1f64 - self.momentum, 0f64)?,
+                        &feature_mean_flat.affine(self.momentum, 0f64)?,
+                    )?
+                    .detach()?,
+                )?;
+                self.running_var.update_from_tensor(
+                    &Tensor::add(
+                        &self.running_var.affine(1f64 - self.momentum, 0f64)?,
+                        &feature_unbias_var_flat.affine(self.momentum, 0f64)?,
+                    )?
+                    .detach()?,
+                )?;
+
+                let gamma_reshaped = self.gamma.reshape(stat_shape)?;
+                let beta_reshaped = self.beta.reshape(stat_shape)?;
+
+                Ok(Tensor::batch_norm(
+                    &input,
+                    &feature_mean,
+                    &feature_bias_var,
+                    self.epsilon,
+                    &gamma_reshaped,
+                    &beta_reshaped,
+                )?)
+            }
+            false => {
+                let running_mean_reshaped = self.running_mean.reshape(stat_shape)?;
+                let running_var_reshaped = self.running_var.reshape(stat_shape)?;
+                let gamma_reshaped = self.gamma.reshape(stat_shape)?;
+                let beta_reshaped = self.beta.reshape(stat_shape)?;
+
+                Ok(Tensor::batch_norm(
+                    &input,
+                    &running_mean_reshaped,
+                    &running_var_reshaped,
+                    self.epsilon,
+                    &gamma_reshaped,
+                    &beta_reshaped,
+                )?)
+            }
+        }
+    }
 }
 
 impl Model for BatchNorm1d {
@@ -106,56 +226,34 @@ impl Model for BatchNorm1d {
     /// * `Err(ModelError)` - The error when applying the batch normalization layer.
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, ModelError> {
         let (input, training) = input;
-        match training {
-            true => {
-                let total_size = input.shape()?.dims().iter().product::<usize>();
-                let reshaped_input = input.permute(&[1, 0])?.reshape(&Shape::from_dims(&[
-                    self.num_features,
-                    total_size / self.num_features,
-                ]))?;
+        let input_shape = input.shape()?;
+        let ndim = input_shape.dims().len();
 
-                let feature_mean = reshaped_input
-                    .mean(Some((1, false)))?
-                    .reshape(&Shape::from_dims(&[self.num_features]))?;
-                let feature_bias_var = reshaped_input
-                    .var(1, false, false)?
-                    .reshape(&Shape::from_dims(&[self.num_features]))?;
-                let feature_unbias_var = reshaped_input
-                    .var(1, false, true)?
-                    .reshape(&Shape::from_dims(&[self.num_features]))?;
+        if ndim != 2 && ndim != 3 {
+            return Err(ModelError::InvalidArgument(format!(
+                "BatchNorm1d expects 2D or 3D input, got {}D with shape {:?}",
+                ndim,
+                input_shape.dims()
+            )));
+        }
 
-                self.running_mean.update_from_tensor(
-                    &Tensor::add(
-                        &self.running_mean.affine(1f64 - self.momentum, 0f64)?,
-                        &feature_mean.affine(self.momentum, 0f64)?,
-                    )?
-                    .detach()?,
-                )?;
-                self.running_var.update_from_tensor(
-                    &Tensor::add(
-                        &self.running_var.affine(1f64 - self.momentum, 0f64)?,
-                        &feature_unbias_var.affine(self.momentum, 0f64)?,
-                    )?
-                    .detach()?,
-                )?;
+        if input_shape.dims()[1] != self.num_features {
+            return Err(ModelError::InvalidArgument(format!(
+                "BatchNorm1d expects input feature dimension {} to match num_features {}, got shape {:?}",
+                input_shape.dims()[1],
+                self.num_features,
+                input_shape.dims()
+            )));
+        }
 
-                Ok(Tensor::batch_norm(
-                    &input,
-                    &feature_mean,
-                    &feature_bias_var,
-                    self.epsilon,
-                    &self.gamma,
-                    &self.beta,
-                )?)
-            }
-            false => Ok(Tensor::batch_norm(
-                &input,
-                &self.running_mean,
-                &self.running_var,
-                self.epsilon,
-                &self.gamma,
-                &self.beta,
-            )?),
+        match ndim {
+            2 => self.forward_batch_features(input, training),
+            3 => self.forward_batch_features_length(input, training),
+            _ => Err(ModelError::InvalidArgument(format!(
+                "BatchNorm1d expects 2D or 3D input, got {}D with shape {:?}",
+                ndim,
+                input_shape.dims()
+            ))),
         }
     }
 

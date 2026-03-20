@@ -78,7 +78,11 @@ impl Tensor {
     /// let flattened = t3d.flatten(Some(1), Some(2)).unwrap();
     /// println!("{:?}", flattened);
     /// ```
-    pub fn flatten(&self, start_dim: Option<usize>, end_dim: Option<usize>) -> Result<Self, TensorError> {
+    pub fn flatten(
+        &self,
+        start_dim: Option<usize>,
+        end_dim: Option<usize>,
+    ) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
             TensorInner::Tensor(tensor) => tensor,
@@ -89,7 +93,9 @@ impl Tensor {
             (None, None) => TensorInner::Tensor(inner_tensor.flatten_all()?),
             (Some(start_dim), None) => TensorInner::Tensor(inner_tensor.flatten_from(start_dim)?),
             (None, Some(end_dim)) => TensorInner::Tensor(inner_tensor.flatten_to(end_dim)?),
-            (Some(start_dim), Some(end_dim)) => TensorInner::Tensor(inner_tensor.flatten(start_dim, end_dim)?),
+            (Some(start_dim), Some(end_dim)) => {
+                TensorInner::Tensor(inner_tensor.flatten(start_dim, end_dim)?)
+            }
         };
 
         Ok(Self {

@@ -48,8 +48,14 @@ impl Tensor {
         // Get the device from the first tensor
         let device = tensors
             .first()
-            .ok_or( TensorError::CandleError(candle_core::Error::Msg("empty tensor slice".to_string())))?
-            .as_ref().data.read()?.device.clone();
+            .ok_or(TensorError::CandleError(candle_core::Error::Msg(
+                "empty tensor slice".to_string(),
+            )))?
+            .as_ref()
+            .data
+            .read()?
+            .device
+            .clone();
 
         let new_inner = TensorInner::Tensor(new_inner_tensor);
 
@@ -104,13 +110,19 @@ impl Tensor {
                 }
             })
             .collect::<Result<Vec<_>, TensorError>>()?;
-        
+
         let new_inner_tensor = candle_core::Tensor::cat(&inner_tensors, dim)?;
 
         let device = tensors
             .first()
-            .ok_or( TensorError::CandleError(candle_core::Error::Msg("empty tensor slice".to_string())))?
-            .as_ref().data.read()?.device.clone();
+            .ok_or(TensorError::CandleError(candle_core::Error::Msg(
+                "empty tensor slice".to_string(),
+            )))?
+            .as_ref()
+            .data
+            .read()?
+            .device
+            .clone();
 
         let new_inner = TensorInner::Tensor(new_inner_tensor);
 
