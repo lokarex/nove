@@ -9,7 +9,7 @@ use nove::r#macro::Model;
 use nove::model::layer::{Conv2dBlock, Conv2dBlockBuilder, LinearBlock, LinearBlockBuilder};
 use nove::model::{Model, ModelError};
 use nove::optimizer::{OptimizerError, Sgd, SgdBuilder};
-use nove::tensor::{Device, Shape, Tensor};
+use nove::tensor::{Device, Tensor};
 
 pub fn model(device: Device) -> Result<Cifar10CNN, ModelError> {
     let cnn = Cifar10CNN::new(device)?;
@@ -61,10 +61,7 @@ impl Cifar10CNN {
         let mut x = self.conv1.forward((x, training))?;
         x = self.conv2.forward((x, training))?;
 
-        let shape = x.shape()?;
-        let batch_size = shape.dims()[0];
-        let flattened_size = shape.dims()[1] * shape.dims()[2] * shape.dims()[3];
-        x = x.reshape(&Shape::from(&[batch_size, flattened_size]))?;
+        x = x.flatten(Some(1), None)?;
 
         x = self.linear1.forward((x, training))?;
         x = self.linear2.forward((x, training))?;
