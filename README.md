@@ -1,6 +1,8 @@
 # nove
 
-[![License](https://img.shields.io/github/license/lokarex/nove?color=blue)](https://github.com/lokarex/nove/blob/main/LICENSE-MIT)
+[![Crates.io](https://img.shields.io/crates/v/nove?style=flat-square)](https://crates.io/crates/nove)
+[![Docs.rs](https://img.shields.io/badge/docs-latest-blue)](https://docs.rs/nove/latest/nove/)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/lokarex/nove/blob/main/LICENSE-MIT)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](https://github.com/lokarex/nove/blob/main/LICENSE-APACHE)
 
 **nove** is an easy-to-use, lightweight deep learning library for Rust, built on top of [Candle](https://github.com/huggingface/candle). It provides a high-level, PyTorch‑like API for training and evaluating neural networks, with built‑in support for common tasks like image classification, data loading, model building, optimization, and metrics tracking.
