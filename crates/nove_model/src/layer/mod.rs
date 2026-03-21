@@ -6,6 +6,7 @@ mod dropout;
 pub use dropout::Dropout;
 
 mod activation;
+pub use activation::Activation;
 pub use activation::GELU;
 pub use activation::ReLU;
 pub use activation::SiLU;
@@ -25,6 +26,8 @@ pub use pool::AvgPool1d;
 pub use pool::AvgPool2d;
 pub use pool::MaxPool1d;
 pub use pool::MaxPool2d;
+pub use pool::Pool1d;
+pub use pool::Pool2d;
 
 mod batch_norm2d;
 pub use batch_norm2d::BatchNorm2d;

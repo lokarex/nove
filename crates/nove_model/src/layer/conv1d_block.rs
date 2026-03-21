@@ -5,8 +5,9 @@ use nove_tensor::{DType, Device, Tensor};
 use crate::{Model, ModelError};
 
 use super::{
-    AvgPool1d, BatchNorm1d, BatchNorm1dBuilder, Conv1d, Conv1dBuilder, GELU, MaxPool1d, ReLU, SiLU,
-    Sigmoid, Tanh,
+    activation::Activation,
+    pool::Pool1d,
+    AvgPool1d, BatchNorm1d, BatchNorm1dBuilder, Conv1d, Conv1dBuilder, MaxPool1d,
 };
 
 static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -517,26 +518,26 @@ impl Conv1dBlockBuilder {
         };
 
         let activation = if self.use_relu {
-            Some(Conv1dBlockActivation::ReLU(ReLU::new()))
+            Some(Activation::relu())
         } else if self.use_gelu {
-            Some(Conv1dBlockActivation::GELU(GELU::new()))
+            Some(Activation::gelu())
         } else if self.use_silu {
-            Some(Conv1dBlockActivation::SiLU(SiLU::new()))
+            Some(Activation::silu())
         } else if self.use_tanh {
-            Some(Conv1dBlockActivation::Tanh(Tanh::new()))
+            Some(Activation::tanh())
         } else if self.use_sigmoid {
-            Some(Conv1dBlockActivation::Sigmoid(Sigmoid::new()))
+            Some(Activation::sigmoid())
         } else {
             None
         };
 
         let pool = if self.use_max_pool {
-            Some(Conv1dBlockPool::MaxPool(MaxPool1d::new(
+            Some(Pool1d::MaxPool1d(MaxPool1d::new(
                 self.pool_kernel_size,
                 Some(self.pool_stride),
             )?))
         } else if self.use_avg_pool {
-            Some(Conv1dBlockPool::AvgPool(AvgPool1d::new(
+            Some(Pool1d::AvgPool1d(AvgPool1d::new(
                 self.pool_kernel_size,
                 Some(self.pool_stride),
             )?))
@@ -554,156 +555,7 @@ impl Conv1dBlockBuilder {
     }
 }
 
-/// Activation function for conv1d block.
-#[derive(Debug, Clone)]
-pub enum Conv1dBlockActivation {
-    /// ReLU activation function.
-    ReLU(ReLU),
-    /// GELU activation function.
-    GELU(GELU),
-    /// SiLU activation function.
-    SiLU(SiLU),
-    /// Tanh activation function.
-    Tanh(Tanh),
-    /// Sigmoid activation function.
-    Sigmoid(Sigmoid),
-}
 
-impl Conv1dBlockActivation {
-    fn forward(&mut self, input: Tensor) -> Result<Tensor, ModelError> {
-        match self {
-            Self::ReLU(layer) => layer.forward(input),
-            Self::GELU(layer) => layer.forward(input),
-            Self::SiLU(layer) => layer.forward(input),
-            Self::Tanh(layer) => layer.forward(input),
-            Self::Sigmoid(layer) => layer.forward(input),
-        }
-    }
-
-    fn require_grad(&mut self, grad_enabled: bool) -> Result<(), ModelError> {
-        match self {
-            Self::ReLU(layer) => layer.require_grad(grad_enabled),
-            Self::GELU(layer) => layer.require_grad(grad_enabled),
-            Self::SiLU(layer) => layer.require_grad(grad_enabled),
-            Self::Tanh(layer) => layer.require_grad(grad_enabled),
-            Self::Sigmoid(layer) => layer.require_grad(grad_enabled),
-        }
-    }
-
-    fn to_device(&mut self, device: &Device) -> Result<(), ModelError> {
-        match self {
-            Self::ReLU(layer) => layer.to_device(device),
-            Self::GELU(layer) => layer.to_device(device),
-            Self::SiLU(layer) => layer.to_device(device),
-            Self::Tanh(layer) => layer.to_device(device),
-            Self::Sigmoid(layer) => layer.to_device(device),
-        }
-    }
-
-    fn to_dtype(&mut self, dtype: &DType) -> Result<(), ModelError> {
-        match self {
-            Self::ReLU(layer) => layer.to_dtype(dtype),
-            Self::GELU(layer) => layer.to_dtype(dtype),
-            Self::SiLU(layer) => layer.to_dtype(dtype),
-            Self::Tanh(layer) => layer.to_dtype(dtype),
-            Self::Sigmoid(layer) => layer.to_dtype(dtype),
-        }
-    }
-
-    fn parameters(&self) -> Result<Vec<Tensor>, ModelError> {
-        match self {
-            Self::ReLU(layer) => layer.parameters(),
-            Self::GELU(layer) => layer.parameters(),
-            Self::SiLU(layer) => layer.parameters(),
-            Self::Tanh(layer) => layer.parameters(),
-            Self::Sigmoid(layer) => layer.parameters(),
-        }
-    }
-
-    fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
-        match self {
-            Self::ReLU(layer) => layer.named_parameters(),
-            Self::GELU(layer) => layer.named_parameters(),
-            Self::SiLU(layer) => layer.named_parameters(),
-            Self::Tanh(layer) => layer.named_parameters(),
-            Self::Sigmoid(layer) => layer.named_parameters(),
-        }
-    }
-}
-
-impl Display for Conv1dBlockActivation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ReLU(layer) => write!(f, "{}", layer),
-            Self::GELU(layer) => write!(f, "{}", layer),
-            Self::SiLU(layer) => write!(f, "{}", layer),
-            Self::Tanh(layer) => write!(f, "{}", layer),
-            Self::Sigmoid(layer) => write!(f, "{}", layer),
-        }
-    }
-}
-
-/// Pooling layer for conv1d block.
-#[derive(Debug, Clone)]
-pub enum Conv1dBlockPool {
-    /// Max pooling 1D layer.
-    MaxPool(MaxPool1d),
-    /// Average pooling 1D layer.
-    AvgPool(AvgPool1d),
-}
-
-impl Conv1dBlockPool {
-    fn forward(&mut self, input: Tensor) -> Result<Tensor, ModelError> {
-        match self {
-            Self::MaxPool(layer) => layer.forward(input),
-            Self::AvgPool(layer) => layer.forward(input),
-        }
-    }
-
-    fn require_grad(&mut self, grad_enabled: bool) -> Result<(), ModelError> {
-        match self {
-            Self::MaxPool(layer) => layer.require_grad(grad_enabled),
-            Self::AvgPool(layer) => layer.require_grad(grad_enabled),
-        }
-    }
-
-    fn to_device(&mut self, device: &Device) -> Result<(), ModelError> {
-        match self {
-            Self::MaxPool(layer) => layer.to_device(device),
-            Self::AvgPool(layer) => layer.to_device(device),
-        }
-    }
-
-    fn to_dtype(&mut self, dtype: &DType) -> Result<(), ModelError> {
-        match self {
-            Self::MaxPool(layer) => layer.to_dtype(dtype),
-            Self::AvgPool(layer) => layer.to_dtype(dtype),
-        }
-    }
-
-    fn parameters(&self) -> Result<Vec<Tensor>, ModelError> {
-        match self {
-            Self::MaxPool(layer) => layer.parameters(),
-            Self::AvgPool(layer) => layer.parameters(),
-        }
-    }
-
-    fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
-        match self {
-            Self::MaxPool(layer) => layer.named_parameters(),
-            Self::AvgPool(layer) => layer.named_parameters(),
-        }
-    }
-}
-
-impl Display for Conv1dBlockPool {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::MaxPool(pool) => write!(f, "{}", pool),
-            Self::AvgPool(pool) => write!(f, "{}", pool),
-        }
-    }
-}
 
 /// 1D convolutional block.
 ///
@@ -733,8 +585,8 @@ impl Display for Conv1dBlockPool {
 pub struct Conv1dBlock {
     conv: Conv1d,
     batch_norm1d: Option<BatchNorm1d>,
-    activation: Option<Conv1dBlockActivation>,
-    pool: Option<Conv1dBlockPool>,
+    activation: Option<Activation>,
+    pool: Option<Pool1d>,
     id: usize,
 }
 

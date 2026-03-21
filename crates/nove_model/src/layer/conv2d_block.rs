@@ -5,8 +5,8 @@ use nove_tensor::{DType, Device, Tensor};
 use crate::{Model, ModelError};
 
 use super::{
-    AvgPool2d, BatchNorm2d, BatchNorm2dBuilder, Conv2d, Conv2dBuilder, GELU, MaxPool2d, ReLU, SiLU,
-    Sigmoid, Tanh,
+    Activation, AvgPool2d, BatchNorm2d, BatchNorm2dBuilder, Conv2d, Conv2dBuilder, MaxPool2d,
+    Pool2d,
 };
 
 static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -493,26 +493,26 @@ impl Conv2dBlockBuilder {
         };
 
         let activation = if self.use_relu {
-            Some(Conv2dBlockActivation::ReLU(ReLU::new()))
+            Some(Activation::relu())
         } else if self.use_gelu {
-            Some(Conv2dBlockActivation::GELU(GELU::new()))
+            Some(Activation::gelu())
         } else if self.use_silu {
-            Some(Conv2dBlockActivation::SiLU(SiLU::new()))
+            Some(Activation::silu())
         } else if self.use_tanh {
-            Some(Conv2dBlockActivation::Tanh(Tanh::new()))
+            Some(Activation::tanh())
         } else if self.use_sigmoid {
-            Some(Conv2dBlockActivation::Sigmoid(Sigmoid::new()))
+            Some(Activation::sigmoid())
         } else {
             None
         };
 
         let pool = if self.use_max_pool {
-            Some(Conv2dBlockPool::MaxPool2d(MaxPool2d::new(
+            Some(Pool2d::MaxPool2d(MaxPool2d::new(
                 self.pool_kernel_size,
                 Some(self.pool_stride),
             )?))
         } else if self.use_avg_pool {
-            Some(Conv2dBlockPool::AvgPool2d(AvgPool2d::new(
+            Some(Pool2d::AvgPool2d(AvgPool2d::new(
                 self.pool_kernel_size,
                 Some(self.pool_stride),
             )?))
@@ -532,160 +532,7 @@ impl Conv2dBlockBuilder {
     }
 }
 
-/// Conv2d block activation layer enum.
-///
-/// # Variants
-/// * `ReLU` - Rectified Linear Unit activation layer.
-/// * `GELU` - Gaussian Error Linear Unit activation layer.
-/// * `SiLU` - Sigmoid Linear Unit activation layer.
-/// * `Tanh` - Hyperbolic tangent activation layer.
-/// * `Sigmoid` - Sigmoid activation layer.
-#[derive(Debug, Clone)]
-enum Conv2dBlockActivation {
-    ReLU(ReLU),
-    GELU(GELU),
-    SiLU(SiLU),
-    Tanh(Tanh),
-    Sigmoid(Sigmoid),
-}
 
-impl Conv2dBlockActivation {
-    fn forward(&mut self, input: Tensor) -> Result<Tensor, ModelError> {
-        match self {
-            Conv2dBlockActivation::ReLU(layer) => layer.forward(input),
-            Conv2dBlockActivation::GELU(layer) => layer.forward(input),
-            Conv2dBlockActivation::SiLU(layer) => layer.forward(input),
-            Conv2dBlockActivation::Tanh(layer) => layer.forward(input),
-            Conv2dBlockActivation::Sigmoid(layer) => layer.forward(input),
-        }
-    }
-
-    fn require_grad(&mut self, grad_enabled: bool) -> Result<(), ModelError> {
-        match self {
-            Conv2dBlockActivation::ReLU(layer) => layer.require_grad(grad_enabled),
-            Conv2dBlockActivation::GELU(layer) => layer.require_grad(grad_enabled),
-            Conv2dBlockActivation::SiLU(layer) => layer.require_grad(grad_enabled),
-            Conv2dBlockActivation::Tanh(layer) => layer.require_grad(grad_enabled),
-            Conv2dBlockActivation::Sigmoid(layer) => layer.require_grad(grad_enabled),
-        }
-    }
-
-    fn to_device(&mut self, device: &Device) -> Result<(), ModelError> {
-        match self {
-            Conv2dBlockActivation::ReLU(layer) => layer.to_device(device),
-            Conv2dBlockActivation::GELU(layer) => layer.to_device(device),
-            Conv2dBlockActivation::SiLU(layer) => layer.to_device(device),
-            Conv2dBlockActivation::Tanh(layer) => layer.to_device(device),
-            Conv2dBlockActivation::Sigmoid(layer) => layer.to_device(device),
-        }
-    }
-
-    fn to_dtype(&mut self, dtype: &DType) -> Result<(), ModelError> {
-        match self {
-            Conv2dBlockActivation::ReLU(layer) => layer.to_dtype(dtype),
-            Conv2dBlockActivation::GELU(layer) => layer.to_dtype(dtype),
-            Conv2dBlockActivation::SiLU(layer) => layer.to_dtype(dtype),
-            Conv2dBlockActivation::Tanh(layer) => layer.to_dtype(dtype),
-            Conv2dBlockActivation::Sigmoid(layer) => layer.to_dtype(dtype),
-        }
-    }
-
-    fn parameters(&self) -> Result<Vec<Tensor>, ModelError> {
-        match self {
-            Conv2dBlockActivation::ReLU(layer) => layer.parameters(),
-            Conv2dBlockActivation::GELU(layer) => layer.parameters(),
-            Conv2dBlockActivation::SiLU(layer) => layer.parameters(),
-            Conv2dBlockActivation::Tanh(layer) => layer.parameters(),
-            Conv2dBlockActivation::Sigmoid(layer) => layer.parameters(),
-        }
-    }
-
-    fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
-        match self {
-            Conv2dBlockActivation::ReLU(layer) => layer.named_parameters(),
-            Conv2dBlockActivation::GELU(layer) => layer.named_parameters(),
-            Conv2dBlockActivation::SiLU(layer) => layer.named_parameters(),
-            Conv2dBlockActivation::Tanh(layer) => layer.named_parameters(),
-            Conv2dBlockActivation::Sigmoid(layer) => layer.named_parameters(),
-        }
-    }
-}
-
-impl Display for Conv2dBlockActivation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Conv2dBlockActivation::ReLU(layer) => write!(f, "{}", layer),
-            Conv2dBlockActivation::GELU(layer) => write!(f, "{}", layer),
-            Conv2dBlockActivation::SiLU(layer) => write!(f, "{}", layer),
-            Conv2dBlockActivation::Tanh(layer) => write!(f, "{}", layer),
-            Conv2dBlockActivation::Sigmoid(layer) => write!(f, "{}", layer),
-        }
-    }
-}
-
-/// Conv2d block pool layer enum.
-///
-/// # Variants
-/// * `MaxPool2d` - 2D max pooling layer.
-/// * `AvgPool2d` - 2D average pooling layer.
-#[derive(Debug, Clone)]
-enum Conv2dBlockPool {
-    MaxPool2d(MaxPool2d),
-    AvgPool2d(AvgPool2d),
-}
-
-impl Conv2dBlockPool {
-    fn forward(&mut self, input: Tensor) -> Result<Tensor, ModelError> {
-        match self {
-            Conv2dBlockPool::MaxPool2d(layer) => layer.forward(input),
-            Conv2dBlockPool::AvgPool2d(layer) => layer.forward(input),
-        }
-    }
-
-    fn require_grad(&mut self, grad_enabled: bool) -> Result<(), ModelError> {
-        match self {
-            Conv2dBlockPool::MaxPool2d(layer) => layer.require_grad(grad_enabled),
-            Conv2dBlockPool::AvgPool2d(layer) => layer.require_grad(grad_enabled),
-        }
-    }
-
-    fn to_device(&mut self, device: &Device) -> Result<(), ModelError> {
-        match self {
-            Conv2dBlockPool::MaxPool2d(layer) => layer.to_device(device),
-            Conv2dBlockPool::AvgPool2d(layer) => layer.to_device(device),
-        }
-    }
-
-    fn to_dtype(&mut self, dtype: &DType) -> Result<(), ModelError> {
-        match self {
-            Conv2dBlockPool::MaxPool2d(layer) => layer.to_dtype(dtype),
-            Conv2dBlockPool::AvgPool2d(layer) => layer.to_dtype(dtype),
-        }
-    }
-
-    fn parameters(&self) -> Result<Vec<Tensor>, ModelError> {
-        match self {
-            Conv2dBlockPool::MaxPool2d(layer) => layer.parameters(),
-            Conv2dBlockPool::AvgPool2d(layer) => layer.parameters(),
-        }
-    }
-
-    fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
-        match self {
-            Conv2dBlockPool::MaxPool2d(layer) => layer.named_parameters(),
-            Conv2dBlockPool::AvgPool2d(layer) => layer.named_parameters(),
-        }
-    }
-}
-
-impl Display for Conv2dBlockPool {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Conv2dBlockPool::MaxPool2d(layer) => write!(f, "{}", layer),
-            Conv2dBlockPool::AvgPool2d(layer) => write!(f, "{}", layer),
-        }
-    }
-}
 
 /// Conv2d block.
 ///
@@ -715,8 +562,8 @@ impl Display for Conv2dBlockPool {
 pub struct Conv2dBlock {
     conv: Conv2d,
     batch_norm2d: Option<BatchNorm2d>,
-    activation: Option<Conv2dBlockActivation>,
-    pool: Option<Conv2dBlockPool>,
+    activation: Option<Activation>,
+    pool: Option<Pool2d>,
     id: usize,
 }
 

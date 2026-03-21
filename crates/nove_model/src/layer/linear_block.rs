@@ -5,8 +5,7 @@ use nove_tensor::{DType, Device, Tensor};
 use crate::{Model, ModelError};
 
 use super::{
-    BatchNorm1d, BatchNorm1dBuilder, Dropout, GELU, Linear, LinearBuilder, ReLU, SiLU, Sigmoid,
-    Tanh,
+    Activation, BatchNorm1d, BatchNorm1dBuilder, Dropout, Linear, LinearBuilder,
 };
 
 static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -428,15 +427,15 @@ impl LinearBlockBuilder {
         };
 
         let activation = if self.use_relu {
-            Some(LinearBlockActivation::ReLU(ReLU::new()))
+            Some(Activation::relu())
         } else if self.use_gelu {
-            Some(LinearBlockActivation::GELU(GELU::new()))
+            Some(Activation::gelu())
         } else if self.use_silu {
-            Some(LinearBlockActivation::SiLU(SiLU::new()))
+            Some(Activation::silu())
         } else if self.use_tanh {
-            Some(LinearBlockActivation::Tanh(Tanh::new()))
+            Some(Activation::tanh())
         } else if self.use_sigmoid {
-            Some(LinearBlockActivation::Sigmoid(Sigmoid::new()))
+            Some(Activation::sigmoid())
         } else {
             None
         };
@@ -459,96 +458,7 @@ impl LinearBlockBuilder {
     }
 }
 
-/// Linear block layer enum.
-///
-/// # Variants
-/// * `ReLU` - Rectified Linear Unit activation layer.
-/// * `GELU` - Gaussian Error Linear Unit activation layer.
-/// * `SiLU` - Sigmoid Linear Unit activation layer.
-/// * `Tanh` - Hyperbolic tangent activation layer.
-/// * `Sigmoid` - Sigmoid activation layer.
-#[derive(Debug, Clone)]
-enum LinearBlockActivation {
-    ReLU(ReLU),
-    GELU(GELU),
-    SiLU(SiLU),
-    Tanh(Tanh),
-    Sigmoid(Sigmoid),
-}
 
-impl LinearBlockActivation {
-    fn forward(&mut self, input: Tensor) -> Result<Tensor, ModelError> {
-        match self {
-            LinearBlockActivation::ReLU(layer) => layer.forward(input),
-            LinearBlockActivation::GELU(layer) => layer.forward(input),
-            LinearBlockActivation::SiLU(layer) => layer.forward(input),
-            LinearBlockActivation::Tanh(layer) => layer.forward(input),
-            LinearBlockActivation::Sigmoid(layer) => layer.forward(input),
-        }
-    }
-
-    fn require_grad(&mut self, grad_enabled: bool) -> Result<(), ModelError> {
-        match self {
-            LinearBlockActivation::ReLU(layer) => layer.require_grad(grad_enabled),
-            LinearBlockActivation::GELU(layer) => layer.require_grad(grad_enabled),
-            LinearBlockActivation::SiLU(layer) => layer.require_grad(grad_enabled),
-            LinearBlockActivation::Tanh(layer) => layer.require_grad(grad_enabled),
-            LinearBlockActivation::Sigmoid(layer) => layer.require_grad(grad_enabled),
-        }
-    }
-
-    fn to_device(&mut self, device: &Device) -> Result<(), ModelError> {
-        match self {
-            LinearBlockActivation::ReLU(layer) => layer.to_device(device),
-            LinearBlockActivation::GELU(layer) => layer.to_device(device),
-            LinearBlockActivation::SiLU(layer) => layer.to_device(device),
-            LinearBlockActivation::Tanh(layer) => layer.to_device(device),
-            LinearBlockActivation::Sigmoid(layer) => layer.to_device(device),
-        }
-    }
-
-    fn to_dtype(&mut self, dtype: &DType) -> Result<(), ModelError> {
-        match self {
-            LinearBlockActivation::ReLU(layer) => layer.to_dtype(dtype),
-            LinearBlockActivation::GELU(layer) => layer.to_dtype(dtype),
-            LinearBlockActivation::SiLU(layer) => layer.to_dtype(dtype),
-            LinearBlockActivation::Tanh(layer) => layer.to_dtype(dtype),
-            LinearBlockActivation::Sigmoid(layer) => layer.to_dtype(dtype),
-        }
-    }
-
-    fn parameters(&self) -> Result<Vec<Tensor>, ModelError> {
-        match self {
-            LinearBlockActivation::ReLU(layer) => layer.parameters(),
-            LinearBlockActivation::GELU(layer) => layer.parameters(),
-            LinearBlockActivation::SiLU(layer) => layer.parameters(),
-            LinearBlockActivation::Tanh(layer) => layer.parameters(),
-            LinearBlockActivation::Sigmoid(layer) => layer.parameters(),
-        }
-    }
-
-    fn named_parameters(&self) -> Result<HashMap<String, Tensor>, ModelError> {
-        match self {
-            LinearBlockActivation::ReLU(layer) => layer.named_parameters(),
-            LinearBlockActivation::GELU(layer) => layer.named_parameters(),
-            LinearBlockActivation::SiLU(layer) => layer.named_parameters(),
-            LinearBlockActivation::Tanh(layer) => layer.named_parameters(),
-            LinearBlockActivation::Sigmoid(layer) => layer.named_parameters(),
-        }
-    }
-}
-
-impl Display for LinearBlockActivation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LinearBlockActivation::ReLU(layer) => write!(f, "{}", layer),
-            LinearBlockActivation::GELU(layer) => write!(f, "{}", layer),
-            LinearBlockActivation::SiLU(layer) => write!(f, "{}", layer),
-            LinearBlockActivation::Tanh(layer) => write!(f, "{}", layer),
-            LinearBlockActivation::Sigmoid(layer) => write!(f, "{}", layer),
-        }
-    }
-}
 
 /// Linear (fully connected) block.
 ///
@@ -577,7 +487,7 @@ impl Display for LinearBlockActivation {
 pub struct LinearBlock {
     linear: Linear,
     batch_norm1d: Option<BatchNorm1d>,
-    activation: Option<LinearBlockActivation>,
+    activation: Option<Activation>,
     dropout: Option<Dropout>,
     id: usize,
 }
