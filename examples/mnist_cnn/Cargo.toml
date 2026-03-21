@@ -10,3 +10,8 @@ publish = false
 
 [dependencies]
 nove = { path = "../../crates/nove", features = ["cuda"] }
+
+[features]
+default = []
+cuda = ["nove/cuda"]
+metal = ["nove/metal"]

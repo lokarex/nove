@@ -8,6 +8,10 @@ pub enum DeviceError {
     #[error("Error from Candle: {0}")]
     CandleError(#[from] candle_core::Error),
 
+    /// Backend feature is not enabled.
+    #[error("Backend feature is not enabled: {0}")]
+    BackendFeatureNotEnabled(String),
+
     /// Other errors.
     #[error("Other error: {0}")]
     OtherError(String),
@@ -17,9 +21,7 @@ pub enum DeviceError {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum DeviceKind {
     Cpu,
-    #[cfg(feature = "cuda")]
     Cuda,
-    #[cfg(feature = "metal")]
     Metal,
 }
 
@@ -27,7 +29,7 @@ pub enum DeviceKind {
 ///
 /// # Fields
 /// * `inner` - The inner device from candle.
-/// * `kind` - The type of the device.
+/// * `kind` - The kind of compute device.
 /// * `index` - The index of the device.
 #[derive(Debug, Clone)]
 pub struct Device {
@@ -76,13 +78,19 @@ impl Device {
     ///     Err(err) => println!("{:?}", err),
     /// }
     /// ```
-    #[cfg(feature = "cuda")]
+
     pub fn cuda(index: usize) -> Result<Self, DeviceError> {
-        Ok(Self {
+        #[cfg(feature = "cuda")]
+        return Ok(Self {
             inner: candle_core::Device::new_cuda(index)?,
             kind: DeviceKind::Cuda,
             index,
-        })
+        });
+        #[cfg(not(feature = "cuda"))]
+        {
+            let _ = index;
+            return Err(DeviceError::BackendFeatureNotEnabled("cuda".to_string()));
+        }
     }
 
     /// Get the CUDA device with the given index if available.
@@ -103,7 +111,6 @@ impl Device {
     /// let device = Device::cuda_if_available(0);
     /// println!("{:?}", device);
     /// ```
-    #[cfg(feature = "cuda")]
     pub fn cuda_if_available(index: usize) -> Self {
         let (device, kind, index) = match candle_core::Device::new_cuda(index) {
             Ok(device) => (device, DeviceKind::Cuda, index),
@@ -136,13 +143,18 @@ impl Device {
     ///     Err(err) => println!("{:?}", err),
     /// }
     /// ```
-    #[cfg(feature = "metal")]
     pub fn metal(index: usize) -> Result<Self, DeviceError> {
-        Ok(Self {
+        #[cfg(feature = "metal")]
+        return Ok(Self {
             inner: candle_core::Device::new_metal(index)?,
             kind: DeviceKind::Metal,
             index,
-        })
+        });
+        #[cfg(not(feature = "metal"))]
+        {
+            let _ = index;
+            return Err(DeviceError::BackendFeatureNotEnabled("metal".to_string()));
+        }
     }
 
     /// Get the Metal device with the given index if available.
@@ -163,7 +175,6 @@ impl Device {
     /// let device = Device::metal_if_available(0);
     /// println!("{:?}", device);
     /// ```
-    #[cfg(feature = "metal")]
     pub fn metal_if_available(index: usize) -> Self {
         let (device, kind, index) = match candle_core::Device::new_metal(index) {
             Ok(device) => (device, DeviceKind::Metal, index),
@@ -241,7 +252,6 @@ impl Device {
     /// let is_cuda = device.is_cuda();
     /// println!("{}", is_cuda);
     /// ```
-    #[cfg(feature = "cuda")]
     pub fn is_cuda(&self) -> bool {
         self.kind == DeviceKind::Cuda
     }
@@ -259,7 +269,6 @@ impl Device {
     /// let is_metal = device.is_metal();
     /// println!("{}", is_metal);
     /// ```
-    #[cfg(feature = "metal")]
     pub fn is_metal(&self) -> bool {
         self.kind == DeviceKind::Metal
     }
@@ -307,9 +316,7 @@ impl Display for DeviceKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DeviceKind::Cpu => write!(f, "cpu"),
-            #[cfg(feature = "cuda")]
             DeviceKind::Cuda => write!(f, "cuda"),
-            #[cfg(feature = "metal")]
             DeviceKind::Metal => write!(f, "metal"),
         }
     }
@@ -319,9 +326,7 @@ impl Display for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
             DeviceKind::Cpu => write!(f, "{}", self.kind),
-            #[cfg(feature = "cuda")]
             DeviceKind::Cuda => write!(f, "{}({})", self.kind, self.index),
-            #[cfg(feature = "metal")]
             DeviceKind::Metal => write!(f, "{}({})", self.kind, self.index),
         }
     }

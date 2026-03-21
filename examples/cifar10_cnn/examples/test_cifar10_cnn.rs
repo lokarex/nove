@@ -12,7 +12,12 @@ use nove::{
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let device = Device::cuda(0)?;
+    #[cfg(not(any(feature = "cuda", feature = "metal")))]
+    let device = Device::cpu();
+    #[cfg(feature = "cuda")]
+    let device = Device::cuda_if_available(0);
+    #[cfg(feature = "metal")]
+    let device = Device::metal_if_available(0);
 
     println!("Loading CIFAR-10 dataset and creating dataloaders...");
     let batch_size = 64;
