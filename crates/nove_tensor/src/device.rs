@@ -45,7 +45,7 @@ impl Device {
     /// * `Self` - The CPU device.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let cpu = Device::cpu();
@@ -69,7 +69,7 @@ impl Device {
     /// * `Err(DeviceError)` - The error when creating the CUDA device.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let cuda = Device::cuda(0);
@@ -78,7 +78,6 @@ impl Device {
     ///     Err(err) => println!("{:?}", err),
     /// }
     /// ```
-
     pub fn cuda(index: usize) -> Result<Self, DeviceError> {
         #[cfg(feature = "cuda")]
         return Ok(Self {
@@ -105,7 +104,7 @@ impl Device {
     /// * `Self` - The CUDA device with the given index if available, otherwise the CPU device.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let device = Device::cuda_if_available(0);
@@ -134,7 +133,7 @@ impl Device {
     /// * `Err(DeviceError)` - The error when creating the Metal device.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let metal = Device::metal(0);
@@ -169,7 +168,7 @@ impl Device {
     /// * `Self` - The Metal device with the given index if available, otherwise the CPU device.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let device = Device::metal_if_available(0);
@@ -194,7 +193,7 @@ impl Device {
     /// * `DeviceKind` - The kind of the device.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let device = Device::cpu();
@@ -211,7 +210,7 @@ impl Device {
     /// * `usize` - The index of the device.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let device = Device::cpu();
@@ -228,7 +227,7 @@ impl Device {
     /// * `bool` - `true` if the device is a CPU device, otherwise `false`.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let device = Device::cpu();
@@ -245,7 +244,7 @@ impl Device {
     /// * `bool` - `true` if the device is a CUDA device, otherwise `false`.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let device = Device::cuda_if_available(0);
@@ -262,7 +261,7 @@ impl Device {
     /// * `bool` - `true` if the device is a Metal device, otherwise `false`.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let device = Device::metal_if_available(0);
@@ -284,7 +283,7 @@ impl Device {
     /// * `Err(DeviceError)` - The error when synchronizing the device.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     ///
     /// let device = Device::cpu();

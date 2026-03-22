@@ -6,7 +6,9 @@ use nove::dataloader::common::{
 use nove::dataset::resource::{Mnist, MnistDataset};
 use nove::lossfn::CrossEntropyLoss;
 use nove::r#macro::Model;
-use nove::model::layer::{Conv2dBlock, Conv2dBlockBuilder, LinearBlock, LinearBlockBuilder};
+use nove::model::layer::{
+    Activation, Conv2dBlock, Conv2dBlockBuilder, LinearBlock, LinearBlockBuilder, Pool2d,
+};
 use nove::model::{Model, ModelError};
 use nove::optimizer::{Sgd, SgdBuilder};
 use nove::tensor::{Device, Tensor};
@@ -29,17 +31,17 @@ pub struct MnistCNN {
 impl MnistCNN {
     fn new(device: Device) -> Result<Self, ModelError> {
         let conv1 = Conv2dBlockBuilder::new(3, 32, (3, 3), 1, 1)
-            .with_relu()
-            .with_max_pool((2, 2), (2, 2))
+            .with_activation(Activation::relu())
+            .with_pool2d(Pool2d::max_pool2d((2, 2), Some((2, 2)))?)
             .device(device.clone())
             .build()?;
         let conv2 = Conv2dBlockBuilder::new(32, 64, (3, 3), 1, 1)
-            .with_relu()
-            .with_max_pool((2, 2), (2, 2))
+            .with_activation(Activation::relu())
+            .with_pool2d(Pool2d::max_pool2d((2, 2), Some((2, 2)))?)
             .device(device.clone())
             .build()?;
         let linear1 = LinearBlockBuilder::new(3136, 128)
-            .with_relu()
+            .with_activation(Activation::relu())
             .device(device.clone())
             .build()?;
         let linear2 = LinearBlockBuilder::new(128, 10)

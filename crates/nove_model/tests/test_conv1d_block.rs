@@ -1,4 +1,7 @@
-use nove_model::{Model, layer::Conv1dBlockBuilder};
+use nove_model::{
+    Model,
+    layer::{Activation, AvgPool1d, Conv1dBlockBuilder, MaxPool1d, Pool1d},
+};
 use nove_tensor::{DType, Device, Shape, Tensor};
 
 #[test]
@@ -10,7 +13,7 @@ fn test_conv1d_block_basic() {
 
     // Build conv1d block with ReLU activation
     let mut block = Conv1dBlockBuilder::new(3, 5, 3, 1, 0)
-        .with_relu()
+        .with_activation(Activation::relu())
         .device(device.clone())
         .build()
         .unwrap();
@@ -51,7 +54,7 @@ fn test_conv1d_block_with_pooling() {
 
     // Block with max pooling
     let mut block = Conv1dBlockBuilder::new(2, 4, 3, 1, 0)
-        .with_max_pool(2, 2)
+        .with_pool1d(Pool1d::MaxPool1d(MaxPool1d::new(2, Some(2)).unwrap()))
         .device(device.clone())
         .build()
         .unwrap();
@@ -73,7 +76,7 @@ fn test_conv1d_block_with_avg_pooling() {
         .unwrap();
 
     let mut block = Conv1dBlockBuilder::new(1, 2, 5, 1, 0)
-        .with_avg_pool(4, 4)
+        .with_pool1d(Pool1d::AvgPool1d(AvgPool1d::new(4, Some(4)).unwrap()))
         .device(device.clone())
         .build()
         .unwrap();
@@ -92,9 +95,9 @@ fn test_conv1d_block_with_activation_and_pooling() {
     let input = Tensor::randn(0.0f32, 1.0, &Shape::from(&[2, 3, 14]), &device, false).unwrap();
 
     let mut block = Conv1dBlockBuilder::new(3, 6, 3, 2, 1)
-        .with_gelu()
+        .with_activation(Activation::gelu())
         .with_batch_norm1d()
-        .with_avg_pool(2, 2)
+        .with_pool1d(Pool1d::AvgPool1d(AvgPool1d::new(2, Some(2)).unwrap()))
         .device(device.clone())
         .build()
         .unwrap();

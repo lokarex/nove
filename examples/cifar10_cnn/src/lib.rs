@@ -6,7 +6,9 @@ use nove::dataloader::common::{
 use nove::dataset::resource::{Cifar10, Cifar10Dataset};
 use nove::lossfn::CrossEntropyLoss;
 use nove::r#macro::Model;
-use nove::model::layer::{Conv2dBlock, Conv2dBlockBuilder, LinearBlock, LinearBlockBuilder};
+use nove::model::layer::{
+    Activation, Conv2dBlock, Conv2dBlockBuilder, LinearBlock, LinearBlockBuilder, MaxPool2d, Pool2d,
+};
 use nove::model::{Model, ModelError};
 use nove::optimizer::{OptimizerError, Sgd, SgdBuilder};
 use nove::tensor::{Device, Tensor};
@@ -30,18 +32,18 @@ impl Cifar10CNN {
     fn new(device: Device) -> Result<Self, ModelError> {
         let conv1 = Conv2dBlockBuilder::new(3, 32, (3, 3), 1, 1)
             .with_batch_norm2d()
-            .with_relu()
-            .with_max_pool((2, 2), (2, 2))
+            .with_activation(Activation::relu())
+            .with_pool2d(Pool2d::MaxPool2d(MaxPool2d::new((2, 2), Some((2, 2)))?))
             .device(device.clone())
             .build()?;
         let conv2 = Conv2dBlockBuilder::new(32, 64, (3, 3), 1, 1)
             .with_batch_norm2d()
-            .with_relu()
-            .with_max_pool((2, 2), (2, 2))
+            .with_activation(Activation::relu())
+            .with_pool2d(Pool2d::MaxPool2d(MaxPool2d::new((2, 2), Some((2, 2)))?))
             .device(device.clone())
             .build()?;
         let linear1 = LinearBlockBuilder::new(4096, 256)
-            .with_relu()
+            .with_activation(Activation::relu())
             .device(device.clone())
             .build()?;
         let linear2 = LinearBlockBuilder::new(256, 10)

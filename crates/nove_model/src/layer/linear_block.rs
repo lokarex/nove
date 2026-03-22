@@ -4,9 +4,7 @@ use nove_tensor::{DType, Device, Tensor};
 
 use crate::{Model, ModelError};
 
-use super::{
-    Activation, BatchNorm1d, BatchNorm1dBuilder, Dropout, Linear, LinearBuilder,
-};
+use super::{Activation, BatchNorm1d, BatchNorm1dBuilder, Dropout, Linear, LinearBuilder};
 
 static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
@@ -15,23 +13,18 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// # Notes
 /// * The `LinearBlockBuilder` is used to configure a linear layer with optional
 ///   activation function and batch normalization (1D).
-/// * The default configuration has bias enabled, ReLU activation disabled,
+/// * The default configuration has bias enabled, activation disabled,
 ///   batch normalization (1D) disabled, and dropout disabled.
 /// * **Important**: Only one activation function can be enabled at a time.
-///   When you call any `with_xxx()` method (e.g., `with_relu()`, `with_gelu()`, etc.),
-///   all other activation function flags will be automatically set to `false`
-///   to ensure mutual exclusion.
+///   When you call `with_activation()` method, any previous activation function
+///   will be replaced with the new one.
 ///
 /// # Required Arguments
 /// * `in_features` - The number of input features.
 /// * `out_features` - The number of output features.
 ///
 /// # Optional Arguments
-/// * `use_relu` - Whether ReLU activation is enabled after the linear layer. Default is `false`. (configured via `with_relu()`)
-/// * `use_gelu` - Whether GELU activation is enabled after the linear layer. Default is `false`. (configured via `with_gelu()`)
-/// * `use_silu` - Whether SiLU activation is enabled after the linear layer. Default is `false`. (configured via `with_silu()`)
-/// * `use_tanh` - Whether Tanh activation is enabled after the linear layer. Default is `false`. (configured via `with_tanh()`)
-/// * `use_sigmoid` - Whether Sigmoid activation is enabled after the linear layer. Default is `false`. (configured via `with_sigmoid()`)
+/// * `activation` - Optional activation function after the linear layer. Default is `None`. (configured via `with_activation()`)
 /// * `use_batch_norm1d` - Whether 1D batch normalization is enabled after the linear layer. Default is `false`. (configured via `with_batch_norm1d()`)
 /// * `bias_enabled` - Whether the bias term is enabled. Default is `true`.
 /// * `dropout_probability` - The dropout probability (0.0 means no dropout). Default is `0.0`. (configured via `with_dropout()`)
@@ -42,11 +35,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// # Fields
 /// * `in_features` - The number of input features.
 /// * `out_features` - The number of output features.
-/// * `use_relu` - Whether ReLU activation is enabled after the linear layer.
-/// * `use_gelu` - Whether GELU activation is enabled after the linear layer.
-/// * `use_silu` - Whether SiLU activation is enabled after the linear layer.
-/// * `use_tanh` - Whether Tanh activation is enabled after the linear layer.
-/// * `use_sigmoid` - Whether Sigmoid activation is enabled after the linear layer.
+/// * `activation` - Optional activation function after the linear layer.
 /// * `use_batch_norm1d` - Whether 1D batch normalization is enabled after the linear layer.
 /// * `bias_enabled` - Whether the bias term is enabled.
 /// * `dropout_probability` - The dropout probability (0.0 means no dropout).
@@ -56,11 +45,11 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::LinearBlockBuilder;
+/// use nove::model::layer::{LinearBlockBuilder, Activation};
 /// use nove::tensor::{Device, DType};
 ///
 /// let block = LinearBlockBuilder::new(800, 10)
-///     .with_gelu()
+///     .with_activation(Activation::gelu())
 ///     .with_batch_norm1d()
 ///     .bias_enabled(true)
 ///     .device(Device::cpu())
@@ -71,11 +60,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 pub struct LinearBlockBuilder {
     in_features: usize,
     out_features: usize,
-    use_relu: bool,
-    use_gelu: bool,
-    use_silu: bool,
-    use_tanh: bool,
-    use_sigmoid: bool,
+    activation: Option<Activation>,
     use_batch_norm1d: bool,
     bias_enabled: bool,
     dropout_probability: f32,
@@ -103,11 +88,7 @@ impl LinearBlockBuilder {
         Self {
             in_features,
             out_features,
-            use_relu: false,
-            use_gelu: false,
-            use_silu: false,
-            use_tanh: false,
-            use_sigmoid: false,
+            activation: None,
             use_batch_norm1d: false,
             bias_enabled: true,
             dropout_probability: 0.0,
@@ -117,123 +98,25 @@ impl LinearBlockBuilder {
         }
     }
 
-    /// Configure ReLU activation after the linear layer.
+    /// Configure activation function after the linear layer.
     ///
     /// # Notes
-    /// * When this method is called, all other activation function flags
-    ///   (GELU, SiLU, Tanh, Sigmoid) will be automatically set to `false` to ensure
-    ///   mutual exclusion. Only one activation function can be active at a time.
+    /// * Only one activation function can be active at a time. Calling this method
+    ///   replaces any previously configured activation function.
+    ///
+    /// # Arguments
+    /// * `activation` - The activation function to use.
     ///
     /// # Returns
-    /// * `Self` - The linear block builder with ReLU activation enabled.
+    /// * `Self` - The linear block builder with the configured activation function.
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
-    /// let builder = LinearBlockBuilder::new(800, 10).with_relu();
+    /// use nove::model::layer::{LinearBlockBuilder, Activation};
+    /// let builder = LinearBlockBuilder::new(800, 10).with_activation(Activation::relu());
     /// ```
-    pub fn with_relu(mut self) -> Self {
-        self.use_gelu = false;
-        self.use_silu = false;
-        self.use_tanh = false;
-        self.use_sigmoid = false;
-        self.use_relu = true;
-        self
-    }
-
-    /// Configure GELU activation after the linear layer.
-    ///
-    /// # Notes
-    /// * When this method is called, all other activation function flags
-    ///   (ReLU, SiLU, Tanh, Sigmoid) will be automatically set to `false` to ensure
-    ///   mutual exclusion. Only one activation function can be active at a time.
-    ///
-    /// # Returns
-    /// * `Self` - The linear block builder with GELU activation enabled.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
-    /// let builder = LinearBlockBuilder::new(800, 10).with_gelu();
-    /// ```
-    pub fn with_gelu(mut self) -> Self {
-        self.use_relu = false;
-        self.use_silu = false;
-        self.use_tanh = false;
-        self.use_sigmoid = false;
-        self.use_gelu = true;
-        self
-    }
-
-    /// Configure SiLU activation after the linear layer.
-    ///
-    /// # Notes
-    /// * When this method is called, all other activation function flags
-    ///   (ReLU, GELU, Tanh, Sigmoid) will be automatically set to `false` to ensure
-    ///   mutual exclusion. Only one activation function can be active at a time.
-    ///
-    /// # Returns
-    /// * `Self` - The linear block builder with SiLU activation enabled.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
-    /// let builder = LinearBlockBuilder::new(800, 10).with_silu();
-    /// ```
-    pub fn with_silu(mut self) -> Self {
-        self.use_relu = false;
-        self.use_gelu = false;
-        self.use_tanh = false;
-        self.use_sigmoid = false;
-        self.use_silu = true;
-        self
-    }
-
-    /// Configure Tanh activation after the linear layer.
-    ///
-    /// # Notes
-    /// * When this method is called, all other activation function flags
-    ///   (ReLU, GELU, SiLU, Sigmoid) will be automatically set to `false` to ensure
-    ///   mutual exclusion. Only one activation function can be active at a time.
-    ///
-    /// # Returns
-    /// * `Self` - The linear block builder with Tanh activation enabled.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
-    /// let builder = LinearBlockBuilder::new(800, 10).with_tanh();
-    /// ```
-    pub fn with_tanh(mut self) -> Self {
-        self.use_relu = false;
-        self.use_gelu = false;
-        self.use_silu = false;
-        self.use_sigmoid = false;
-        self.use_tanh = true;
-        self
-    }
-
-    /// Configure Sigmoid activation after the linear layer.
-    ///
-    /// # Notes
-    /// * When this method is called, all other activation function flags
-    ///   (ReLU, GELU, SiLU, Tanh) will be automatically set to `false` to ensure
-    ///   mutual exclusion. Only one activation function can be active at a time.
-    ///
-    /// # Returns
-    /// * `Self` - The linear block builder with Sigmoid activation enabled.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
-    /// let builder = LinearBlockBuilder::new(800, 10).with_sigmoid();
-    /// ```
-    pub fn with_sigmoid(mut self) -> Self {
-        self.use_relu = false;
-        self.use_gelu = false;
-        self.use_silu = false;
-        self.use_tanh = false;
-        self.use_sigmoid = true;
+    pub fn with_activation(mut self, activation: Activation) -> Self {
+        self.activation = Some(activation);
         self
     }
 
@@ -244,15 +127,11 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
-    /// let builder = LinearBlockBuilder::new(800, 10).with_relu().without_activation();
+    /// use nove::model::layer::{LinearBlockBuilder, Activation};
+    /// let builder = LinearBlockBuilder::new(800, 10).with_activation(Activation::relu()).without_activation();
     /// ```
     pub fn without_activation(mut self) -> Self {
-        self.use_relu = false;
-        self.use_gelu = false;
-        self.use_silu = false;
-        self.use_tanh = false;
-        self.use_sigmoid = false;
+        self.activation = None;
         self
     }
 
@@ -426,19 +305,7 @@ impl LinearBlockBuilder {
             None
         };
 
-        let activation = if self.use_relu {
-            Some(Activation::relu())
-        } else if self.use_gelu {
-            Some(Activation::gelu())
-        } else if self.use_silu {
-            Some(Activation::silu())
-        } else if self.use_tanh {
-            Some(Activation::tanh())
-        } else if self.use_sigmoid {
-            Some(Activation::sigmoid())
-        } else {
-            None
-        };
+        let activation = self.activation;
 
         let dropout = if self.dropout_probability > 0.0 {
             Some(Dropout::new(self.dropout_probability)?)
@@ -458,8 +325,6 @@ impl LinearBlockBuilder {
     }
 }
 
-
-
 /// Linear (fully connected) block.
 ///
 /// # Notes
@@ -475,10 +340,10 @@ impl LinearBlockBuilder {
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::LinearBlockBuilder;
+/// use nove::model::layer::{LinearBlockBuilder, Activation};
 ///
 /// let mut block = LinearBlockBuilder::new(800, 10)
-///     .with_gelu()
+///     .with_activation(Activation::gelu())
 ///     .with_batch_norm1d()
 ///     .build()
 ///     .unwrap();

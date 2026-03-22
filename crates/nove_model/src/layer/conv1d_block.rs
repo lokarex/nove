@@ -5,9 +5,7 @@ use nove_tensor::{DType, Device, Tensor};
 use crate::{Model, ModelError};
 
 use super::{
-    activation::Activation,
-    pool::Pool1d,
-    AvgPool1d, BatchNorm1d, BatchNorm1dBuilder, Conv1d, Conv1dBuilder, MaxPool1d,
+    BatchNorm1d, BatchNorm1dBuilder, Conv1d, Conv1dBuilder, activation::Activation, pool::Pool1d,
 };
 
 static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -21,13 +19,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// * The default configuration uses activation function disabled, batch normalization (1D) disabled,
 ///   and pooling disabled.
 /// * **Important**: Only one activation function can be enabled at a time.
-///   When you call any `with_xxx()` method (e.g., `with_relu()`, `with_gelu()`, etc.),
-///   all other activation function flags will be automatically set to `false`
-///   to ensure mutual exclusion.
 /// * **Important**: Only one pooling type can be enabled at a time.
-///   When you call any `with_xxx_pool()` method (e.g., `with_max_pool()`, `with_avg_pool()`),
-///   all other pooling flags will be automatically set to `false` to ensure mutual exclusion.
-///   The pooling kernel size and stride must be specified when enabling pooling.
 ///
 /// # Required Arguments
 /// * `in_channels` - The number of input channels.
@@ -37,16 +29,9 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// * `padding` - The padding size.
 ///
 /// # Optional Arguments
-/// * `use_relu` - Whether ReLU activation is enabled after convolution. Default is `false`. (configured via `with_relu()`)
-/// * `use_gelu` - Whether GELU activation is enabled after convolution. Default is `false`. (configured via `with_gelu()`)
-/// * `use_silu` - Whether SiLU activation is enabled after convolution. Default is `false`. (configured via `with_silu()`)
-/// * `use_tanh` - Whether Tanh activation is enabled after convolution. Default is `false`. (configured via `with_tanh()`)
-/// * `use_sigmoid` - Whether Sigmoid activation is enabled after convolution. Default is `false`. (configured via `with_sigmoid()`)
 /// * `use_batch_norm1d` - Whether 1D batch normalization is enabled after convolution. Default is `false`. (configured via `with_batch_norm1d()`)
-/// * `use_max_pool` - Whether max pooling is enabled after activation/BatchNorm1d. Default is `false`. (configured via `with_max_pool()`)
-/// * `use_avg_pool` - Whether average pooling is enabled after activation/BatchNorm1d. Default is `false`. (configured via `with_avg_pool()`)
-/// * `pool_kernel_size` - The size of the pooling kernel (length). Default is `2`. (configured together with `with_max_pool()` or `with_avg_pool()`)
-/// * `pool_stride` - The stride of the pooling operation (length). Default is `2`. (configured together with `with_max_pool()` or `with_avg_pool()`)
+/// * `activation` - The activation function to use after convolution. Default is `None`. (configured via `with_activation()`)
+/// * `pool` - The pooling layer to use after activation/BatchNorm1d. Default is `None`. (configured via `with_pool1d()`)
 /// * `device` - The device to use for the layer. Default is `Device::cpu()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
@@ -57,29 +42,22 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// * `kernel_size` - The size of the convolution kernel (length).
 /// * `stride` - The stride of the convolution.
 /// * `padding` - The padding size.
-/// * `use_relu` - Whether ReLU activation is enabled after convolution.
-/// * `use_gelu` - Whether GELU activation is enabled after convolution.
-/// * `use_silu` - Whether SiLU activation is enabled after convolution.
-/// * `use_tanh` - Whether Tanh activation is enabled after convolution.
-/// * `use_sigmoid` - Whether Sigmoid activation is enabled after convolution.
 /// * `use_batch_norm1d` - Whether 1D batch normalization is enabled after convolution.
-/// * `use_max_pool` - Whether max pooling is enabled after activation/BatchNorm1d.
-/// * `use_avg_pool` - Whether average pooling is enabled after activation/BatchNorm1d.
-/// * `pool_kernel_size` - The size of the pooling kernel (length).
-/// * `pool_stride` - The stride of the pooling operation (length).
+/// * `activation` - The optional activation function.
+/// * `pool` - The optional pooling layer.
 /// * `device` - The device to use for the layer.
 /// * `dtype` - The data type to use for the layer.
 /// * `grad_enabled` - Whether to enable the gradient computation.
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::Conv1dBlockBuilder;
+/// use nove::model::layer::{Conv1dBlockBuilder, Activation, Pool1d};
 /// use nove::tensor::{Device, DType};
 ///
 /// let block = Conv1dBlockBuilder::new(1, 16, 3, 1, 1)
-///     .with_gelu()
+///     .with_activation(Activation::relu())
 ///     .with_batch_norm1d()
-///     .with_avg_pool(2, 2)
+///     .with_pool1d(Pool1d::max_pool1d(2, None).unwrap())
 ///     .device(Device::cpu())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true);
@@ -91,16 +69,9 @@ pub struct Conv1dBlockBuilder {
     kernel_size: usize,
     stride: usize,
     padding: usize,
-    use_relu: bool,
-    use_gelu: bool,
-    use_silu: bool,
-    use_tanh: bool,
-    use_sigmoid: bool,
     use_batch_norm1d: bool,
-    use_max_pool: bool,
-    use_avg_pool: bool,
-    pool_kernel_size: usize,
-    pool_stride: usize,
+    activation: Option<Activation>,
+    pool: Option<Pool1d>,
     device: Device,
     dtype: DType,
     grad_enabled: bool,
@@ -137,146 +108,16 @@ impl Conv1dBlockBuilder {
             kernel_size,
             stride,
             padding,
-            use_relu: false,
-            use_gelu: false,
-            use_silu: false,
-            use_tanh: false,
-            use_sigmoid: false,
             use_batch_norm1d: false,
-            use_max_pool: false,
-            use_avg_pool: false,
-            pool_kernel_size: 2,
-            pool_stride: 2,
+            activation: None,
+            pool: None,
             device: Device::cpu(),
             dtype: DType::F32,
             grad_enabled: true,
         }
     }
 
-    /// Configure ReLU activation after convolution.
-    ///
-    /// # Notes
-    /// * When this method is called, all other activation function flags
-    ///   (GELU, SiLU, Tanh, Sigmoid) will be automatically set to `false` to ensure
-    ///   mutual exclusion. Only one activation function can be active at a time.
-    ///
-    /// # Returns
-    /// * `Self` - The conv1d block builder with ReLU activation enabled.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
-    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).with_relu();
-    /// ```
-    pub fn with_relu(mut self) -> Self {
-        self.use_gelu = false;
-        self.use_silu = false;
-        self.use_tanh = false;
-        self.use_sigmoid = false;
-        self.use_relu = true;
-        self
-    }
-
-    /// Configure GELU activation after convolution.
-    ///
-    /// # Notes
-    /// * When this method is called, all other activation function flags
-    ///   (ReLU, SiLU, Tanh, Sigmoid) will be automatically set to `false` to ensure
-    ///   mutual exclusion. Only one activation function can be active at a time.
-    ///
-    /// # Returns
-    /// * `Self` - The conv1d block builder with GELU activation enabled.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
-    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).with_gelu();
-    /// ```
-    pub fn with_gelu(mut self) -> Self {
-        self.use_relu = false;
-        self.use_silu = false;
-        self.use_tanh = false;
-        self.use_sigmoid = false;
-        self.use_gelu = true;
-        self
-    }
-
-    /// Configure SiLU activation after convolution.
-    ///
-    /// # Notes
-    /// * When this method is called, all other activation function flags
-    ///   (ReLU, GELU, Tanh, Sigmoid) will be automatically set to `false` to ensure
-    ///   mutual exclusion. Only one activation function can be active at a time.
-    ///
-    /// # Returns
-    /// * `Self` - The conv1d block builder with SiLU activation enabled.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
-    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).with_silu();
-    /// ```
-    pub fn with_silu(mut self) -> Self {
-        self.use_relu = false;
-        self.use_gelu = false;
-        self.use_tanh = false;
-        self.use_sigmoid = false;
-        self.use_silu = true;
-        self
-    }
-
-    /// Configure Tanh activation after convolution.
-    ///
-    /// # Notes
-    /// * When this method is called, all other activation function flags
-    ///   (ReLU, GELU, SiLU, Sigmoid) will be automatically set to `false` to ensure
-    ///   mutual exclusion. Only one activation function can be active at a time.
-    ///
-    /// # Returns
-    /// * `Self` - The conv1d block builder with Tanh activation enabled.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
-    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).with_tanh();
-    /// ```
-    pub fn with_tanh(mut self) -> Self {
-        self.use_relu = false;
-        self.use_gelu = false;
-        self.use_silu = false;
-        self.use_sigmoid = false;
-        self.use_tanh = true;
-        self
-    }
-
-    /// Configure Sigmoid activation after convolution.
-    ///
-    /// # Notes
-    /// * When this method is called, all other activation function flags
-    ///   (ReLU, GELU, SiLU, Tanh) will be automatically set to `false` to ensure
-    ///   mutual exclusion. Only one activation function can be active at a time.
-    ///
-    /// # Returns
-    /// * `Self` - The conv1d block builder with Sigmoid activation enabled.
-    ///
-    /// # Examples
-    /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
-    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).with_sigmoid();
-    /// ```
-    pub fn with_sigmoid(mut self) -> Self {
-        self.use_relu = false;
-        self.use_gelu = false;
-        self.use_silu = false;
-        self.use_tanh = false;
-        self.use_sigmoid = true;
-        self
-    }
-
     /// Configure no activation function after convolution.
-    ///
-    /// # Notes
-    /// * When this method is called, all activation function flags will be set to `false`.
     ///
     /// # Returns
     /// * `Self` - The conv1d block builder with activation function disabled.
@@ -287,11 +128,7 @@ impl Conv1dBlockBuilder {
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).without_activation();
     /// ```
     pub fn without_activation(mut self) -> Self {
-        self.use_relu = false;
-        self.use_gelu = false;
-        self.use_silu = false;
-        self.use_tanh = false;
-        self.use_sigmoid = false;
+        self.activation = None;
         self
     }
 
@@ -325,55 +162,48 @@ impl Conv1dBlockBuilder {
         self
     }
 
-    /// Configure max pooling after activation/BatchNorm1d.
+    /// Configure an activation function after convolution.
     ///
     /// # Arguments
-    /// * `kernel_size` - The size of the max pooling kernel (length).
-    /// * `stride` - The stride of the max pooling operation (length).
+    /// * `activation` - The activation function to use.
     ///
     /// # Notes
-    /// * When this method is called, average pooling flag will be automatically set to `false` to ensure mutual exclusion.
-    /// * Only one pooling type can be active at a time.
+    /// * Only one activation function can be active at a time. Calling this method
+    ///   replaces any previously configured activation function.
     ///
     /// # Returns
-    /// * `Self` - The conv1d block builder with max pooling enabled.
+    /// * `Self` - The conv1d block builder with the specified activation function.
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
-    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).with_max_pool(2, 2);
+    /// use nove::model::layer::{Conv1dBlockBuilder, Activation};
+    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).with_activation(Activation::relu());
     /// ```
-    pub fn with_max_pool(mut self, kernel_size: usize, stride: usize) -> Self {
-        self.use_avg_pool = false;
-        self.use_max_pool = true;
-        self.pool_kernel_size = kernel_size;
-        self.pool_stride = stride;
+    pub fn with_activation(mut self, activation: Activation) -> Self {
+        self.activation = Some(activation);
         self
     }
 
-    /// Configure average pooling after activation/BatchNorm1d.
+    /// Configure a pooling layer after activation/BatchNorm1d.
     ///
     /// # Arguments
-    /// * `kernel_size` - The size of the average pooling kernel (length).
-    /// * `stride` - The stride of the average pooling operation (length).
+    /// * `pool` - The pooling layer to use.
     ///
     /// # Notes
-    /// * When this method is called, max pooling flag will be automatically set to `false` to ensure mutual exclusion.
-    /// * Only one pooling type can be active at a time.
+    /// * Only one pooling layer can be active at a time. Calling this method
+    ///   replaces any previously configured pooling layer.
     ///
     /// # Returns
-    /// * `Self` - The conv1d block builder with average pooling enabled.
+    /// * `Self` - The conv1d block builder with the specified pooling layer.
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
-    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).with_avg_pool(2, 2);
+    /// use nove::model::layer::{Conv1dBlockBuilder, Pool1d};
+    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1)
+    ///     .with_pool1d(Pool1d::max_pool1d(2, None).unwrap());
     /// ```
-    pub fn with_avg_pool(mut self, kernel_size: usize, stride: usize) -> Self {
-        self.use_max_pool = false;
-        self.use_avg_pool = true;
-        self.pool_kernel_size = kernel_size;
-        self.pool_stride = stride;
+    pub fn with_pool1d(mut self, pool: Pool1d) -> Self {
+        self.pool = Some(pool);
         self
     }
 
@@ -385,11 +215,10 @@ impl Conv1dBlockBuilder {
     /// # Examples
     /// ```no_run
     /// use nove::model::layer::Conv1dBlockBuilder;
-    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).without_pooling();
+    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).without_pool1d();
     /// ```
-    pub fn without_pooling(mut self) -> Self {
-        self.use_max_pool = false;
-        self.use_avg_pool = false;
+    pub fn without_pool1d(mut self) -> Self {
+        self.pool = None;
         self
     }
 
@@ -481,16 +310,6 @@ impl Conv1dBlockBuilder {
                 "stride in Conv1dBlock must be greater than 0"
             )));
         }
-        if self.pool_kernel_size == 0 {
-            return Err(ModelError::InvalidArgument(format!(
-                "pool_kernel_size in Conv1dBlock must be greater than 0"
-            )));
-        }
-        if self.pool_stride == 0 {
-            return Err(ModelError::InvalidArgument(format!(
-                "pool_stride in Conv1dBlock must be greater than 0"
-            )));
-        }
 
         let id = ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
@@ -517,45 +336,15 @@ impl Conv1dBlockBuilder {
             None
         };
 
-        let activation = if self.use_relu {
-            Some(Activation::relu())
-        } else if self.use_gelu {
-            Some(Activation::gelu())
-        } else if self.use_silu {
-            Some(Activation::silu())
-        } else if self.use_tanh {
-            Some(Activation::tanh())
-        } else if self.use_sigmoid {
-            Some(Activation::sigmoid())
-        } else {
-            None
-        };
-
-        let pool = if self.use_max_pool {
-            Some(Pool1d::MaxPool1d(MaxPool1d::new(
-                self.pool_kernel_size,
-                Some(self.pool_stride),
-            )?))
-        } else if self.use_avg_pool {
-            Some(Pool1d::AvgPool1d(AvgPool1d::new(
-                self.pool_kernel_size,
-                Some(self.pool_stride),
-            )?))
-        } else {
-            None
-        };
-
         Ok(Conv1dBlock {
             conv,
             batch_norm1d,
-            activation,
-            pool,
+            activation: self.activation,
+            pool: self.pool,
             id,
         })
     }
 }
-
-
 
 /// 1D convolutional block.
 ///

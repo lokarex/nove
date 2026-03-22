@@ -15,7 +15,8 @@ use std::collections::HashMap;
 /// 1D pooling layer enum.
 ///
 /// This enum provides a unified interface for different 1D pooling functions
-/// in the model layer.
+/// in the model layer. It can be constructed using the convenience functions
+/// `avg_pool1d` and `max_pool1d`, or by directly using the enum variants.
 ///
 /// # Variants
 /// * `AvgPool1d` - 1D average pooling layer.
@@ -24,10 +25,10 @@ use std::collections::HashMap;
 /// # Examples
 /// ```no_run
 /// use nove::tensor::{Device, Shape, Tensor};
-/// use nove::model::layer::{Pool1d, AvgPool1d};
+/// use nove::model::layer::Pool1d;
 /// use nove::model::Model;
 ///
-/// let mut avg_pool = Pool1d::AvgPool1d(AvgPool1d::new(2, None).unwrap());
+/// let mut avg_pool = Pool1d::avg_pool1d(2, None).unwrap();
 /// println!("{}", avg_pool);
 ///
 /// let input = Tensor::randn(0.0, 1.0, &Shape::from(&[1, 1, 10]), &Device::cpu(), false).unwrap();
@@ -38,6 +39,38 @@ use std::collections::HashMap;
 pub enum Pool1d {
     AvgPool1d(AvgPool1d),
     MaxPool1d(MaxPool1d),
+}
+
+impl Pool1d {
+    /// Create a new 1D average pooling layer.
+    ///
+    /// # Arguments
+    /// * `kernel_size` - The size of the pooling kernel.
+    /// * `stride` - The stride of the pooling operation.
+    ///   Default is `kernel_size` when `None`.
+    ///
+    /// # Returns
+    /// * `Ok(Pool1d)` - The new average pooling layer if successful.
+    /// * `Err(ModelError)` - The error when creating the average pooling layer.
+    pub fn avg_pool1d(kernel_size: usize, stride: Option<usize>) -> Result<Self, ModelError> {
+        let layer = AvgPool1d::new(kernel_size, stride)?;
+        Ok(Self::AvgPool1d(layer))
+    }
+
+    /// Create a new 1D max pooling layer.
+    ///
+    /// # Arguments
+    /// * `kernel_size` - The size of the pooling kernel.
+    /// * `stride` - The stride of the pooling operation.
+    ///   Default is `kernel_size` when `None`.
+    ///
+    /// # Returns
+    /// * `Ok(Pool1d)` - The new max pooling layer if successful.
+    /// * `Err(ModelError)` - The error when creating the max pooling layer.
+    pub fn max_pool1d(kernel_size: usize, stride: Option<usize>) -> Result<Self, ModelError> {
+        let layer = MaxPool1d::new(kernel_size, stride)?;
+        Ok(Self::MaxPool1d(layer))
+    }
 }
 
 impl Model for Pool1d {
@@ -100,7 +133,8 @@ impl std::fmt::Display for Pool1d {
 ///
 /// This enum provides a unified interface for both average and max pooling operations.
 /// It wraps the concrete pooling layer implementations and delegates all operations
-/// to the underlying layer.
+/// to the underlying layer. It can be constructed using the convenience functions
+/// `avg_pool2d` and `max_pool2d`, or by directly using the enum variants.
 ///
 /// # Variants
 /// * `AvgPool2d` - 2D average pooling layer.
@@ -108,13 +142,13 @@ impl std::fmt::Display for Pool1d {
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::{Pool2d, AvgPool2d, MaxPool2d};
+/// use nove::model::layer::Pool2d;
 ///
 /// // Create an average pooling layer
-/// let avg_pool = Pool2d::AvgPool2d(AvgPool2d::new((2, 2), None).unwrap());
+/// let avg_pool = Pool2d::avg_pool2d((2, 2), None).unwrap();
 ///
 /// // Create a max pooling layer
-/// let max_pool = Pool2d::MaxPool2d(MaxPool2d::new((2, 2), None).unwrap());
+/// let max_pool = Pool2d::max_pool2d((2, 2), None).unwrap();
 /// ```
 #[derive(Debug, Clone)]
 pub enum Pool2d {
@@ -170,6 +204,44 @@ impl crate::Model for Pool2d {
             Pool2d::AvgPool2d(layer) => layer.named_parameters(),
             Pool2d::MaxPool2d(layer) => layer.named_parameters(),
         }
+    }
+}
+
+impl Pool2d {
+    /// Create a new 2D average pooling layer.
+    ///
+    /// # Arguments
+    /// * `kernel_size` - The size of the pooling kernel (height, width).
+    /// * `stride` - The stride of the pooling operation (height, width).
+    ///   Default is `kernel_size` when `None`.
+    ///
+    /// # Returns
+    /// * `Ok(Pool2d)` - The new average pooling layer if successful.
+    /// * `Err(ModelError)` - The error when creating the average pooling layer.
+    pub fn avg_pool2d(
+        kernel_size: (usize, usize),
+        stride: Option<(usize, usize)>,
+    ) -> Result<Self, crate::ModelError> {
+        let layer = AvgPool2d::new(kernel_size, stride)?;
+        Ok(Self::AvgPool2d(layer))
+    }
+
+    /// Create a new 2D max pooling layer.
+    ///
+    /// # Arguments
+    /// * `kernel_size` - The size of the pooling kernel (height, width).
+    /// * `stride` - The stride of the pooling operation (height, width).
+    ///   Default is `kernel_size` when `None`.
+    ///
+    /// # Returns
+    /// * `Ok(Pool2d)` - The new max pooling layer if successful.
+    /// * `Err(ModelError)` - The error when creating the max pooling layer.
+    pub fn max_pool2d(
+        kernel_size: (usize, usize),
+        stride: Option<(usize, usize)>,
+    ) -> Result<Self, crate::ModelError> {
+        let layer = MaxPool2d::new(kernel_size, stride)?;
+        Ok(Self::MaxPool2d(layer))
     }
 }
 
