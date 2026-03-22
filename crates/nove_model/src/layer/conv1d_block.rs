@@ -31,7 +31,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// # Optional Arguments
 /// * `use_batch_norm1d` - Whether 1D batch normalization is enabled after convolution. Default is `false`. (configured via `with_batch_norm1d()`)
 /// * `activation` - The activation function to use after convolution. Default is `None`. (configured via `with_activation()`)
-/// * `pool` - The pooling layer to use after activation/BatchNorm1d. Default is `None`. (configured via `with_pool1d()`)
+/// * `pool1d` - The pooling layer to use after activation/BatchNorm1d. Default is `None`. (configured via `with_pool1d()`)
 /// * `device` - The device to use for the layer. Default is `Device::cpu()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
@@ -44,7 +44,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// * `padding` - The padding size.
 /// * `use_batch_norm1d` - Whether 1D batch normalization is enabled after convolution.
 /// * `activation` - The optional activation function.
-/// * `pool` - The optional pooling layer.
+/// * `pool1d` - The optional pooling layer.
 /// * `device` - The device to use for the layer.
 /// * `dtype` - The data type to use for the layer.
 /// * `grad_enabled` - Whether to enable the gradient computation.
@@ -71,7 +71,7 @@ pub struct Conv1dBlockBuilder {
     padding: usize,
     use_batch_norm1d: bool,
     activation: Option<Activation>,
-    pool: Option<Pool1d>,
+    pool1d: Option<Pool1d>,
     device: Device,
     dtype: DType,
     grad_enabled: bool,
@@ -110,7 +110,7 @@ impl Conv1dBlockBuilder {
             padding,
             use_batch_norm1d: false,
             activation: None,
-            pool: None,
+            pool1d: None,
             device: Device::cpu(),
             dtype: DType::F32,
             grad_enabled: true,
@@ -187,7 +187,7 @@ impl Conv1dBlockBuilder {
     /// Configure a pooling layer after activation/BatchNorm1d.
     ///
     /// # Arguments
-    /// * `pool` - The pooling layer to use.
+    /// * `pool1d` - The pooling layer to use.
     ///
     /// # Notes
     /// * Only one pooling layer can be active at a time. Calling this method
@@ -202,8 +202,8 @@ impl Conv1dBlockBuilder {
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1)
     ///     .with_pool1d(Pool1d::max_pool1d(2, None).unwrap());
     /// ```
-    pub fn with_pool1d(mut self, pool: Pool1d) -> Self {
-        self.pool = Some(pool);
+    pub fn with_pool1d(mut self, pool1d: Pool1d) -> Self {
+        self.pool1d = Some(pool1d);
         self
     }
 
@@ -218,7 +218,7 @@ impl Conv1dBlockBuilder {
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).without_pool1d();
     /// ```
     pub fn without_pool1d(mut self) -> Self {
-        self.pool = None;
+        self.pool1d = None;
         self
     }
 
@@ -340,7 +340,7 @@ impl Conv1dBlockBuilder {
             conv,
             batch_norm1d,
             activation: self.activation,
-            pool: self.pool,
+            pool1d: self.pool1d,
             id,
         })
     }
@@ -362,7 +362,7 @@ impl Conv1dBlockBuilder {
 /// * `conv` - The 1D convolutional layer.
 /// * `batch_norm1d` - The optional 1D batch normalization layer.
 /// * `activation` - The optional activation function.
-/// * `pool` - The optional pooling layer.
+/// * `pool1d` - The optional pooling layer.
 /// * `id` - The unique ID of the conv1d block.
 ///
 /// # Examples
@@ -375,7 +375,7 @@ pub struct Conv1dBlock {
     conv: Conv1d,
     batch_norm1d: Option<BatchNorm1d>,
     activation: Option<Activation>,
-    pool: Option<Pool1d>,
+    pool1d: Option<Pool1d>,
     id: usize,
 }
 
@@ -403,8 +403,8 @@ impl Model for Conv1dBlock {
             y = activation.forward(y)?;
         }
 
-        if let Some(ref mut pool) = self.pool {
-            y = pool.forward(y)?;
+        if let Some(ref mut pool1d) = self.pool1d {
+            y = pool1d.forward(y)?;
         }
 
         Ok(y)
@@ -418,8 +418,8 @@ impl Model for Conv1dBlock {
         if let Some(ref mut activation) = self.activation {
             activation.require_grad(grad_enabled)?;
         }
-        if let Some(ref mut pool) = self.pool {
-            pool.require_grad(grad_enabled)?;
+        if let Some(ref mut pool1d) = self.pool1d {
+            pool1d.require_grad(grad_enabled)?;
         }
         Ok(())
     }
@@ -432,8 +432,8 @@ impl Model for Conv1dBlock {
         if let Some(ref mut activation) = self.activation {
             activation.to_device(device)?;
         }
-        if let Some(ref mut pool) = self.pool {
-            pool.to_device(device)?;
+        if let Some(ref mut pool1d) = self.pool1d {
+            pool1d.to_device(device)?;
         }
         Ok(())
     }
@@ -446,8 +446,8 @@ impl Model for Conv1dBlock {
         if let Some(ref mut activation) = self.activation {
             activation.to_dtype(dtype)?;
         }
-        if let Some(ref mut pool) = self.pool {
-            pool.to_dtype(dtype)?;
+        if let Some(ref mut pool1d) = self.pool1d {
+            pool1d.to_dtype(dtype)?;
         }
         Ok(())
     }
@@ -460,7 +460,7 @@ impl Model for Conv1dBlock {
         if let Some(ref activation) = self.activation {
             params.extend(activation.parameters()?);
         }
-        if let Some(ref pool) = self.pool {
+        if let Some(ref pool) = self.pool1d {
             params.extend(pool.parameters()?);
         }
         Ok(params)
@@ -478,7 +478,7 @@ impl Model for Conv1dBlock {
                 params.insert(k, v);
             }
         }
-        if let Some(ref pool) = self.pool {
+        if let Some(ref pool) = self.pool1d {
             for (k, v) in pool.named_parameters()? {
                 params.insert(k, v);
             }
@@ -497,7 +497,7 @@ impl Display for Conv1dBlock {
         if let Some(ref activation) = self.activation {
             write!(f, "  {},\n", activation)?;
         }
-        if let Some(ref pool) = self.pool {
+        if let Some(ref pool) = self.pool1d {
             write!(f, "  {},\n", pool)?;
         }
         write!(f, ")")

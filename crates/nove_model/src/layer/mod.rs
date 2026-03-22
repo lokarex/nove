@@ -48,3 +48,7 @@ pub use conv2d_block::Conv2dBlockBuilder;
 mod conv1d_block;
 pub use conv1d_block::Conv1dBlock;
 pub use conv1d_block::Conv1dBlockBuilder;
+
+mod layernorm;
+pub use layernorm::LayerNorm;
+pub use layernorm::LayerNormBuilder;

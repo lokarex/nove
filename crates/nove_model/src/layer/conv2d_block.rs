@@ -31,7 +31,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// # Optional Arguments
 /// * `activation` - Optional activation function after convolution. Default is `None`. (configured via `with_activation()`)
 /// * `batch_norm2d` - Whether 2D batch normalization is enabled after convolution. Default is `false`. (configured via `with_batch_norm2d()`)
-/// * `pool` - Optional pooling layer after activation/BatchNorm2d. Default is `None`. (configured via `with_pool2d()`)
+/// * `pool2d` - Optional pooling layer after activation/BatchNorm2d. Default is `None`. (configured via `with_pool2d()`)
 /// * `device` - The device to use for the layer. Default is `Device::cpu()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
@@ -44,7 +44,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// * `padding` - The padding size.
 /// * `activation` - Optional activation function after convolution.
 /// * `use_batch_norm2d` - Whether 2D batch normalization is enabled after convolution.
-/// * `pool` - Optional pooling layer after activation/BatchNorm2d.
+/// * `pool2d` - Optional pooling layer after activation/BatchNorm2d.
 /// * `device` - The device to use for the layer.
 /// * `dtype` - The data type to use for the layer.
 /// * `grad_enabled` - Whether to enable the gradient computation.
@@ -71,7 +71,7 @@ pub struct Conv2dBlockBuilder {
     padding: usize,
     activation: Option<Activation>,
     use_batch_norm2d: bool,
-    pool: Option<Pool2d>,
+    pool2d: Option<Pool2d>,
     device: Device,
     dtype: DType,
     grad_enabled: bool,
@@ -110,7 +110,7 @@ impl Conv2dBlockBuilder {
             padding,
             activation: None,
             use_batch_norm2d: false,
-            pool: None,
+            pool2d: None,
             device: Device::cpu(),
             dtype: DType::F32,
             grad_enabled: true,
@@ -162,7 +162,7 @@ impl Conv2dBlockBuilder {
     /// * Only one pooling type can be active at a time.
     ///
     /// # Arguments
-    /// * `pool` - The pooling layer to use.
+    /// * `pool2d` - The pooling layer to use.
     ///
     /// # Returns
     /// * `Self` - The conv2d block builder with the specified pooling layer.
@@ -173,8 +173,8 @@ impl Conv2dBlockBuilder {
     /// let builder = Conv2dBlockBuilder::new(1, 16, (3, 3), 1, 1)
     ///     .with_pool2d(Pool2d::max_pool2d((2, 2), None).unwrap());
     /// ```
-    pub fn with_pool2d(mut self, pool: Pool2d) -> Self {
-        self.pool = Some(pool);
+    pub fn with_pool2d(mut self, pool2d: Pool2d) -> Self {
+        self.pool2d = Some(pool2d);
         self
     }
 
@@ -224,7 +224,7 @@ impl Conv2dBlockBuilder {
     ///     .without_pool2d();
     /// ```
     pub fn without_pool2d(mut self) -> Self {
-        self.pool = None;
+        self.pool2d = None;
         self
     }
 
@@ -320,7 +320,7 @@ impl Conv2dBlockBuilder {
         };
 
         let activation = self.activation;
-        let pool = self.pool;
+        let pool2d = self.pool2d;
 
         let id = ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
@@ -328,7 +328,7 @@ impl Conv2dBlockBuilder {
             conv,
             batch_norm2d,
             activation,
-            pool,
+            pool2d,
             id,
         })
     }
@@ -344,7 +344,7 @@ impl Conv2dBlockBuilder {
 /// * `conv` - The convolutional layer.
 /// * `batch_norm2d` - Optional 2D batch normalization layer.
 /// * `activation` - Optional activation function.
-/// * `pool` - Optional pooling layer.
+/// * `pool2d` - Optional pooling layer.
 /// * `id` - The unique ID of the conv2d block.
 ///
 /// # Examples
@@ -363,7 +363,7 @@ pub struct Conv2dBlock {
     conv: Conv2d,
     batch_norm2d: Option<BatchNorm2d>,
     activation: Option<Activation>,
-    pool: Option<Pool2d>,
+    pool2d: Option<Pool2d>,
     id: usize,
 }
 
@@ -392,8 +392,8 @@ impl Model for Conv2dBlock {
             output = activation.forward(output)?;
         }
 
-        if let Some(ref mut pool) = self.pool {
-            output = pool.forward(output)?;
+        if let Some(ref mut pool2d) = self.pool2d {
+            output = pool2d.forward(output)?;
         }
 
         Ok(output)
@@ -407,8 +407,8 @@ impl Model for Conv2dBlock {
         if let Some(ref mut activation) = self.activation {
             activation.require_grad(grad_enabled)?;
         }
-        if let Some(ref mut pool) = self.pool {
-            pool.require_grad(grad_enabled)?;
+        if let Some(ref mut pool2d) = self.pool2d {
+            pool2d.require_grad(grad_enabled)?;
         }
         Ok(())
     }
@@ -421,8 +421,8 @@ impl Model for Conv2dBlock {
         if let Some(ref mut activation) = self.activation {
             activation.to_device(device)?;
         }
-        if let Some(ref mut pool) = self.pool {
-            pool.to_device(device)?;
+        if let Some(ref mut pool2d) = self.pool2d {
+            pool2d.to_device(device)?;
         }
         Ok(())
     }
@@ -435,8 +435,8 @@ impl Model for Conv2dBlock {
         if let Some(ref mut activation) = self.activation {
             activation.to_dtype(dtype)?;
         }
-        if let Some(ref mut pool) = self.pool {
-            pool.to_dtype(dtype)?;
+        if let Some(ref mut pool2d) = self.pool2d {
+            pool2d.to_dtype(dtype)?;
         }
         Ok(())
     }
@@ -450,7 +450,7 @@ impl Model for Conv2dBlock {
         if let Some(ref activation) = self.activation {
             params.extend(activation.parameters()?);
         }
-        if let Some(ref pool) = self.pool {
+        if let Some(ref pool) = self.pool2d {
             params.extend(pool.parameters()?);
         }
         Ok(params)
@@ -472,7 +472,7 @@ impl Model for Conv2dBlock {
                 params.insert(format!("{}{}", prefix, name), tensor);
             }
         }
-        if let Some(ref pool) = self.pool {
+        if let Some(ref pool) = self.pool2d {
             for (name, tensor) in pool.named_parameters()? {
                 params.insert(format!("{}{}", prefix, name), tensor);
             }
@@ -491,7 +491,7 @@ impl Display for Conv2dBlock {
         if let Some(ref activation) = self.activation {
             write!(f, "  {},\n", activation)?;
         }
-        if let Some(ref pool) = self.pool {
+        if let Some(ref pool) = self.pool2d {
             write!(f, "  {},\n", pool)?;
         }
         write!(f, ")")
