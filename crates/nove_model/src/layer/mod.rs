@@ -52,3 +52,7 @@ pub use conv1d_block::Conv1dBlockBuilder;
 mod layernorm;
 pub use layernorm::LayerNorm;
 pub use layernorm::LayerNormBuilder;
+
+mod rnncell;
+pub use rnncell::RNNCell;
+pub use rnncell::RNNCellBuilder;
