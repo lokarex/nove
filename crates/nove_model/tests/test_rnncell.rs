@@ -5,7 +5,7 @@ use nove::model::{
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
-fn test_rnncell_builder_success() {
+fn test_rnn_cell_builder_success() {
     // Test building with minimal required parameters
     let rnn_cell = RNNCellBuilder::new(10, 20).build().unwrap();
 
@@ -29,7 +29,7 @@ fn test_rnncell_builder_success() {
 }
 
 #[test]
-fn test_rnncell_builder_failure() {
+fn test_rnn_cell_builder_failure() {
     // Test with zero input size
     let result = RNNCellBuilder::new(0, 20).build();
     assert!(result.is_err());
@@ -42,7 +42,7 @@ fn test_rnncell_builder_failure() {
 }
 
 #[test]
-fn test_rnncell_forward_shape() {
+fn test_rnn_cell_forward_shape() {
     // Test forward pass with different configurations
     let mut rnn_cell = RNNCellBuilder::new(10, 20).build().unwrap();
 
@@ -74,7 +74,7 @@ fn test_rnncell_forward_shape() {
 }
 
 #[test]
-fn test_rnncell_forward_with_bias() {
+fn test_rnn_cell_forward_with_bias() {
     // Test forward pass with bias enabled (default)
     let mut rnn_cell = RNNCellBuilder::new(5, 8)
         .bias_enabled(true)
@@ -104,7 +104,7 @@ fn test_rnncell_forward_with_bias() {
 }
 
 #[test]
-fn test_rnncell_forward_without_bias() {
+fn test_rnn_cell_forward_without_bias() {
     // Test forward pass with bias disabled
     let mut rnn_cell = RNNCellBuilder::new(5, 8)
         .bias_enabled(false)
@@ -134,7 +134,7 @@ fn test_rnncell_forward_without_bias() {
 }
 
 #[test]
-fn test_rnncell_forward_different_activations() {
+fn test_rnn_cell_forward_different_activations() {
     // Test forward pass with different activation functions
     let activations = [
         Activation::tanh(),

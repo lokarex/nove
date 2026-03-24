@@ -12,6 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let device = Device::cuda_if_available(0);
     #[cfg(feature = "metal")]
     let device = Device::metal_if_available(0);
+    println!("Using device: {:?}", device);
 
     println!("Loading MNIST dataset and creating dataloaders...");
     let batch_size = 64;

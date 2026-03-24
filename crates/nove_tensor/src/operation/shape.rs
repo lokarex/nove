@@ -276,4 +276,45 @@ impl Tensor {
             })),
         })
     }
+
+    /// Narrow the tensor along a dimension by selecting a range of indices.
+    ///
+    /// # Arguments
+    /// * `dim` - The dimension to narrow along.
+    /// * `start` - The starting index (inclusive) for the narrowing operation.
+    /// * `length` - The number of elements to include in the narrowed dimension.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The narrowed tensor.
+    /// * `Err(TensorError)` - The error when narrowing the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t = Tensor::from_data(&[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], &device, false).unwrap();
+    ///
+    /// // Narrow along dimension 1 (columns), starting at index 1, length 2
+    /// let narrowed = t.narrow(1, 1, 2).unwrap();
+    /// println!("{:?}", narrowed);
+    /// ```
+    pub fn narrow(&self, dim: usize, start: usize, length: usize) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.narrow(dim, start, length)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.copy()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
 }

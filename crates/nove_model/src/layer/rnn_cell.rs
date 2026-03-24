@@ -13,18 +13,34 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 
 /// Recurrent Neural Network Cell layer.
 ///
+/// <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+///
+/// The RNNCell is a basic recurrent neural network cell that applies a
+/// transformation to the input and previous hidden state.
+///
+/// The RNN computes the following:
+///
+/// $$ h' = \text{activation}(W_{ih} x + b_{ih} + W_{hh} h + b_{hh}) $$
+///
+/// Where:
+/// - \( x \) is the input tensor
+/// - \( h \) is the hidden state from previous time step
+/// - \( W_{ih} \) is the weight matrix from input to hidden
+/// - \( b_{ih} \) is the bias vector for input to hidden
+/// - \( W_{hh} \) is the weight matrix from hidden to hidden
+/// - \( b_{hh} \) is the bias vector for hidden to hidden
+/// - \( \text{activation} \) is the activation function (tanh or ReLU)
+///
 /// # Notes
 /// * The `RNNCell` is now only created by the [`RNNCellBuilder`].
-/// * This cell implements the basic RNN computation:
-///   \( h' = \text{activation}(W_{ih} x + b_{ih} + W_{hh} h + b_{hh}) \)
 /// * The forward pass expects a tuple of (input, hidden) tensors and returns
 ///   the new hidden state.
 ///
 /// # Fields
 /// * `weight_ih` - The weight tensor for input to hidden transformation with shape [hidden_size, input_size].
 /// * `weight_hh` - The weight tensor for hidden to hidden transformation with shape [hidden_size, hidden_size].
-/// * `bias_ih` - The bias tensor for input to hidden transformation with shape [hidden_size] (optional).
-/// * `bias_hh` - The bias tensor for hidden to hidden transformation with shape [hidden_size] (optional).
+/// * `bias_ih` - The bias tensor for input to hidden transformation with shape \[hidden_size\] (optional).
+/// * `bias_hh` - The bias tensor for hidden to hidden transformation with shape \[hidden_size\] (optional).
 /// * `input_size` - The number of input features.
 /// * `hidden_size` - The number of hidden features.
 /// * `activation` - The activation function to use.
@@ -267,7 +283,7 @@ impl Display for RNNCell {
         let bias_enabled = self.bias_ih.is_some(); // bias_ih and bias_hh are both enabled or disabled together
         write!(
             f,
-            "rnncell.{}(input_size={}, hidden_size={}, bias_enabled={}, activation={})",
+            "rnn_cell.{}(input_size={}, hidden_size={}, bias_enabled={}, activation={})",
             self.id, self.input_size, self.hidden_size, bias_enabled, self.activation,
         )
     }
