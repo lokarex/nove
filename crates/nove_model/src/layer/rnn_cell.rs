@@ -15,7 +15,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
 ///
-/// The RNNCell is a basic recurrent neural network cell that applies a
+/// The RnnCell is a basic recurrent neural network cell that applies a
 /// transformation to the input and previous hidden state.
 ///
 /// The RNN computes the following:
@@ -32,7 +32,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// - \( \text{activation} \) is the activation function (tanh or ReLU)
 ///
 /// # Notes
-/// * The `RNNCell` is now only created by the [`RNNCellBuilder`].
+/// * The `RnnCell` is now only created by the [`RnnCellBuilder`].
 /// * The forward pass expects a tuple of (input, hidden) tensors and returns
 ///   the new hidden state.
 ///
@@ -48,11 +48,11 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::RNNCellBuilder;
+/// use nove::model::layer::RnnCellBuilder;
 /// use nove::model::layer::Activation;
 /// use nove::tensor::{Device, DType};
 ///
-/// let rnn_cell = RNNCellBuilder::new(10, 20)
+/// let rnn_cell = RnnCellBuilder::new(10, 20)
 ///     .activation(Activation::tanh())
 ///     .bias_enabled(true)
 ///     .device(Device::cpu())
@@ -61,9 +61,9 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// ```
 ///
 /// # See Also
-/// * [`RNNCellBuilder`] - The builder for the RNNCell layer.
+/// * [`RnnCellBuilder`] - The builder for the RnnCell layer.
 #[derive(Debug, Clone)]
-pub struct RNNCell {
+pub struct RnnCell {
     weight_ih: Tensor,
     weight_hh: Tensor,
     bias_ih: Option<Tensor>,
@@ -74,7 +74,7 @@ pub struct RNNCell {
     id: usize,
 }
 
-impl RNNCell {
+impl RnnCell {
     /// Get the input-to-hidden weight tensor.
     ///
     /// # Returns
@@ -132,7 +132,7 @@ impl RNNCell {
     }
 }
 
-impl Model for RNNCell {
+impl Model for RnnCell {
     type Input = (Tensor, Tensor);
     type Output = Tensor;
 
@@ -154,14 +154,14 @@ impl Model for RNNCell {
 
         if input_shape.dims().len() != 2 {
             return Err(ModelError::InvalidArgument(format!(
-                "RNNCell expects input tensor with 2 dimensions [batch_size, input_size], got shape {:?}",
+                "RnnCell expects input tensor with 2 dimensions [batch_size, input_size], got shape {:?}",
                 input_shape.dims()
             )));
         }
 
         if hidden_shape.dims().len() != 2 {
             return Err(ModelError::InvalidArgument(format!(
-                "RNNCell expects hidden state tensor with 2 dimensions [batch_size, hidden_size], got shape {:?}",
+                "RnnCell expects hidden state tensor with 2 dimensions [batch_size, hidden_size], got shape {:?}",
                 hidden_shape.dims()
             )));
         }
@@ -172,21 +172,21 @@ impl Model for RNNCell {
 
         if input_size_from_tensor != self.input_size {
             return Err(ModelError::InvalidArgument(format!(
-                "RNNCell expects input size {}, got {}",
+                "RnnCell expects input size {}, got {}",
                 self.input_size, input_size_from_tensor
             )));
         }
 
         if hidden_size_from_tensor != self.hidden_size {
             return Err(ModelError::InvalidArgument(format!(
-                "RNNCell expects hidden size {}, got {}",
+                "RnnCell expects hidden size {}, got {}",
                 self.hidden_size, hidden_size_from_tensor
             )));
         }
 
         if hidden_shape.dims()[0] != batch_size {
             return Err(ModelError::InvalidArgument(format!(
-                "RNNCell expects batch size {} for hidden state, got {}",
+                "RnnCell expects batch size {} for hidden state, got {}",
                 batch_size,
                 hidden_shape.dims()[0]
             )));
@@ -278,7 +278,7 @@ impl Model for RNNCell {
     }
 }
 
-impl Display for RNNCell {
+impl Display for RnnCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bias_enabled = self.bias_ih.is_some(); // bias_ih and bias_hh are both enabled or disabled together
         write!(
@@ -289,12 +289,12 @@ impl Display for RNNCell {
     }
 }
 
-/// The builder for the RNNCell layer.
+/// The builder for the RnnCell layer.
 ///
 /// # Notes
-/// * The `RNNCellBuilder` provides [`RNNCellBuilder::new()`] method to create a builder with required parameters.
+/// * The `RnnCellBuilder` provides [`RnnCellBuilder::new()`] method to create a builder with required parameters.
 /// * The weight tensors are initialized with uniform distribution `U(-sqrt(k), sqrt(k))` where `k = 1 / hidden_size`,
-///   following PyTorch's RNNCell initialization.
+///   following PyTorch's RnnCell initialization.
 ///   The bias tensors are initialized with zeros (if enabled).
 ///
 /// # Required Arguments
@@ -319,11 +319,11 @@ impl Display for RNNCell {
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::RNNCellBuilder;
+/// use nove::model::layer::RnnCellBuilder;
 /// use nove::model::layer::Activation;
 /// use nove::tensor::{Device, DType};
 ///
-/// let rnn_cell = RNNCellBuilder::new(10, 20)
+/// let rnn_cell = RnnCellBuilder::new(10, 20)
 ///     .activation(Activation::tanh())
 ///     .bias_enabled(true)
 ///     .device(Device::cpu())
@@ -331,7 +331,7 @@ impl Display for RNNCell {
 ///     .grad_enabled(true)
 ///     .build();
 /// ```
-pub struct RNNCellBuilder {
+pub struct RnnCellBuilder {
     input_size: usize,
     hidden_size: usize,
     bias_enabled: bool,
@@ -341,8 +341,8 @@ pub struct RNNCellBuilder {
     grad_enabled: bool,
 }
 
-impl RNNCellBuilder {
-    /// Create a new RNNCellBuilder with required input_size and hidden_size.
+impl RnnCellBuilder {
+    /// Create a new RnnCellBuilder with required input_size and hidden_size.
     ///
     /// # Arguments
     /// * `input_size` - The number of expected features in the input x
@@ -362,6 +362,44 @@ impl RNNCellBuilder {
         }
     }
 
+    /// Configure the number of expected features in the input x.
+    ///
+    /// # Arguments
+    /// * `input_size` - The number of expected features in the input x
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured input size.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::RnnCellBuilder;
+    /// let mut builder = RnnCellBuilder::new(10, 20);
+    /// builder.input_size(10);
+    /// ```
+    pub fn input_size(&mut self, input_size: usize) -> &mut Self {
+        self.input_size = input_size;
+        self
+    }
+
+    /// Configure the number of features in the hidden state h.
+    ///
+    /// # Arguments
+    /// * `hidden_size` - The number of features in the hidden state h
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured hidden size.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::RnnCellBuilder;
+    /// let mut builder = RnnCellBuilder::new(10, 20);
+    /// builder.hidden_size(20);
+    /// ```
+    pub fn hidden_size(&mut self, hidden_size: usize) -> &mut Self {
+        self.hidden_size = hidden_size;
+        self
+    }
+
     /// Configure the activation function.
     ///
     /// # Arguments
@@ -372,9 +410,9 @@ impl RNNCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RNNCellBuilder;
+    /// use nove::model::layer::RnnCellBuilder;
     /// use nove::model::layer::Activation;
-    /// let mut builder = RNNCellBuilder::new(10, 20);
+    /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.activation(Activation::tanh());
     /// ```
     pub fn activation(&mut self, activation: Activation) -> &mut Self {
@@ -392,8 +430,8 @@ impl RNNCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RNNCellBuilder;
-    /// let mut builder = RNNCellBuilder::new(10, 20);
+    /// use nove::model::layer::RnnCellBuilder;
+    /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.bias_enabled(false);
     /// ```
     pub fn bias_enabled(&mut self, bias_enabled: bool) -> &mut Self {
@@ -411,9 +449,9 @@ impl RNNCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RNNCellBuilder;
+    /// use nove::model::layer::RnnCellBuilder;
     /// use nove::tensor::Device;
-    /// let mut builder = RNNCellBuilder::new(10, 20);
+    /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.device(Device::cpu());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
@@ -431,9 +469,9 @@ impl RNNCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RNNCellBuilder;
+    /// use nove::model::layer::RnnCellBuilder;
     /// use nove::tensor::DType;
-    /// let mut builder = RNNCellBuilder::new(10, 20);
+    /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.dtype(DType::F32);
     /// ```
     pub fn dtype(&mut self, dtype: DType) -> &mut Self {
@@ -451,8 +489,8 @@ impl RNNCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RNNCellBuilder;
-    /// let mut builder = RNNCellBuilder::new(10, 20);
+    /// use nove::model::layer::RnnCellBuilder;
+    /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.grad_enabled(false);
     /// ```
     pub fn grad_enabled(&mut self, grad_enabled: bool) -> &mut Self {
@@ -463,33 +501,33 @@ impl RNNCellBuilder {
     /// Build the RNN cell layer.
     ///
     /// # Returns
-    /// * `Ok(RNNCell)` - The built RNN cell layer.
+    /// * `Ok(RnnCell)` - The built RNN cell layer.
     /// * `Err(ModelError)` - The error when building the RNN cell layer.
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RNNCellBuilder;
+    /// use nove::model::layer::RnnCellBuilder;
     /// use nove::model::layer::Activation;
-    /// let mut builder = RNNCellBuilder::new(10, 20);
+    /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.activation(Activation::tanh());
     /// let rnn_cell = builder.build().unwrap();
     /// ```
-    pub fn build(&self) -> Result<RNNCell, ModelError> {
+    pub fn build(&self) -> Result<RnnCell, ModelError> {
         if self.input_size == 0 {
             return Err(ModelError::InvalidArgument(
-                "input_size in RNNCellBuilder must be greater than 0".to_string(),
+                "input_size in RnnCellBuilder must be greater than 0".to_string(),
             ));
         }
 
         if self.hidden_size == 0 {
             return Err(ModelError::InvalidArgument(
-                "hidden_size in RNNCellBuilder must be greater than 0".to_string(),
+                "hidden_size in RnnCellBuilder must be greater than 0".to_string(),
             ));
         }
 
         let id = ID.fetch_add(1, Ordering::Relaxed);
 
-        // PyTorch RNNCell weight initialization: uniform distribution U(-sqrt(k), sqrt(k)) where k = 1 / hidden_size
+        // PyTorch RnnCell weight initialization: uniform distribution U(-sqrt(k), sqrt(k)) where k = 1 / hidden_size
         let k = 1.0 / self.hidden_size as f64;
         let bound = k.sqrt();
 
@@ -539,7 +577,7 @@ impl RNNCellBuilder {
             None
         };
 
-        Ok(RNNCell {
+        Ok(RnnCell {
             weight_ih,
             weight_hh,
             bias_ih,

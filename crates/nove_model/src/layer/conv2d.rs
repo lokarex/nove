@@ -32,10 +32,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// use nove::model::layer::Conv2dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
-/// let conv = Conv2dBuilder::default()
-///     .in_channels(3)           // Required
-///     .out_channels(64)         // Required
-///     .kernel_size((3, 3))      // Required
+/// let conv = Conv2dBuilder::new(3, 64, (3, 3))  // Required: in_channels, out_channels, kernel_size
 ///     .padding(1)               // Optional, default is 0
 ///     .stride(1)                // Optional, default is 1
 ///     .dilation(1)              // Optional, default is 1
@@ -171,15 +168,14 @@ impl Display for Conv2d {
 /// The builder for the 2D convolution layer.
 ///
 /// # Notes
-/// * The `Conv2dBuilder` implements the `Default` trait, so you can
-///   use `Conv2dBuilder::default()` to create a builder with default values.
+/// * The `Conv2dBuilder` must be created using [`Conv2dBuilder::new()`] with required `in_channels`, `out_channels`, and `kernel_size` arguments.
 /// * The `weight` tensor in the convolution layer is initialized with the Kaiming normal distribution(`fan_in=(in_channels / groups) * kernel_size.0 * kernel_size.1`,`mean=0.0`, `std=sqrt(2 / fan_in)`).
 ///   The `bias`` tensor is initialized with zeros(if enabled).
 ///
 /// # Required Arguments
-/// * `in_channels` - The number of input channels.
-/// * `out_channels` - The number of output channels.
-/// * `kernel_size` - The size of the convolution kernel (height, width).
+/// * `in_channels` - The number of input channels (passed to `new()`).
+/// * `out_channels` - The number of output channels (passed to `new()`).
+/// * `kernel_size` - The size of the convolution kernel (height, width) (passed to `new()`).
 ///
 /// # Optional Arguments
 /// * `padding` - The padding size. Default is `0`.
@@ -209,10 +205,7 @@ impl Display for Conv2d {
 /// use nove::model::layer::Conv2dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
-/// let conv = Conv2dBuilder::default()
-///     .in_channels(3)           // Required
-///     .out_channels(64)          // Required
-///     .kernel_size((3, 3))       // Required
+/// let conv = Conv2dBuilder::new(3, 64, (3, 3))  // Required: in_channels, out_channels, kernel_size
 ///     .padding(1)               // Optional, default is 0
 ///     .stride(1)                // Optional, default is 1
 ///     .dilation(1)              // Optional, default is 1
@@ -224,9 +217,9 @@ impl Display for Conv2d {
 ///     .build();
 /// ```
 pub struct Conv2dBuilder {
-    in_channels: Option<usize>,
-    out_channels: Option<usize>,
-    kernel_size: Option<(usize, usize)>,
+    in_channels: usize,
+    out_channels: usize,
+    kernel_size: (usize, usize),
     padding: usize,
     stride: usize,
     dilation: usize,
@@ -237,12 +230,12 @@ pub struct Conv2dBuilder {
     grad_enabled: bool,
 }
 
-impl Default for Conv2dBuilder {
-    fn default() -> Self {
+impl Conv2dBuilder {
+    pub fn new(in_channels: usize, out_channels: usize, kernel_size: (usize, usize)) -> Self {
         Self {
-            in_channels: None,
-            out_channels: None,
-            kernel_size: None,
+            in_channels,
+            out_channels,
+            kernel_size,
             padding: 0,
             stride: 1,
             dilation: 1,
@@ -267,11 +260,11 @@ impl Conv2dBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.in_channels(3);
     /// ```
     pub fn in_channels(&mut self, in_channels: usize) -> &mut Self {
-        self.in_channels = Some(in_channels);
+        self.in_channels = in_channels;
         self
     }
 
@@ -286,11 +279,11 @@ impl Conv2dBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.out_channels(64);
     /// ```
     pub fn out_channels(&mut self, out_channels: usize) -> &mut Self {
-        self.out_channels = Some(out_channels);
+        self.out_channels = out_channels;
         self
     }
 
@@ -305,11 +298,11 @@ impl Conv2dBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.kernel_size((3, 3));
     /// ```
     pub fn kernel_size(&mut self, kernel_size: (usize, usize)) -> &mut Self {
-        self.kernel_size = Some(kernel_size);
+        self.kernel_size = kernel_size;
         self
     }
 
@@ -324,7 +317,7 @@ impl Conv2dBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.padding(1);
     /// ```
     pub fn padding(&mut self, padding: usize) -> &mut Self {
@@ -343,7 +336,7 @@ impl Conv2dBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.stride(1);
     /// ```
     pub fn stride(&mut self, stride: usize) -> &mut Self {
@@ -362,7 +355,7 @@ impl Conv2dBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.dilation(1);
     /// ```
     pub fn dilation(&mut self, dilation: usize) -> &mut Self {
@@ -381,7 +374,7 @@ impl Conv2dBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.groups(1);
     /// ```
     pub fn groups(&mut self, groups: usize) -> &mut Self {
@@ -400,7 +393,7 @@ impl Conv2dBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.bias_enabled(true);
     /// ```
     pub fn bias_enabled(&mut self, bias_enabled: bool) -> &mut Self {
@@ -420,7 +413,7 @@ impl Conv2dBuilder {
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
     /// use nove::tensor::Device;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.device(Device::cpu());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
@@ -440,7 +433,7 @@ impl Conv2dBuilder {
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
     /// use nove::tensor::DType;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.dtype(DType::F32);
     /// ```
     pub fn dtype(&mut self, dtype: DType) -> &mut Self {
@@ -459,7 +452,7 @@ impl Conv2dBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
-    /// let mut conv_builder = Conv2dBuilder::default();
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.grad_enabled(true);
     /// ```
     pub fn grad_enabled(&mut self, grad_enabled: bool) -> &mut Self {
@@ -476,22 +469,13 @@ impl Conv2dBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::Conv2dBuilder;
-    /// let mut conv_builder = Conv2dBuilder::default();
-    /// conv_builder.in_channels(3);
-    /// conv_builder.out_channels(64);
-    /// conv_builder.kernel_size((3, 3));
+    /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// let conv = conv_builder.build().unwrap();
     /// ```
     pub fn build(&self) -> Result<Conv2d, ModelError> {
-        let in_channels = self.in_channels.ok_or(ModelError::MissingArgument(
-            "in_channels in Conv2dBuilder".to_string(),
-        ))?;
-        let out_channels = self.out_channels.ok_or(ModelError::MissingArgument(
-            "out_channels in Conv2dBuilder".to_string(),
-        ))?;
-        let kernel_size = self.kernel_size.ok_or(ModelError::MissingArgument(
-            "kernel_size in Conv2dBuilder".to_string(),
-        ))?;
+        let in_channels = self.in_channels;
+        let out_channels = self.out_channels;
+        let kernel_size = self.kernel_size;
 
         if kernel_size.0 == 0 || kernel_size.1 == 0 {
             return Err(ModelError::InvalidArgument(

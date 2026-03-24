@@ -4,10 +4,7 @@ use nove_tensor::{Device, Shape, Tensor};
 #[test]
 fn test_conv2d() {
     // Create a conv2d layer and a dummy input tensor.
-    let mut conv2d = Conv2dBuilder::default()
-        .in_channels(3)
-        .out_channels(6)
-        .kernel_size((3, 3))
+    let mut conv2d = Conv2dBuilder::new(3, 6, (3, 3))
         .build()
         .unwrap();
     let input = Tensor::rand(

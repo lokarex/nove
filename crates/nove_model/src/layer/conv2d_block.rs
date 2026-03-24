@@ -117,6 +117,101 @@ impl Conv2dBlockBuilder {
         }
     }
 
+    /// Configure the number of input channels.
+    ///
+    /// # Arguments
+    /// * `in_channels` - The number of input channels.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured input channels.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::Conv2dBlockBuilder;
+    /// let mut builder = Conv2dBlockBuilder::new(1, 16, (3, 3), 1, 1);
+    /// builder.in_channels(3);
+    /// ```
+    pub fn in_channels(&mut self, in_channels: usize) -> &mut Self {
+        self.in_channels = in_channels;
+        self
+    }
+
+    /// Configure the number of output channels.
+    ///
+    /// # Arguments
+    /// * `out_channels` - The number of output channels.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured output channels.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::Conv2dBlockBuilder;
+    /// let mut builder = Conv2dBlockBuilder::new(1, 16, (3, 3), 1, 1);
+    /// builder.out_channels(64);
+    /// ```
+    pub fn out_channels(&mut self, out_channels: usize) -> &mut Self {
+        self.out_channels = out_channels;
+        self
+    }
+
+    /// Configure the size of the convolution kernel.
+    ///
+    /// # Arguments
+    /// * `kernel_size` - The size of the convolution kernel (height, width).
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured kernel size.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::Conv2dBlockBuilder;
+    /// let mut builder = Conv2dBlockBuilder::new(1, 16, (3, 3), 1, 1);
+    /// builder.kernel_size((5, 5));
+    /// ```
+    pub fn kernel_size(&mut self, kernel_size: (usize, usize)) -> &mut Self {
+        self.kernel_size = kernel_size;
+        self
+    }
+
+    /// Configure the stride of the convolution.
+    ///
+    /// # Arguments
+    /// * `stride` - The stride of the convolution.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured stride.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::Conv2dBlockBuilder;
+    /// let mut builder = Conv2dBlockBuilder::new(1, 16, (3, 3), 1, 1);
+    /// builder.stride(2);
+    /// ```
+    pub fn stride(&mut self, stride: usize) -> &mut Self {
+        self.stride = stride;
+        self
+    }
+
+    /// Configure the padding of the convolution.
+    ///
+    /// # Arguments
+    /// * `padding` - The padding size.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured padding.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::Conv2dBlockBuilder;
+    /// let mut builder = Conv2dBlockBuilder::new(1, 16, (3, 3), 1, 1);
+    /// builder.padding(2);
+    /// ```
+    pub fn padding(&mut self, padding: usize) -> &mut Self {
+        self.padding = padding;
+        self
+    }
+
     /// Configure activation function after convolution.
     ///
     /// # Notes
@@ -296,21 +391,21 @@ impl Conv2dBlockBuilder {
     /// let block = Conv2dBlockBuilder::new(1, 16, (3, 3), 1, 1).build().unwrap();
     /// ```
     pub fn build(self) -> Result<Conv2dBlock, ModelError> {
-        let conv = Conv2dBuilder::default()
-            .in_channels(self.in_channels)
-            .out_channels(self.out_channels)
-            .kernel_size(self.kernel_size)
-            .stride(self.stride)
-            .padding(self.padding)
-            .device(self.device.clone())
-            .dtype(self.dtype)
-            .grad_enabled(self.grad_enabled)
-            .build()?;
+        let conv = Conv2dBuilder::new(
+            self.in_channels,
+            self.out_channels,
+            self.kernel_size,
+        )
+        .stride(self.stride)
+        .padding(self.padding)
+        .device(self.device.clone())
+        .dtype(self.dtype)
+        .grad_enabled(self.grad_enabled)
+        .build()?;
 
         let batch_norm2d = if self.use_batch_norm2d {
             Some(
-                BatchNorm2dBuilder::default()
-                    .num_features(self.out_channels)
+                BatchNorm2dBuilder::new(self.out_channels)
                     .device(self.device.clone())
                     .dtype(self.dtype)
                     .build()?,

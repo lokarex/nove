@@ -1,16 +1,16 @@
-use nove::model::{Model, layer::LSTMCellBuilder};
+use nove::model::{Model, layer::LstmCellBuilder};
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_lstm_cell_builder_success() {
     // Test building with minimal required parameters
-    let lstm_cell = LSTMCellBuilder::new(10, 20).build().unwrap();
+    let lstm_cell = LstmCellBuilder::new(10, 20).build().unwrap();
 
     assert_eq!(lstm_cell.input_size(), 10);
     assert_eq!(lstm_cell.hidden_size(), 20);
 
     // Test building with all parameters customized
-    let lstm_cell = LSTMCellBuilder::new(5, 8)
+    let lstm_cell = LstmCellBuilder::new(5, 8)
         .bias_enabled(false)
         .device(Device::cpu())
         .dtype(DType::F32)
@@ -27,12 +27,12 @@ fn test_lstm_cell_builder_success() {
 #[test]
 fn test_lstm_cell_builder_failure() {
     // Test with zero input size
-    let result = LSTMCellBuilder::new(0, 20).build();
+    let result = LstmCellBuilder::new(0, 20).build();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("input_size"));
 
     // Test with zero hidden size
-    let result = LSTMCellBuilder::new(10, 0).build();
+    let result = LstmCellBuilder::new(10, 0).build();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("hidden_size"));
 }
@@ -40,7 +40,7 @@ fn test_lstm_cell_builder_failure() {
 #[test]
 fn test_lstm_cell_forward_shape() {
     // Test forward pass with different configurations
-    let mut lstm_cell = LSTMCellBuilder::new(10, 20).build().unwrap();
+    let mut lstm_cell = LstmCellBuilder::new(10, 20).build().unwrap();
 
     // Create input, hidden state, and cell state tensors
     let batch_size = 4;
@@ -88,7 +88,7 @@ fn test_lstm_cell_forward_shape() {
 #[test]
 fn test_lstm_cell_forward_with_bias() {
     // Test forward pass with bias enabled (default)
-    let mut lstm_cell = LSTMCellBuilder::new(5, 8)
+    let mut lstm_cell = LstmCellBuilder::new(5, 8)
         .bias_enabled(true)
         .build()
         .unwrap();
@@ -128,7 +128,7 @@ fn test_lstm_cell_forward_with_bias() {
 #[test]
 fn test_lstm_cell_forward_without_bias() {
     // Test forward pass with bias disabled
-    let mut lstm_cell = LSTMCellBuilder::new(5, 8)
+    let mut lstm_cell = LstmCellBuilder::new(5, 8)
         .bias_enabled(false)
         .build()
         .unwrap();
@@ -167,7 +167,7 @@ fn test_lstm_cell_forward_without_bias() {
 
 #[test]
 fn test_lstm_cell_parameters() {
-    let lstm_cell = LSTMCellBuilder::new(6, 4).build().unwrap();
+    let lstm_cell = LstmCellBuilder::new(6, 4).build().unwrap();
 
     let params = lstm_cell.parameters().unwrap();
     // With bias enabled: weight_ih, weight_hh, bias_ih, bias_hh
@@ -183,7 +183,7 @@ fn test_lstm_cell_parameters() {
 
 #[test]
 fn test_lstm_cell_parameters_without_bias() {
-    let lstm_cell = LSTMCellBuilder::new(6, 4)
+    let lstm_cell = LstmCellBuilder::new(6, 4)
         .bias_enabled(false)
         .build()
         .unwrap();
@@ -202,7 +202,7 @@ fn test_lstm_cell_parameters_without_bias() {
 
 #[test]
 fn test_lstm_cell_require_grad() {
-    let mut lstm_cell = LSTMCellBuilder::new(3, 2)
+    let mut lstm_cell = LstmCellBuilder::new(3, 2)
         .grad_enabled(false)
         .build()
         .unwrap();
@@ -219,7 +219,7 @@ fn test_lstm_cell_require_grad() {
 
 #[test]
 fn test_lstm_cell_to_device() {
-    let mut lstm_cell = LSTMCellBuilder::new(4, 3)
+    let mut lstm_cell = LstmCellBuilder::new(4, 3)
         .device(Device::cpu())
         .build()
         .unwrap();
@@ -230,7 +230,7 @@ fn test_lstm_cell_to_device() {
 
 #[test]
 fn test_lstm_cell_to_dtype() {
-    let mut lstm_cell = LSTMCellBuilder::new(4, 3)
+    let mut lstm_cell = LstmCellBuilder::new(4, 3)
         .dtype(DType::F32)
         .build()
         .unwrap();
@@ -242,7 +242,7 @@ fn test_lstm_cell_to_dtype() {
 
 #[test]
 fn test_lstm_cell_display() {
-    let lstm_cell = LSTMCellBuilder::new(7, 5).build().unwrap();
+    let lstm_cell = LstmCellBuilder::new(7, 5).build().unwrap();
     let display_str = format!("{}", lstm_cell);
 
     assert!(display_str.starts_with(&format!("lstm_cell.{}", lstm_cell.id())));
@@ -253,7 +253,7 @@ fn test_lstm_cell_display() {
 
 #[test]
 fn test_lstm_cell_display_without_bias() {
-    let lstm_cell = LSTMCellBuilder::new(7, 5)
+    let lstm_cell = LstmCellBuilder::new(7, 5)
         .bias_enabled(false)
         .build()
         .unwrap();

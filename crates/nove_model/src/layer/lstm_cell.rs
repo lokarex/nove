@@ -14,7 +14,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
 ///
-/// The LSTMCell (Long Short-Term Memory Cell) is a type of recurrent neural network
+/// The LstmCell (Long Short-Term Memory Cell) is a type of recurrent neural network
 /// cell that implements gated recurrence. It is capable of learning long-term
 /// dependencies through its gating mechanisms.
 ///
@@ -46,7 +46,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// - \( \odot \) denotes element-wise multiplication
 ///
 /// # Notes
-/// * The `LSTMCell` is now only created by the [`LSTMCellBuilder`].
+/// * The `LstmCell` is now only created by the [`LstmCellBuilder`].
 /// * The forward pass expects a tuple of (input, (hidden, cell)) tensors and returns
 ///   a tuple of (new_hidden, new_cell).
 ///
@@ -61,10 +61,10 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::LSTMCellBuilder;
+/// use nove::model::layer::LstmCellBuilder;
 /// use nove::tensor::{Device, DType};
 ///
-/// let lstm_cell = LSTMCellBuilder::new(10, 20)
+/// let lstm_cell = LstmCellBuilder::new(10, 20)
 ///     .bias_enabled(true)
 ///     .device(Device::cpu())
 ///     .dtype(DType::F32)
@@ -73,9 +73,9 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// ```
 ///
 /// # See Also
-/// * [`LSTMCellBuilder`] - The builder for the LSTMCell layer.
+/// * [`LstmCellBuilder`] - The builder for the LstmCell layer.
 #[derive(Debug, Clone)]
-pub struct LSTMCell {
+pub struct LstmCell {
     weight_ih: Tensor,
     weight_hh: Tensor,
     bias_ih: Option<Tensor>,
@@ -85,7 +85,7 @@ pub struct LSTMCell {
     id: usize,
 }
 
-impl LSTMCell {
+impl LstmCell {
     /// Get the input-to-hidden weight tensor.
     ///
     /// # Returns
@@ -143,7 +143,7 @@ impl LSTMCell {
     }
 }
 
-impl Display for LSTMCell {
+impl Display for LstmCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bias_enabled = self.bias_ih.is_some(); // bias_ih and bias_hh are both enabled or disabled together
         write!(
@@ -154,12 +154,12 @@ impl Display for LSTMCell {
     }
 }
 
-/// The builder for the LSTMCell layer.
+/// The builder for the LstmCell layer.
 ///
 /// # Notes
-/// * The `LSTMCellBuilder` provides [`LSTMCellBuilder::new()`] method to create a builder with required parameters.
+/// * The `LstmCellBuilder` provides [`LstmCellBuilder::new()`] method to create a builder with required parameters.
 /// * The weight tensors are initialized with uniform distribution `U(-sqrt(k), sqrt(k))` where `k = 1 / hidden_size`,
-///   following PyTorch's LSTMCell initialization.
+///   following PyTorch's LstmCell initialization.
 ///   The bias tensors are initialized with zeros (if enabled).
 ///
 /// # Required Arguments
@@ -182,17 +182,17 @@ impl Display for LSTMCell {
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::LSTMCellBuilder;
+/// use nove::model::layer::LstmCellBuilder;
 /// use nove::tensor::{Device, DType};
 ///
-/// let lstm_cell = LSTMCellBuilder::new(10, 20)
+/// let lstm_cell = LstmCellBuilder::new(10, 20)
 ///     .bias_enabled(true)
 ///     .device(Device::cpu())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true)
 ///     .build();
 /// ```
-pub struct LSTMCellBuilder {
+pub struct LstmCellBuilder {
     input_size: usize,
     hidden_size: usize,
     bias_enabled: bool,
@@ -201,8 +201,8 @@ pub struct LSTMCellBuilder {
     grad_enabled: bool,
 }
 
-impl LSTMCellBuilder {
-    /// Create a new LSTMCellBuilder with required input_size and hidden_size.
+impl LstmCellBuilder {
+    /// Create a new LstmCellBuilder with required input_size and hidden_size.
     ///
     /// # Arguments
     /// * `input_size` - The number of expected features in the input x
@@ -221,6 +221,44 @@ impl LSTMCellBuilder {
         }
     }
 
+    /// Configure the number of expected features in the input x.
+    ///
+    /// # Arguments
+    /// * `input_size` - The number of expected features in the input x
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured input size.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::LstmCellBuilder;
+    /// let mut builder = LstmCellBuilder::new(10, 20);
+    /// builder.input_size(10);
+    /// ```
+    pub fn input_size(&mut self, input_size: usize) -> &mut Self {
+        self.input_size = input_size;
+        self
+    }
+
+    /// Configure the number of features in the hidden state h.
+    ///
+    /// # Arguments
+    /// * `hidden_size` - The number of features in the hidden state h
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured hidden size.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::LstmCellBuilder;
+    /// let mut builder = LstmCellBuilder::new(10, 20);
+    /// builder.hidden_size(20);
+    /// ```
+    pub fn hidden_size(&mut self, hidden_size: usize) -> &mut Self {
+        self.hidden_size = hidden_size;
+        self
+    }
+
     /// Configure whether to enable the bias terms.
     ///
     /// # Arguments
@@ -231,8 +269,8 @@ impl LSTMCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LSTMCellBuilder;
-    /// let mut builder = LSTMCellBuilder::new(10, 20);
+    /// use nove::model::layer::LstmCellBuilder;
+    /// let mut builder = LstmCellBuilder::new(10, 20);
     /// builder.bias_enabled(false);
     /// ```
     pub fn bias_enabled(&mut self, bias_enabled: bool) -> &mut Self {
@@ -250,9 +288,9 @@ impl LSTMCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LSTMCellBuilder;
+    /// use nove::model::layer::LstmCellBuilder;
     /// use nove::tensor::Device;
-    /// let mut builder = LSTMCellBuilder::new(10, 20);
+    /// let mut builder = LstmCellBuilder::new(10, 20);
     /// builder.device(Device::cpu());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
@@ -270,9 +308,9 @@ impl LSTMCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LSTMCellBuilder;
+    /// use nove::model::layer::LstmCellBuilder;
     /// use nove::tensor::DType;
-    /// let mut builder = LSTMCellBuilder::new(10, 20);
+    /// let mut builder = LstmCellBuilder::new(10, 20);
     /// builder.dtype(DType::F32);
     /// ```
     pub fn dtype(&mut self, dtype: DType) -> &mut Self {
@@ -290,8 +328,8 @@ impl LSTMCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LSTMCellBuilder;
-    /// let mut builder = LSTMCellBuilder::new(10, 20);
+    /// use nove::model::layer::LstmCellBuilder;
+    /// let mut builder = LstmCellBuilder::new(10, 20);
     /// builder.grad_enabled(false);
     /// ```
     pub fn grad_enabled(&mut self, grad_enabled: bool) -> &mut Self {
@@ -302,31 +340,31 @@ impl LSTMCellBuilder {
     /// Build the LSTM cell layer.
     ///
     /// # Returns
-    /// * `Ok(LSTMCell)` - The built LSTM cell layer.
+    /// * `Ok(LstmCell)` - The built LSTM cell layer.
     /// * `Err(ModelError)` - The error when building the LSTM cell layer.
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LSTMCellBuilder;
-    /// let mut builder = LSTMCellBuilder::new(10, 20);
+    /// use nove::model::layer::LstmCellBuilder;
+    /// let mut builder = LstmCellBuilder::new(10, 20);
     /// let lstm_cell = builder.build().unwrap();
     /// ```
-    pub fn build(&self) -> Result<LSTMCell, ModelError> {
+    pub fn build(&self) -> Result<LstmCell, ModelError> {
         if self.input_size == 0 {
             return Err(ModelError::InvalidArgument(
-                "input_size in LSTMCellBuilder must be greater than 0".to_string(),
+                "input_size in LstmCellBuilder must be greater than 0".to_string(),
             ));
         }
 
         if self.hidden_size == 0 {
             return Err(ModelError::InvalidArgument(
-                "hidden_size in LSTMCellBuilder must be greater than 0".to_string(),
+                "hidden_size in LstmCellBuilder must be greater than 0".to_string(),
             ));
         }
 
         let id = ID.fetch_add(1, Ordering::Relaxed);
 
-        // PyTorch LSTMCell weight initialization: uniform distribution U(-sqrt(k), sqrt(k)) where k = 1 / hidden_size
+        // PyTorch LstmCell weight initialization: uniform distribution U(-sqrt(k), sqrt(k)) where k = 1 / hidden_size
         let k = 1.0 / self.hidden_size as f64;
         let bound = k.sqrt();
 
@@ -376,7 +414,7 @@ impl LSTMCellBuilder {
             None
         };
 
-        Ok(LSTMCell {
+        Ok(LstmCell {
             weight_ih,
             weight_hh,
             bias_ih,
@@ -388,7 +426,7 @@ impl LSTMCellBuilder {
     }
 }
 
-impl Model for LSTMCell {
+impl Model for LstmCell {
     type Input = (Tensor, (Tensor, Tensor));
     type Output = (Tensor, Tensor);
 
@@ -412,21 +450,21 @@ impl Model for LSTMCell {
 
         if input_shape.dims().len() != 2 {
             return Err(ModelError::InvalidArgument(format!(
-                "LSTMCell expects input tensor with 2 dimensions [batch_size, input_size], got shape {:?}",
+                "LstmCell expects input tensor with 2 dimensions [batch_size, input_size], got shape {:?}",
                 input_shape.dims()
             )));
         }
 
         if hidden_shape.dims().len() != 2 {
             return Err(ModelError::InvalidArgument(format!(
-                "LSTMCell expects hidden state tensor with 2 dimensions [batch_size, hidden_size], got shape {:?}",
+                "LstmCell expects hidden state tensor with 2 dimensions [batch_size, hidden_size], got shape {:?}",
                 hidden_shape.dims()
             )));
         }
 
         if cell_shape.dims().len() != 2 {
             return Err(ModelError::InvalidArgument(format!(
-                "LSTMCell expects cell state tensor with 2 dimensions [batch_size, hidden_size], got shape {:?}",
+                "LstmCell expects cell state tensor with 2 dimensions [batch_size, hidden_size], got shape {:?}",
                 cell_shape.dims()
             )));
         }
@@ -438,28 +476,28 @@ impl Model for LSTMCell {
 
         if input_size_from_tensor != self.input_size {
             return Err(ModelError::InvalidArgument(format!(
-                "LSTMCell expects input size {}, got {}",
+                "LstmCell expects input size {}, got {}",
                 self.input_size, input_size_from_tensor
             )));
         }
 
         if hidden_size_from_tensor != self.hidden_size {
             return Err(ModelError::InvalidArgument(format!(
-                "LSTMCell expects hidden size {}, got {}",
+                "LstmCell expects hidden size {}, got {}",
                 self.hidden_size, hidden_size_from_tensor
             )));
         }
 
         if cell_size_from_tensor != self.hidden_size {
             return Err(ModelError::InvalidArgument(format!(
-                "LSTMCell expects cell size {}, got {}",
+                "LstmCell expects cell size {}, got {}",
                 self.hidden_size, cell_size_from_tensor
             )));
         }
 
         if hidden_shape.dims()[0] != batch_size {
             return Err(ModelError::InvalidArgument(format!(
-                "LSTMCell expects batch size {} for hidden state, got {}",
+                "LstmCell expects batch size {} for hidden state, got {}",
                 batch_size,
                 hidden_shape.dims()[0]
             )));
@@ -467,7 +505,7 @@ impl Model for LSTMCell {
 
         if cell_shape.dims()[0] != batch_size {
             return Err(ModelError::InvalidArgument(format!(
-                "LSTMCell expects batch size {} for cell state, got {}",
+                "LstmCell expects batch size {} for cell state, got {}",
                 batch_size,
                 cell_shape.dims()[0]
             )));

@@ -54,9 +54,13 @@ pub use layernorm::LayerNorm;
 pub use layernorm::LayerNormBuilder;
 
 mod rnn_cell;
-pub use rnn_cell::RNNCell;
-pub use rnn_cell::RNNCellBuilder;
+pub use rnn_cell::RnnCell;
+pub use rnn_cell::RnnCellBuilder;
+
+mod rnn;
+pub use rnn::Rnn;
+pub use rnn::RnnBuilder;
 
 mod lstm_cell;
-pub use lstm_cell::LSTMCell;
-pub use lstm_cell::LSTMCellBuilder;
+pub use lstm_cell::LstmCell;
+pub use lstm_cell::LstmCellBuilder;

@@ -4,9 +4,7 @@ use nove::tensor::{Device, Shape, Tensor};
 #[test]
 fn test_linear() {
     // Create a linear layer and a dummy input tensor.
-    let mut linear = LinearBuilder::default()
-        .in_features(10)
-        .out_features(20)
+    let mut linear = LinearBuilder::new(10, 20)
         .build()
         .unwrap();
     let input = Tensor::rand(

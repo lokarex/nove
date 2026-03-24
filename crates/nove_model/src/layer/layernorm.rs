@@ -105,7 +105,7 @@ impl LayerNorm {
 ///     .build();
 /// ```
 pub struct LayerNormBuilder {
-    normalized_shape: Option<Vec<usize>>,
+    normalized_shape: Vec<usize>,
     epsilon: f64,
     affine: bool,
     device: Device,
@@ -128,12 +128,31 @@ impl LayerNormBuilder {
     /// ```
     pub fn new(normalized_shape: Vec<usize>) -> Self {
         Self {
-            normalized_shape: Some(normalized_shape),
+            normalized_shape,
             epsilon: 1e-5,
             affine: true,
             device: Device::cpu(),
             dtype: DType::F32,
         }
+    }
+
+    /// Configure the normalized shape.
+    ///
+    /// # Arguments
+    /// * `normalized_shape` - The shape of the dimensions to normalize.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured normalized shape.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::LayerNormBuilder;
+    /// let mut ln_builder = LayerNormBuilder::new(vec![768]);
+    /// ln_builder.normalized_shape(vec![512]);
+    /// ```
+    pub fn normalized_shape(&mut self, normalized_shape: Vec<usize>) -> &mut Self {
+        self.normalized_shape = normalized_shape;
+        self
     }
 
     /// Configure the epsilon value for numerical stability.
@@ -227,12 +246,7 @@ impl LayerNormBuilder {
     /// let ln = ln_builder.build().unwrap();
     /// ```
     pub fn build(&self) -> Result<LayerNorm, ModelError> {
-        let normalized_shape = self
-            .normalized_shape
-            .clone()
-            .ok_or(ModelError::MissingArgument(
-                "normalized_shape in LayerNormBuilder".to_string(),
-            ))?;
+        let normalized_shape = self.normalized_shape.clone();
 
         if normalized_shape.is_empty() {
             return Err(ModelError::InvalidArgument(

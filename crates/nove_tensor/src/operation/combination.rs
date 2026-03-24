@@ -142,6 +142,33 @@ impl Tensor {
         })
     }
 
+    /// Concatenate a sequence of tensors along the specified dimension.
+    ///
+    /// # Arguments
+    /// * `tensors` - The tensors to concatenate.
+    /// * `dim` - The dimension along which to concatenate.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The concatenated tensor.
+    /// * `Err(TensorError)` - The error when concatenating the tensors.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let device = Device::cpu();
+    /// let t1 = Tensor::from_data(&[[1.0, 2.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(&[[3.0, 4.0]], &device, false).unwrap();
+    ///
+    /// let concatenated = Tensor::cat(&[t1, t2], 0).unwrap();
+    /// println!("{:?}", concatenated);
+    /// ```
+    pub fn cat<A>(tensors: &[A], dim: usize) -> Result<Self, TensorError>
+    where
+        A: AsRef<Tensor> + std::clone::Clone,
+    {
+        Self::concat(tensors, dim)
+    }
+
     /// Gather values from the tensor along the specified dimension using the provided indices.
     ///
     /// # Notes

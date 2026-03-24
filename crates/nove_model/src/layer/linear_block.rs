@@ -98,6 +98,44 @@ impl LinearBlockBuilder {
         }
     }
 
+    /// Configure the number of input features.
+    ///
+    /// # Arguments
+    /// * `in_features` - The number of input features.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured input features.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::LinearBlockBuilder;
+    /// let mut builder = LinearBlockBuilder::new(800, 10);
+    /// builder.in_features(784);
+    /// ```
+    pub fn in_features(&mut self, in_features: usize) -> &mut Self {
+        self.in_features = in_features;
+        self
+    }
+
+    /// Configure the number of output features.
+    ///
+    /// # Arguments
+    /// * `out_features` - The number of output features.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured output features.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use nove::model::layer::LinearBlockBuilder;
+    /// let mut builder = LinearBlockBuilder::new(800, 10);
+    /// builder.out_features(100);
+    /// ```
+    pub fn out_features(&mut self, out_features: usize) -> &mut Self {
+        self.out_features = out_features;
+        self
+    }
+
     /// Configure activation function after the linear layer.
     ///
     /// # Notes
@@ -284,9 +322,7 @@ impl LinearBlockBuilder {
     /// let block = LinearBlockBuilder::new(800, 10).build().unwrap();
     /// ```
     pub fn build(self) -> Result<LinearBlock, ModelError> {
-        let linear = LinearBuilder::default()
-            .in_features(self.in_features)
-            .out_features(self.out_features)
+        let linear = LinearBuilder::new(self.in_features, self.out_features)
             .bias_enabled(self.bias_enabled)
             .device(self.device.clone())
             .dtype(self.dtype)
@@ -295,8 +331,7 @@ impl LinearBlockBuilder {
 
         let batch_norm1d = if self.use_batch_norm1d {
             Some(
-                BatchNorm1dBuilder::default()
-                    .num_features(self.out_features)
+                BatchNorm1dBuilder::new(self.out_features)
                     .device(self.device.clone())
                     .dtype(self.dtype)
                     .build()?,

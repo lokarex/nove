@@ -12,10 +12,7 @@ fn test_conv1d_forward() {
         .unwrap();
 
     // Build conv1d layer: in_channels=3, out_channels=5, kernel_size=3
-    let conv = Conv1dBuilder::default()
-        .in_channels(3)
-        .out_channels(5)
-        .kernel_size(3)
+    let conv = Conv1dBuilder::new(3, 5, 3)
         .stride(1)
         .padding(0)
         .device(device.clone())
@@ -39,10 +36,7 @@ fn test_conv1d_with_padding() {
         .to_dtype(&DType::F32)
         .unwrap();
 
-    let conv = Conv1dBuilder::default()
-        .in_channels(1)
-        .out_channels(2)
-        .kernel_size(3)
+    let conv = Conv1dBuilder::new(1, 2, 3)
         .stride(1)
         .padding(1)
         .device(device.clone())
@@ -65,10 +59,7 @@ fn test_conv1d_with_stride() {
         .to_dtype(&DType::F32)
         .unwrap();
 
-    let conv = Conv1dBuilder::default()
-        .in_channels(4)
-        .out_channels(8)
-        .kernel_size(3)
+    let conv = Conv1dBuilder::new(4, 8, 3)
         .stride(2)
         .padding(0)
         .device(device.clone())
@@ -86,10 +77,7 @@ fn test_conv1d_with_stride() {
 fn test_conv1d_weight_and_bias() {
     let device = Device::cpu();
 
-    let conv = Conv1dBuilder::default()
-        .in_channels(2)
-        .out_channels(3)
-        .kernel_size(5)
+    let conv = Conv1dBuilder::new(2, 3, 5)
         .bias_enabled(true)
         .device(device.clone())
         .build()

@@ -27,9 +27,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// use nove::model::layer::LinearBuilder;
 /// use nove::tensor::{Device, DType};
 ///
-/// let linear = LinearBuilder::default()
-///     .in_features(10)        // Required
-///     .out_features(20)       // Required
+/// let linear = LinearBuilder::new(10, 20)  // Required: in_features, out_features
 ///     .bias_enabled(true)     // Optional, default is true
 ///     .device(Device::cpu())  // Optional, default is cpu
 ///     .dtype(DType::F32)      // Optional, default is F32
@@ -144,14 +142,13 @@ impl Display for Linear {
 /// The builder for the Linear layer.
 ///
 /// # Notes
-/// * The `LinearBuilder` implements the `Default` trait, so you can
-///   use `LinearBuilder::default()` to create a builder with default values.
+/// * The `LinearBuilder` must be created using [`LinearBuilder::new()`] with required `in_features` and `out_features` arguments.
 /// * The `weight` tensor in the linear layer is initialized with the Kaiming normal distribution(`mean=0.0`, `std=sqrt(2 / in_features)`).
 ///   The `bias`` tensor is initialized with zeros(if enabled).
 ///
 /// # Required Arguments
-/// * `in_features` - The number of input features.
-/// * `out_features` - The number of output features.
+/// * `in_features` - The number of input features (passed to `new()`).
+/// * `out_features` - The number of output features (passed to `new()`).
 ///
 /// # Optional Arguments
 /// * `bias_enabled` - Whether to enable the bias term. Default is `true`.
@@ -172,9 +169,7 @@ impl Display for Linear {
 /// use nove::model::layer::LinearBuilder;
 /// use nove::tensor::{Device, DType};
 ///
-/// let linear = LinearBuilder::default()
-///     .in_features(10)        // Required
-///     .out_features(20)       // Required
+/// let linear = LinearBuilder::new(10, 20)  // Required: in_features, out_features
 ///     .bias_enabled(true)     // Optional, default is true
 ///     .device(Device::cpu())  // Optional, default is cpu
 ///     .dtype(DType::F32)      // Optional, default is F32
@@ -182,19 +177,19 @@ impl Display for Linear {
 ///     .build();
 /// ```
 pub struct LinearBuilder {
-    in_features: Option<usize>,
-    out_features: Option<usize>,
+    in_features: usize,
+    out_features: usize,
     bias_enabled: bool,
     device: Device,
     dtype: DType,
     grad_enabled: bool,
 }
 
-impl Default for LinearBuilder {
-    fn default() -> Self {
+impl LinearBuilder {
+    pub fn new(in_features: usize, out_features: usize) -> Self {
         Self {
-            in_features: None,
-            out_features: None,
+            in_features,
+            out_features,
             bias_enabled: true,
             device: Device::cpu(),
             dtype: DType::F32,
@@ -215,11 +210,11 @@ impl LinearBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::LinearBuilder;
-    /// let mut linear_builder = LinearBuilder::default();
+    /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.in_features(10);
     /// ```
     pub fn in_features(&mut self, in_features: usize) -> &mut Self {
-        self.in_features = Some(in_features);
+        self.in_features = in_features;
         self
     }
 
@@ -234,11 +229,11 @@ impl LinearBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::LinearBuilder;
-    /// let mut linear_builder = LinearBuilder::default();
+    /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.out_features(20);
     /// ```
     pub fn out_features(&mut self, out_features: usize) -> &mut Self {
-        self.out_features = Some(out_features);
+        self.out_features = out_features;
         self
     }
 
@@ -253,7 +248,7 @@ impl LinearBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::LinearBuilder;
-    /// let mut linear_builder = LinearBuilder::default();
+    /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.bias_enabled(false);
     /// ```
     pub fn bias_enabled(&mut self, bias_enabled: bool) -> &mut Self {
@@ -273,7 +268,7 @@ impl LinearBuilder {
     /// ```
     /// use nove::model::layer::LinearBuilder;
     /// use nove::tensor::Device;
-    /// let mut linear_builder = LinearBuilder::default();
+    /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.device(Device::cpu());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
@@ -293,7 +288,7 @@ impl LinearBuilder {
     /// ```
     /// use nove::model::layer::LinearBuilder;
     /// use nove::tensor::DType;
-    /// let mut linear_builder = LinearBuilder::default();
+    /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.dtype(DType::F32);
     /// ```
     pub fn dtype(&mut self, dtype: DType) -> &mut Self {
@@ -312,7 +307,7 @@ impl LinearBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::LinearBuilder;
-    /// let mut linear_builder = LinearBuilder::default();
+    /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.grad_enabled(false);
     /// ```
     pub fn grad_enabled(&mut self, grad_enabled: bool) -> &mut Self {
@@ -329,18 +324,13 @@ impl LinearBuilder {
     /// # Examples
     /// ```
     /// use nove::model::layer::LinearBuilder;
-    /// let mut linear_builder = LinearBuilder::default();
-    /// linear_builder.in_features(10);
-    /// linear_builder.out_features(20);
+    /// let mut linear_builder = LinearBuilder::new(10, 20);
+    /// linear_builder.bias_enabled(true);
     /// let linear = linear_builder.build().unwrap();
     /// ```
     pub fn build(&self) -> Result<Linear, ModelError> {
-        let in_features = self.in_features.ok_or(ModelError::MissingArgument(
-            "in_features in LinearBuilder".to_string(),
-        ))?;
-        let out_features = self.out_features.ok_or(ModelError::MissingArgument(
-            "out_features in LinearBuilder".to_string(),
-        ))?;
+        let in_features = self.in_features;
+        let out_features = self.out_features;
 
         // Generate a unique ID for the linear layer.
         let id = ID.fetch_add(1, Ordering::Relaxed);

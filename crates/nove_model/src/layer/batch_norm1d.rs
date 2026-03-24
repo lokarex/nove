@@ -34,8 +34,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// use nove::model::layer::BatchNorm1dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
-/// let bn = BatchNorm1dBuilder::default()
-///     .num_features(64)       // Required
+/// let bn = BatchNorm1dBuilder::new(64)  // Required: num_features
 ///     .epsilon(1e-5)          // Optional, default is 1e-5
 ///     .momentum(0.1)          // Optional, default is 0.1
 ///     .affine(true)           // Optional, default is true
@@ -345,14 +344,13 @@ impl Display for BatchNorm1d {
 /// The builder for the 1D batch normalization layer.
 ///
 /// # Notes
-/// * The `BatchNorm1dBuilder` implements the `Default` trait, so you can
-///   use `BatchNorm1dBuilder::default()` to create a builder with default values.
+/// * The `BatchNorm1dBuilder` must be created using [`BatchNorm1dBuilder::new()`] with required `num_features` argument.
 /// * The `gamma` and `beta` tensors are initialized with ones and zeros respectively.
 /// * The `running_mean` and `running_var` tensors are initialized with zeros and ones respectively.
 /// * When `affine` is `false`, `gamma` and `beta` are still initialized but with `grad_enabled` set to `false`.
 ///
 /// # Required Arguments
-/// * `num_features` - The number of features (channels).
+/// * `num_features` - The number of features (channels) (passed to `new()`).
 ///
 /// # Optional Arguments
 /// * `epsilon` - A small value added to the variance for numerical stability. Default is `1e-5`.
@@ -374,8 +372,7 @@ impl Display for BatchNorm1d {
 /// use nove::model::layer::BatchNorm1dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
-/// let bn = BatchNorm1dBuilder::default()
-///     .num_features(64)       // Required
+/// let bn = BatchNorm1dBuilder::new(64)  // Required: num_features
 ///     .epsilon(1e-5)          // Optional, default is 1e-5
 ///     .momentum(0.1)          // Optional, default is 0.1
 ///     .affine(true)           // Optional, default is true
@@ -384,7 +381,7 @@ impl Display for BatchNorm1d {
 ///     .build();
 /// ```
 pub struct BatchNorm1dBuilder {
-    num_features: Option<usize>,
+    num_features: usize,
     epsilon: f64,
     momentum: f64,
     affine: bool,
@@ -392,10 +389,10 @@ pub struct BatchNorm1dBuilder {
     dtype: DType,
 }
 
-impl Default for BatchNorm1dBuilder {
-    fn default() -> Self {
+impl BatchNorm1dBuilder {
+    pub fn new(num_features: usize) -> Self {
         Self {
-            num_features: None,
+            num_features,
             epsilon: 1e-5,
             momentum: 0.1,
             affine: true,
@@ -403,9 +400,6 @@ impl Default for BatchNorm1dBuilder {
             dtype: DType::F32,
         }
     }
-}
-
-impl BatchNorm1dBuilder {
     /// Configure the number of features (channels).
     ///
     /// # Arguments
@@ -417,11 +411,11 @@ impl BatchNorm1dBuilder {
     /// # Examples
     /// ```no_run
     /// use nove::model::layer::BatchNorm1dBuilder;
-    /// let mut bn_builder = BatchNorm1dBuilder::default();
+    /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.num_features(64);
     /// ```
     pub fn num_features(&mut self, num_features: usize) -> &mut Self {
-        self.num_features = Some(num_features);
+        self.num_features = num_features;
         self
     }
 
@@ -436,7 +430,7 @@ impl BatchNorm1dBuilder {
     /// # Examples
     /// ```no_run
     /// use nove::model::layer::BatchNorm1dBuilder;
-    /// let mut bn_builder = BatchNorm1dBuilder::default();
+    /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.epsilon(1e-5);
     /// ```
     pub fn epsilon(&mut self, epsilon: f64) -> &mut Self {
@@ -455,7 +449,7 @@ impl BatchNorm1dBuilder {
     /// # Examples
     /// ```no_run
     /// use nove::model::layer::BatchNorm1dBuilder;
-    /// let mut bn_builder = BatchNorm1dBuilder::default();
+    /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.momentum(0.1);
     /// ```
     pub fn momentum(&mut self, momentum: f64) -> &mut Self {
@@ -474,7 +468,7 @@ impl BatchNorm1dBuilder {
     /// # Examples
     /// ```no_run
     /// use nove::model::layer::BatchNorm1dBuilder;
-    /// let mut bn_builder = BatchNorm1dBuilder::default();
+    /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.affine(true);
     /// ```
     pub fn affine(&mut self, affine: bool) -> &mut Self {
@@ -494,7 +488,7 @@ impl BatchNorm1dBuilder {
     /// ```no_run
     /// use nove::model::layer::BatchNorm1dBuilder;
     /// use nove::tensor::Device;
-    /// let mut bn_builder = BatchNorm1dBuilder::default();
+    /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.device(Device::cpu());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
@@ -514,7 +508,7 @@ impl BatchNorm1dBuilder {
     /// ```no_run
     /// use nove::model::layer::BatchNorm1dBuilder;
     /// use nove::tensor::DType;
-    /// let mut bn_builder = BatchNorm1dBuilder::default();
+    /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.dtype(DType::F32);
     /// ```
     pub fn dtype(&mut self, dtype: DType) -> &mut Self {
@@ -531,14 +525,11 @@ impl BatchNorm1dBuilder {
     /// # Examples
     /// ```no_run
     /// use nove::model::layer::BatchNorm1dBuilder;
-    /// let mut bn_builder = BatchNorm1dBuilder::default();
-    /// bn_builder.num_features(64);
+    /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// let bn = bn_builder.build().unwrap();
     /// ```
     pub fn build(&self) -> Result<BatchNorm1d, ModelError> {
-        let num_features = self.num_features.ok_or(ModelError::MissingArgument(
-            "num_features in BatchNorm1dBuilder".to_string(),
-        ))?;
+        let num_features = self.num_features;
 
         if num_features == 0 {
             return Err(ModelError::InvalidArgument(
