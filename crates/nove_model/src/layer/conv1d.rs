@@ -522,6 +522,11 @@ impl Conv1dBuilder {
                 "kernel_size in Conv1dBuilder must be greater than 0".to_string(),
             ));
         }
+        if self.groups == 0 {
+            return Err(ModelError::InvalidArgument(
+                "groups in Conv1dBuilder must be greater than 0".to_string(),
+            ));
+        }
         if in_channels % self.groups != 0 {
             return Err(ModelError::InvalidArgument(
                 "in_channels must be divisible by groups".to_string(),
@@ -540,11 +545,6 @@ impl Conv1dBuilder {
         if self.dilation == 0 {
             return Err(ModelError::InvalidArgument(
                 "dilation in Conv1dBuilder must be greater than 0".to_string(),
-            ));
-        }
-        if self.groups == 0 {
-            return Err(ModelError::InvalidArgument(
-                "groups in Conv1dBuilder must be greater than 0".to_string(),
             ));
         }
 

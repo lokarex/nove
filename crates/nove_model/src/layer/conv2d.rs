@@ -72,6 +72,46 @@ impl Conv2d {
     pub fn bias(&self) -> Option<Tensor> {
         self.bias.as_ref().map(|b| b.copy())
     }
+
+    /// Get the number of input channels.
+    pub fn in_channels(&self) -> usize {
+        self.in_channels
+    }
+
+    /// Get the number of output channels.
+    pub fn out_channels(&self) -> usize {
+        self.out_channels
+    }
+
+    /// Get the kernel size.
+    pub fn kernel_size(&self) -> (usize, usize) {
+        self.kernel_size
+    }
+
+    /// Get the stride.
+    pub fn stride(&self) -> usize {
+        self.stride
+    }
+
+    /// Get the padding size.
+    pub fn padding(&self) -> usize {
+        self.padding
+    }
+
+    /// Get the dilation.
+    pub fn dilation(&self) -> usize {
+        self.dilation
+    }
+
+    /// Get the groups.
+    pub fn groups(&self) -> usize {
+        self.groups
+    }
+
+    /// Get the unique ID.
+    pub fn id(&self) -> usize {
+        self.id
+    }
 }
 
 impl Model for Conv2d {
@@ -480,6 +520,16 @@ impl Conv2dBuilder {
         if kernel_size.0 == 0 || kernel_size.1 == 0 {
             return Err(ModelError::InvalidArgument(
                 "kernel_size in Conv2dBuilder must be greater than 0".to_string(),
+            ));
+        }
+        if in_channels == 0 {
+            return Err(ModelError::InvalidArgument(
+                "in_channels in Conv2dBuilder must be greater than 0".to_string(),
+            ));
+        }
+        if out_channels == 0 {
+            return Err(ModelError::InvalidArgument(
+                "out_channels in Conv2dBuilder must be greater than 0".to_string(),
             ));
         }
         if in_channels % self.groups != 0 {
