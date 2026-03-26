@@ -28,12 +28,16 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &device, false).unwrap();
+    /// // Create a 2x3 matrix with positive and negative values
+    /// let t = Tensor::from_data(vec![vec![-1.0, 2.0, -3.0], vec![4.0, -5.0, 6.0]], &device, false).unwrap();
     ///
     /// let result = t.relu().unwrap();
-    /// println!("{:?}", result);
+    /// // ReLU outputs zero for negative values, original value for positive values
+    /// let expected = vec![0.0, 2.0, 0.0, 4.0, 0.0, 6.0];
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn relu(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -78,13 +82,20 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![-1.0, 0.0, 1.0], &device, false).unwrap();
+    /// // Create a 2x3 matrix with values from -2 to 3
+    /// let t = Tensor::from_data(vec![-2.0, -1.0, 0.0, 1.0, 2.0, 3.0], &device, false).unwrap()
+    ///     .reshape(&Shape::from(&[2, 3])).unwrap();
     ///
     /// let result = t.silu().unwrap();
-    /// println!("{:?}", result);
-    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![-0.2689414213699951, 0.0, 0.7310585786300049]);
+    /// // SiLU(x) = x * sigmoid(x), with sigmoid values: 0.1192, 0.2689, 0.5, 0.7311, 0.8808, 0.9526
+    /// let expected = vec![-0.238405, -0.268941, 0.0, 0.731059, 1.761594, 2.857722];
+    /// let result_vec = result.to_vec::<f64>().unwrap();
+    /// for i in 0..6 {
+    ///     assert!((result_vec[i] - expected[i]).abs() < 1e-6);
+    /// }
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn silu(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -136,13 +147,20 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![-1.0, 0.0, 1.0], &device, false).unwrap();
+    /// // Create a 2x3 matrix with values from -2 to 3
+    /// let t = Tensor::from_data(vec![-2.0, -1.0, 0.0, 1.0, 2.0, 3.0], &device, false).unwrap()
+    ///     .reshape(&Shape::from(&[2, 3])).unwrap();
     ///
     /// let result = t.gelu().unwrap();
-    /// println!("{}", result);
-    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![-0.15880800939172324, 0.0, 0.8411919906082768]);
+    /// // GELU values approximate: -0.0455, -0.1588, 0.0, 0.8412, 1.9545, 2.9964
+    /// let expected = vec![-0.045500, -0.158808, 0.0, 0.841192, 1.954500, 2.996362];
+    /// let result_vec = result.to_vec::<f64>().unwrap();
+    /// for i in 0..6 {
+    ///     assert!((result_vec[i] - expected[i]).abs() < 1e-4);
+    /// }
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn gelu(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -188,13 +206,20 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![-1.0, 0.0, 1.0], &device, false).unwrap();
+    /// // Create a 2x3 matrix with values from -2 to 3
+    /// let t = Tensor::from_data(vec![-2.0, -1.0, 0.0, 1.0, 2.0, 3.0], &device, false).unwrap()
+    ///     .reshape(&Shape::from(&[2, 3])).unwrap();
     ///
     /// let result = t.tanh().unwrap();
-    /// println!("{}", result);
-    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![-0.7615941559557649, 0.0, 0.7615941559557649]);
+    /// // tanh values approximate: -0.9640, -0.7616, 0.0, 0.7616, 0.9640, 0.9951
+    /// let expected = vec![-0.964028, -0.761594, 0.0, 0.761594, 0.964028, 0.995055];
+    /// let result_vec = result.to_vec::<f64>().unwrap();
+    /// for i in 0..6 {
+    ///     assert!((result_vec[i] - expected[i]).abs() < 1e-6);
+    /// }
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn tanh(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -240,13 +265,20 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![-1.0, 0.0, 1.0], &device, false).unwrap();
+    /// // Create a 2x3 matrix with values from -2 to 3
+    /// let t = Tensor::from_data(vec![-2.0, -1.0, 0.0, 1.0, 2.0, 3.0], &device, false).unwrap()
+    ///     .reshape(&Shape::from(&[2, 3])).unwrap();
     ///
     /// let result = t.sigmoid().unwrap();
-    /// println!("{}", result);
-    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![0.2689414213699951, 0.5, 0.7310585786300049]);
+    /// // sigmoid values approximate: 0.1192, 0.2689, 0.5, 0.7311, 0.8808, 0.9526
+    /// let expected = vec![0.119203, 0.268941, 0.5, 0.731059, 0.880797, 0.952574];
+    /// let result_vec = result.to_vec::<f64>().unwrap();
+    /// for i in 0..6 {
+    ///     assert!((result_vec[i] - expected[i]).abs() < 1e-6);
+    /// }
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn sigmoid(&self) -> Result<Self, TensorError> {
         let denom = self.affine(-1f64, 0f64)?.exp()?.affine(1f64, 1f64)?;

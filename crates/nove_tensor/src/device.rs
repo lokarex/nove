@@ -88,7 +88,7 @@ impl Device {
         #[cfg(not(feature = "cuda"))]
         {
             let _ = index;
-            return Err(DeviceError::BackendFeatureNotEnabled("cuda".to_string()));
+            Err(DeviceError::BackendFeatureNotEnabled("cuda".to_string()))
         }
     }
 
@@ -152,7 +152,7 @@ impl Device {
         #[cfg(not(feature = "metal"))]
         {
             let _ = index;
-            return Err(DeviceError::BackendFeatureNotEnabled("metal".to_string()));
+            Err(DeviceError::BackendFeatureNotEnabled("metal".to_string()))
         }
     }
 

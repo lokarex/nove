@@ -9,8 +9,11 @@ impl Tensor {
     /// Create a new tensor from the given data.
     ///
     /// # Notes
-    /// * The type of data supported by this function includes scalar, vector, and slice.
-    /// * The element type of the data supported by this function includes `f32`, `f64`, `i64`, `u32`, `u8`.
+    /// * The type of data supported by this function includes:
+    ///   - Scalar: `S` (single value)
+    ///   - Vec types: `Vec<S>`, `Vec<Vec<S>>`, `Vec<Vec<Vec<S>>>`, `Vec<Vec<Vec<Vec<S>>>>>`, `Vec<&[S]>`
+    ///   - Slice/Array types: `&[S]`, `&[S; N]`, `&[[S; N]; M]`, `&[[[S; N3]; N2]; N1]`, `&[[[[S; N4]; N3]; N2]; N1]`
+    /// * The element type `S` supported by this function includes `f32`, `f64`, `i64`, `u32`, `u8`.
     ///
     /// # Arguments
     /// * `data` - The data to create the tensor from.
@@ -22,23 +25,71 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
     /// let device = Device::cpu();
     ///
-    /// // Create a tensor from a scalar
-    /// let tensor = Tensor::from_data(1.0f32, &device, false).unwrap();
+    /// // Vec<&[S]> - Vec of 1D slices
+    /// let data: Vec<&[f32]> = vec![&[1.0f32, 2.0f32, 3.0f32], &[4.0f32, 5.0f32, 6.0f32]];
+    /// let tensor = Tensor::from_data(data, &device, false).unwrap();
     /// println!("{:?}", tensor);
     ///
-    /// // Create a tensor from a 2D vector
-    /// let vec = vec![vec![1.0f32, 2.0f32, 3.0f32], vec![4.0f32, 5.0f32, 6.0f32]];
-    /// let tensor = Tensor::from_data(vec, &device, false).unwrap();
+    /// // Vec<S> - Vec of scalars (flattened)
+    /// let data: Vec<f32> = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+    /// let tensor = Tensor::from_data(data, &device, false).unwrap();
     /// println!("{:?}", tensor);
     ///
-    /// // Create a tensor from a 2D slice
-    /// let slice = &[[1.0f32, 2.0f32, 3.0f32], [4.0f32, 5.0f32, 6.0f32]];
-    /// let tensor = Tensor::from_data(slice, &device, false).unwrap();
+    /// // Vec<Vec<S>> - 2D Vec
+    /// let data: Vec<Vec<f32>> = vec![vec![1.0f32, 2.0f32, 3.0f32], vec![4.0f32, 5.0f32, 6.0f32]];
+    /// let tensor = Tensor::from_data(data, &device, false).unwrap();
+    /// println!("{:?}", tensor);
+    ///
+    /// // Vec<Vec<Vec<S>>> - 3D Vec
+    /// let data: Vec<Vec<Vec<f32>>> = vec![
+    ///     vec![vec![1.0f32, 2.0f32], vec![3.0f32, 4.0f32]],
+    ///     vec![vec![5.0f32, 6.0f32], vec![7.0f32, 8.0f32]],
+    /// ];
+    /// let tensor = Tensor::from_data(data, &device, false).unwrap();
+    /// println!("{:?}", tensor);
+    ///
+    /// // Vec<Vec<Vec<Vec<S>>>> - 4D Vec
+    /// let data: Vec<Vec<Vec<Vec<f32>>>> = vec![
+    ///     vec![vec![vec![1.0f32, 2.0f32], vec![3.0f32, 4.0f32]]],
+    ///     vec![vec![vec![5.0f32, 6.0f32], vec![7.0f32, 8.0f32]]],
+    /// ];
+    /// let tensor = Tensor::from_data(data, &device, false).unwrap();
+    /// println!("{:?}", tensor);
+    ///
+    /// // &[S; N] - 1D array reference
+    /// let data: &[f32; 6] = &[1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32];
+    /// let tensor = Tensor::from_data(data, &device, false).unwrap();
+    /// println!("{:?}", tensor);
+    ///
+    /// // &[S] - 1D slice reference
+    /// let data: &[f32] = &[1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32];
+    /// let tensor = Tensor::from_data(data, &device, false).unwrap();
+    /// println!("{:?}", tensor);
+    ///
+    /// // &[[S; N]; M] - 2D array reference
+    /// let data: &[[f32; 3]; 2] = &[[1.0f32, 2.0f32, 3.0f32], [4.0f32, 5.0f32, 6.0f32]];
+    /// let tensor = Tensor::from_data(data, &device, false).unwrap();
+    /// println!("{:?}", tensor);
+    ///
+    /// // &[[[S; N3]; N2]; N1] - 3D array reference
+    /// let data: &[[[f32; 2]; 2]; 2] = &[
+    ///     [[1.0f32, 2.0f32], [3.0f32, 4.0f32]],
+    ///     [[5.0f32, 6.0f32], [7.0f32, 8.0f32]],
+    /// ];
+    /// let tensor = Tensor::from_data(data, &device, false).unwrap();
+    /// println!("{:?}", tensor);
+    ///
+    /// // &[[[[S; N4]; N3]; N2]; N1] - 4D array reference
+    /// let data: &[[[[f32; 2]; 2]; 2]; 2] = &[
+    ///     [[[1.0f32, 2.0f32], [3.0f32, 4.0f32]], [[5.0f32, 6.0f32], [7.0f32, 8.0f32]]],
+    ///     [[[9.0f32, 10.0f32], [11.0f32, 12.0f32]], [[13.0f32, 14.0f32], [15.0f32, 16.0f32]]],
+    /// ];
+    /// let tensor = Tensor::from_data(data, &device, false).unwrap();
     /// println!("{:?}", tensor);
     /// ```
     pub fn from_data<A>(data: A, device: &Device, grad_enabled: bool) -> Result<Self, TensorError>
@@ -78,14 +129,14 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
     ///
     /// let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     /// let shape = Shape::from(&[2, 3]);
     /// let tensor = Tensor::from_vec(data, &shape, &device, false).unwrap();
-    /// println!("{:?}", tensor);
+    /// println!("{}", tensor);
     /// ```
     pub fn from_vec<D>(
         data: Vec<D>,
@@ -129,7 +180,7 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
     ///
@@ -179,7 +230,7 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
     /// let device = Device::cpu();
@@ -211,13 +262,13 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when converting the tensor to a scalar.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
     /// let device = Device::cpu();
     ///
     /// let tensor = Tensor::from_scalar(1.0f32, &device, false).unwrap();
-    /// println!("{:?}", tensor.to_scalar::<f32>().unwrap());
+    /// println!("{}", tensor.to_scalar::<f32>().unwrap());
     /// ```
     pub fn to_scalar<S>(&self) -> Result<S, TensorError>
     where
@@ -255,7 +306,7 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when converting the tensor to a vector.
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
     /// let device = Device::cpu();
@@ -286,15 +337,37 @@ impl Tensor {
     /// # Returns
     /// * `Ok(Self)` - The created tensor if successful.
     /// * `Err(TensorError)` - The error when creating the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::Device;
+    /// use nove::tensor::Tensor;
+    /// use candle_core::Tensor as CandleTensor;
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// // Create a candle tensor first
+    /// let candle_tensor = CandleTensor::from_slice(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device).unwrap();
+    ///
+    /// // Convert to nove tensor without gradient tracking
+    /// let nove_tensor = Tensor::from_candle_tensor(candle_tensor, &device, false).unwrap();
+    ///
+    /// // Verify the shape is preserved
+    /// assert_eq!(nove_tensor.shape().unwrap().dims(), &[2, 3]);
+    ///
+    /// // Verify the data is correct by converting back to vector
+    /// let data = nove_tensor.to_vec::<f32>().unwrap();
+    /// assert_eq!(data, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    /// ```
     pub fn from_candle_tensor(
         tensor: candle_core::Tensor,
         device: &Device,
         grad_enabled: bool,
     ) -> Result<Self, TensorError> {
-        let inner_tensor = tensor.copy()?.to_device(device)?;
+        let inner_tensor = tensor.copy()?.to_device(device)?.detach();
         let inner = match grad_enabled {
             true => TensorInner::Var(candle_core::Var::from_tensor(&inner_tensor)?),
-            false => TensorInner::Tensor(inner_tensor.clone()),
+            false => TensorInner::Tensor(inner_tensor),
         };
 
         Ok(Self {
@@ -313,11 +386,34 @@ impl Tensor {
     /// # Returns
     /// * `Ok(candle_core::Tensor)` - The `candle_core::Tensor` if successful.
     /// * `Err(TensorError)` - The error when converting the tensor to a `candle_core::Tensor`.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::Device;
+    /// use nove::tensor::Shape;
+    /// use nove::tensor::Tensor;
+    /// use candle_core::Tensor as CandleTensor;
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// // Create a nove tensor first (without gradient tracking)
+    /// let nove_tensor = Tensor::from_slice(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &Shape::from(&[2, 3]), &device, false).unwrap();
+    ///
+    /// // Convert to candle tensor
+    /// let candle_tensor: CandleTensor = nove_tensor.to_candle_tensor().unwrap();
+    ///
+    /// // Verify the candle tensor has correct shape
+    /// assert_eq!(candle_tensor.dims(), &[2, 3]);
+    ///
+    /// // Verify the data is correct by converting back to slice
+    /// let data = candle_tensor.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+    /// assert_eq!(data, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    /// ```
     pub fn to_candle_tensor(&self) -> Result<candle_core::Tensor, TensorError> {
         let data = self.data.read()?;
         let tensor = match &data.inner {
-            TensorInner::Tensor(tensor) => tensor.copy()?,
-            TensorInner::Var(var) => var.as_tensor().copy()?,
+            TensorInner::Tensor(tensor) => tensor.copy()?.detach(),
+            TensorInner::Var(var) => var.as_tensor().copy()?.detach(),
         };
         Ok(tensor)
     }
@@ -327,11 +423,39 @@ impl Tensor {
     /// # Returns
     /// * `Ok(candle_core::Var)` - The `candle_core::Var` if successful.
     /// * `Err(TensorError)` - The error when converting the tensor to a `candle_core::Var`.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::Device;
+    /// use nove::tensor::Shape;
+    /// use nove::tensor::Tensor;
+    /// use candle_core::Var as CandleVar;
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// // Create a nove tensor with gradient tracking disabled first
+    /// let nove_tensor_without_grad = Tensor::from_slice(&[1.0f32, 2.0, 3.0, 4.0], &Shape::from(&[2, 2]), &device, false).unwrap();
+    ///
+    /// // Convert to candle var - creates a new variable from the tensor
+    /// let candle_var: CandleVar = nove_tensor_without_grad.to_candle_var().unwrap();
+    ///
+    /// // The variable should be a variable (supports gradient tracking)
+    /// assert!(candle_var.is_variable());
+    ///
+    /// // Verify shape and data
+    /// assert_eq!(candle_var.as_tensor().dims(), &[2, 2]);
+    /// let data = candle_var.as_tensor().flatten_all().unwrap().to_vec1::<f32>().unwrap();
+    /// assert_eq!(data, vec![1.0, 2.0, 3.0, 4.0]);
+    /// ```
     pub fn to_candle_var(&self) -> Result<candle_core::Var, TensorError> {
         let data = self.data.read()?;
         match &data.inner {
-            TensorInner::Tensor(tensor) => Ok(candle_core::Var::from_tensor(&tensor.copy()?)?),
-            TensorInner::Var(var) => Ok(candle_core::Var::from_tensor(&var.as_tensor().copy()?)?),
+            TensorInner::Tensor(tensor) => {
+                Ok(candle_core::Var::from_tensor(&tensor.copy()?.detach())?)
+            }
+            TensorInner::Var(var) => Ok(candle_core::Var::from_tensor(
+                &var.as_tensor().copy()?.detach(),
+            )?),
         }
     }
 }

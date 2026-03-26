@@ -34,6 +34,9 @@ pub enum TensorError {
 
     #[error("Device mismatch: expected {0:?}, found {1:?}")]
     DeviceMismatch(Box<Device>, Box<Device>),
+
+    #[error("Invalid dimension: {0}, must be >= -1")]
+    InvalidDimension(isize),
 }
 
 impl<T> From<std::sync::PoisonError<T>> for TensorError {
@@ -129,6 +132,30 @@ impl Tensor {
     /// - Share the same computational graph
     /// - Share the same gradient
     ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// // Create a tensor with gradient tracking enabled
+    /// let data = [1.0f32, 2.0, 3.0, 4.0];
+    /// let original = Tensor::from_slice(&data, &Shape::from(&[2, 2]), &device, true).unwrap();
+    ///
+    /// // Create a shallow copy
+    /// let shallow_copy = original.copy();
+    ///
+    /// // Modify the original tensor's gradient through backpropagation
+    /// let scalar = Tensor::from_scalar(2.0f32, &device, true).unwrap();
+    /// let result = original.mul(&scalar).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// // Both original and shallow copy share the same gradient
+    /// let original_grad = original.grad().unwrap().unwrap();
+    /// let copy_grad = shallow_copy.grad().unwrap().unwrap();
+    /// assert_eq!(original_grad.to_vec::<f32>().unwrap(), copy_grad.to_vec::<f32>().unwrap());
+    /// assert_eq!(original_grad.shape().unwrap(), copy_grad.shape().unwrap());
+    /// ```
+    ///
     /// # See Also
     /// * [`try_clone`](crate::tensor::Tensor::try_clone) - The fallible version for cloning a tensor that returns `Result`.
     /// * [`clone`](crate::tensor::Tensor::clone) - The unfallible version for cloning a tensor that panics on failure.
@@ -150,6 +177,39 @@ impl Tensor {
     /// # Returns
     /// * `Ok(Tensor)` - A new tensor with cloned data if successful.
     /// * `Err(TensorError)` - The error when cloning the tensor data.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// // Create a tensor with gradient tracking enabled
+    /// let data = [1.0f32, 2.0, 3.0, 4.0];
+    /// let original = Tensor::from_slice(&data, &Shape::from(&[2, 2]), &device, true).unwrap();
+    ///
+    /// // Perform computation to create gradient
+    /// let scalar = Tensor::from_scalar(2.0f32, &device, true).unwrap();
+    /// let result = original.mul(&scalar).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// // Create a deep copy
+    /// let deep_copy = original.try_clone().unwrap();
+    ///
+    /// // Deep copy is independent: clearing gradient on original doesn't affect the copy
+    /// let mut original_mut = original.copy();
+    /// original_mut.clear_grad().unwrap();
+    /// assert!(original_mut.grad().unwrap().is_none());
+    ///
+    /// // Deep copy still has its gradient
+    /// let deep_copy_grad = deep_copy.grad().unwrap();
+    /// assert!(deep_copy_grad.is_some());
+    ///
+    /// // Deep copy has same shape and data
+    /// assert_eq!(original.shape().unwrap(), deep_copy.shape().unwrap());
+    ///
+    /// // Deep copy is disconnected from computational graph
+    /// // Any operations on original won't affect the deep copy
+    /// ```
     ///
     /// # See Also
     /// * [`clone`](crate::tensor::Tensor::clone) - The unfallible version that panics on failure.
@@ -195,6 +255,16 @@ impl Display for Tensor {
 }
 
 impl Tensor {
+    /// Detach the tensor from the computational graph.
+    ///
+    /// This creates a new tensor that shares the same data but is disconnected
+    /// from the computational graph. The detached tensor will:
+    /// - Have no parent tensors
+    /// - Disconnect from the computational graph
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - A new tensor detached from the computational graph.
+    /// * `Err(TensorError)` - The error when detaching the tensor.
     pub fn detach(&self) -> Result<Tensor, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
@@ -204,13 +274,18 @@ impl Tensor {
 
         let new_inner = TensorInner::Tensor(inner_tensor.detach());
 
+        let grad = match &inner.grad {
+            Some(grad) => Some(grad.detach()?),
+            None => None,
+        };
+
         Ok(Self {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
                 parents: vec![],
-                grad: None,
-                name: None,
+                grad,
+                name: inner.name.clone(),
             })),
         })
     }
@@ -239,8 +314,36 @@ impl Tensor {
     /// * `grad_enabled` - The desired gradient enabled status.
     ///
     /// # Returns
-    /// * `Ok(())` - The tensor's gradient enabled status is successfully set.
+    /// * `Ok(Tensor)` - A new tensor with the desired gradient status.
     /// * `Err(TensorError)` - The error when setting the tensor's gradient enabled status.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// // Create a tensor with gradient tracking disabled
+    /// let data = [1.0f32, 2.0, 3.0, 4.0];
+    /// let mut tensor = Tensor::from_slice(&data, &Shape::from(&[2, 2]), &device, false).unwrap();
+    ///
+    /// // Initially, gradient tracking is disabled
+    /// assert_eq!(tensor.grad_enabled().unwrap(), false);
+    ///
+    /// // Enable gradient tracking
+    /// let mut tensor_with_grad = tensor.require_grad(true).unwrap();
+    /// assert_eq!(tensor_with_grad.grad_enabled().unwrap(), true);
+    ///
+    /// // Disable gradient tracking
+    /// let mut tensor_without_grad = tensor_with_grad.require_grad(false).unwrap();
+    /// assert_eq!(tensor_without_grad.grad_enabled().unwrap(), false);
+    ///
+    /// // If the tensor already has the desired gradient status, it returns a copy
+    /// let another_copy = tensor_without_grad.require_grad(false).unwrap();
+    /// assert_eq!(another_copy.grad_enabled().unwrap(), false);
+    ///
+    /// // Switching gradient status disconnects the tensor from computational graph
+    /// // This means any operations on the original tensor won't affect the new one
+    /// ```
     pub fn require_grad(&mut self, grad_enabled: bool) -> Result<Tensor, TensorError> {
         // Check if the gradient status is already as required
         if self.grad_enabled()? == grad_enabled {
@@ -286,6 +389,40 @@ impl Tensor {
     /// * `Ok(Some(Tensor))` - The tensor's gradient tensor.
     /// * `Ok(None)` - The tensor has no gradient tensor.
     /// * `Err(TensorError)` - The error when getting the tensor's gradient tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// // Create a tensor with gradient tracking enabled
+    /// let data = [1.0f32, 2.0, 3.0, 4.0];
+    /// let tensor = Tensor::from_slice(&data, &Shape::from(&[2, 2]), &device, true).unwrap();
+    ///
+    /// // Initially, no gradient exists
+    /// let grad_before = tensor.grad().unwrap();
+    /// assert!(grad_before.is_none());
+    ///
+    /// // Perform computation to create gradient
+    /// let scalar = Tensor::from_scalar(2.0f32, &device, true).unwrap();
+    /// let result = tensor.mul(&scalar).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// // After backward pass, gradient should exist
+    /// let grad_after = tensor.grad().unwrap();
+    /// assert!(grad_after.is_some());
+    ///
+    /// // Gradient should have the same shape as the original tensor
+    /// if let Some(ref grad) = grad_after {
+    ///     assert_eq!(grad.shape().unwrap(), Shape::from(&[2, 2]));
+    /// }
+    ///
+    /// // Gradient can be cleared and will return None again
+    /// let mut mutable_tensor = tensor.copy();
+    /// mutable_tensor.clear_grad().unwrap();
+    /// let grad_cleared = mutable_tensor.grad().unwrap();
+    /// assert!(grad_cleared.is_none());
+    /// ```
     pub fn grad(&self) -> Result<Option<Tensor>, TensorError> {
         let data = self.data.read()?;
         Ok(data.grad.as_ref().map(|grad| grad.copy()))
@@ -296,6 +433,39 @@ impl Tensor {
     /// # Returns
     /// * `Ok(())` - The tensor's gradient tensor is successfully set to zero.
     /// * `Err(TensorError)` - The error when setting the tensor's gradient tensor to zero.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// // Create a tensor with gradient tracking enabled
+    /// let data = [1.0f32, 2.0, 3.0, 4.0];
+    /// let mut tensor = Tensor::from_slice(&data, &Shape::from(&[2, 2]), &device, true).unwrap();
+    ///
+    /// // Perform computation to create gradient
+    /// let scalar = Tensor::from_scalar(2.0f32, &device, true).unwrap();
+    /// let result = tensor.mul(&scalar).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// // Verify gradient exists and is non-zero
+    /// let grad_before = tensor.grad().unwrap().unwrap();
+    ///
+    /// // Get the gradient tensor and check its shape and values
+    /// assert_eq!(grad_before.shape().unwrap(), Shape::from(&[2, 2]));
+    /// assert_eq!(grad_before.to_vec::<f32>().unwrap(), vec![2.0, 2.0, 2.0, 2.0]);
+    ///
+    /// // Zero the gradient
+    /// tensor.zero_grad().unwrap();
+    ///
+    /// // Gradient still exists but should be all zeros
+    /// let grad_after = tensor.grad().unwrap().unwrap();
+    /// assert_eq!(grad_after.shape().unwrap(), Shape::from(&[2, 2]));
+    /// assert_eq!(grad_after.to_vec::<f32>().unwrap(), vec![0.0, 0.0, 0.0, 0.0]);
+    /// ```
+    ///
+    /// # See Also
+    /// * [`Tensor::clear_grad`] - Clears the gradient tensor of the tensor.
     pub fn zero_grad(&mut self) -> Result<(), TensorError> {
         let mut data = self.data.write()?;
         if let Some(grad) = &mut data.grad {
@@ -312,6 +482,35 @@ impl Tensor {
     /// # Returns
     /// * `Ok(())` - The tensor's gradient tensor is successfully cleared.
     /// * `Err(TensorError)` - The error when clearing the tensor's gradient tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// // Create a tensor with gradient tracking enabled
+    /// let data = [1.0f32, 2.0, 3.0, 4.0];
+    /// let mut tensor = Tensor::from_slice(&data, &Shape::from(&[2, 2]), &device, true).unwrap();
+    ///
+    /// // Create a simple computational graph and compute gradients
+    /// let other = Tensor::from_scalar(2.0f32, &device, true).unwrap();
+    /// let result = tensor.mul(&other).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// // Verify gradient exists and is non-zero
+    /// let grad_before = tensor.grad().unwrap().unwrap();
+    ///
+    /// // Get the gradient tensor and check its shape and values
+    /// assert_eq!(grad_before.shape().unwrap(), Shape::from(&[2, 2]));
+    /// assert_eq!(grad_before.to_vec::<f32>().unwrap(), vec![2.0, 2.0, 2.0, 2.0]);
+    ///
+    /// // Clear the gradient
+    /// tensor.clear_grad().unwrap();
+    ///
+    /// // Verify gradient is cleared
+    /// let grad_after = tensor.grad().unwrap();
+    /// assert!(grad_after.is_none());
+    /// ```
     pub fn clear_grad(&mut self) -> Result<(), TensorError> {
         let mut data = self.data.write()?;
         data.grad = None;
@@ -323,6 +522,35 @@ impl Tensor {
     /// # Returns
     /// * `Ok(())` - The tensor's gradient is successfully backpropagated.
     /// * `Err(TensorError)` - The error when backpropagating the tensor's gradient.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// // Create two tensors with gradient tracking enabled
+    /// let x_data = [1.0f32, 2.0, 3.0, 4.0];
+    /// let x = Tensor::from_slice(&x_data, &Shape::from(&[2, 2]), &device, true).unwrap();
+    ///
+    /// let y_data = [0.5f32, 1.5, 2.5, 3.5];
+    /// let y = Tensor::from_slice(&y_data, &Shape::from(&[2, 2]), &device, true).unwrap();
+    ///
+    /// // Perform operations to create a computational graph
+    /// let z = x.add(&y).unwrap();
+    /// // Create a scalar tensor for multiplication
+    /// let scalar = Tensor::from_scalar(2.0f32, &device, true).unwrap();
+    /// let w = z.mul(&scalar).unwrap();
+    ///
+    /// // Compute gradient by calling backward on the final tensor
+    /// w.backward().unwrap();
+    ///
+    /// // Check that gradients are computed for input tensors
+    /// let x_grad = x.grad().unwrap();
+    /// assert!(x_grad.is_some());
+    ///
+    /// let y_grad = y.grad().unwrap();
+    /// assert!(y_grad.is_some());
+    /// ```
     pub fn backward(&self) -> Result<(), TensorError> {
         // Get grad_store
         let grad_store = {
@@ -438,6 +666,7 @@ impl Tensor {
     ///   without disconnecting it from the computational graph.
     /// * If the tensor does not have enabled gradients, the method will update the tensor's inner data
     ///   and disconnect it from the computational graph.
+    /// * Always used with [`Tensor::detach`].
     ///
     /// # Arguments
     /// * `other` - The tensor to update the inner data from.

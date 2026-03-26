@@ -18,6 +18,30 @@ impl Tensor {
     /// # Returns
     /// * `Ok(Tensor)` - The new tensor if successful.
     /// * `Err(TensorError)` - The error when creating the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove_tensor::{Device, Shape, Tensor};
+    ///
+    /// // Create a 2x3 tensor with random values uniformly distributed between 0.0 and 1.0
+    /// let device = Device::cpu();
+    /// let shape = Shape::from(&[2, 3]);
+    ///
+    /// // Create the tensor without gradient tracking
+    /// let tensor = Tensor::rand(0.0f32, 1.0f32, &shape, &device, false).unwrap();
+    ///
+    /// // Verify tensor properties
+    /// assert_eq!(tensor.shape().unwrap(), shape);
+    /// assert_eq!(tensor.device().unwrap(), device);
+    ///
+    /// // All values should be in the range [0.0, 1.0)
+    /// let data = tensor.to_vec::<f32>().unwrap();
+    /// for &value in &data {
+    ///     assert!(value >= 0.0 && value < 1.0);
+    /// }
+    /// // Note: This method generates random values. The actual values will vary between runs
+    /// // unless the random number generator seed is fixed externally.
+    /// ```
     pub fn rand<T>(
         low: T,
         high: T,
@@ -56,6 +80,28 @@ impl Tensor {
     /// # Returns
     /// * `Ok(Tensor)` - The new tensor if successful.
     /// * `Err(TensorError)` - The error when creating the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove_tensor::{Device, Shape, Tensor};
+    ///
+    /// // Create a 2x3 tensor with random values from normal distribution (mean=0.0, std=1.0)
+    /// let device = Device::cpu();
+    /// let shape = Shape::from(&[2, 3]);
+    ///
+    /// // Create the tensor without gradient tracking
+    /// let tensor = Tensor::randn(0.0f32, 1.0f32, &shape, &device, false).unwrap();
+    ///
+    /// // Verify tensor properties
+    /// assert_eq!(tensor.shape().unwrap(), shape);
+    /// assert_eq!(tensor.device().unwrap(), device);
+    ///
+    /// // Note: This method generates random values from a normal distribution.
+    /// // The actual values will vary between runs unless the random number generator
+    /// // seed is fixed externally. We can verify the tensor has the expected size.
+    /// let data = tensor.to_vec::<f32>().unwrap();
+    /// assert_eq!(data.len(), 6); // 2x3 = 6 elements
+    /// ```
     pub fn randn<T>(
         mean: T,
         std: T,
@@ -93,6 +139,28 @@ impl Tensor {
     /// # Returns
     /// * `Ok(Tensor)` - The new tensor if successful.
     /// * `Err(TensorError)` - The error when creating the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove_tensor::{DType, Device, Shape, Tensor};
+    ///
+    /// // Create a 2x3 tensor of zeros with f32 data type on CPU
+    /// let device = Device::cpu();
+    /// let shape = Shape::from(&[2, 3]);
+    /// let dtype = DType::F32;
+    ///
+    /// // Create the tensor without gradient tracking
+    /// let tensor = Tensor::zeros(&shape, &dtype, &device, false).unwrap();
+    ///
+    /// // Verify tensor properties
+    /// assert_eq!(tensor.shape().unwrap(), shape);
+    /// assert_eq!(tensor.dtype().unwrap(), dtype);
+    /// assert_eq!(tensor.device().unwrap(), device);
+    ///
+    /// // The tensor should contain all zeros
+    /// let data = tensor.to_vec::<f32>().unwrap();
+    /// assert_eq!(data, vec![0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32]);
+    /// ```
     pub fn zeros(
         shape: &Shape,
         dtype: &DType,
@@ -125,6 +193,28 @@ impl Tensor {
     /// # Returns
     /// * `Ok(Tensor)` - The new tensor if successful.
     /// * `Err(TensorError)` - The error when creating the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove_tensor::{DType, Device, Shape, Tensor};
+    ///
+    /// // Create a 2x3 tensor of ones with f32 data type on CPU
+    /// let device = Device::cpu();
+    /// let shape = Shape::from(&[2, 3]);
+    /// let dtype = DType::F32;
+    ///
+    /// // Create the tensor without gradient tracking
+    /// let tensor = Tensor::ones(&shape, &dtype, &device, false).unwrap();
+    ///
+    /// // Verify tensor properties
+    /// assert_eq!(tensor.shape().unwrap(), shape);
+    /// assert_eq!(tensor.dtype().unwrap(), dtype);
+    /// assert_eq!(tensor.device().unwrap(), device);
+    ///
+    /// // The tensor should contain all ones
+    /// let data = tensor.to_vec::<f32>().unwrap();
+    /// assert_eq!(data, vec![1.0f32, 1.0f32, 1.0f32, 1.0f32, 1.0f32, 1.0f32]);
+    /// ```
     pub fn ones(
         shape: &Shape,
         dtype: &DType,

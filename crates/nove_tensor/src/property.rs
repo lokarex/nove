@@ -72,6 +72,31 @@ impl Tensor {
     /// # Returns
     /// * `Ok(tensor)` - The new tensor if successful.
     /// * `Err(TensorError)` - The error when converting the tensor to the dtype.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, DType, Tensor};
+    ///
+    /// // Create a tensor with f32 dtype
+    /// let cpu = Device::cpu();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
+    ///
+    /// // Convert to the same dtype (returns the original tensor)
+    /// let same_dtype_tensor = tensor.to_dtype(&DType::F32).unwrap();
+    /// assert_eq!(same_dtype_tensor.dtype().unwrap(), DType::F32);
+    ///
+    /// // Convert to a different dtype
+    /// let f64_tensor = tensor.to_dtype(&DType::F64).unwrap();
+    /// assert_eq!(f64_tensor.dtype().unwrap(), DType::F64);
+    ///
+    /// // Verify the data is preserved through conversion
+    /// let original_data = tensor.to_vec::<f32>().unwrap();
+    /// let converted_data = f64_tensor.to_vec::<f64>().unwrap();
+    /// for (orig, conv) in original_data.iter().zip(converted_data.iter()) {
+    ///     // Compare with tolerance for floating-point conversion
+    ///     assert!((*orig as f64 - *conv).abs() < 1e-6);
+    /// }
+    /// ```
     pub fn to_dtype(&self, dtype: &DType) -> Result<Tensor, TensorError> {
         // Check current dtype first to avoid unnecessary conversion
         let current_dtype = {

@@ -17,13 +17,31 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
-    /// let device = Device::cpu();
-    /// let t1 = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
-    /// let t2 = Tensor::from_data(vec![3.0, 4.0], &device, false).unwrap();
+    /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let t3 = t1.add(&t2).unwrap();
-    /// println!("{:?}", t3);
+    /// let device = Device::cpu();
+    ///
+    /// // Create two 2x3 matrices
+    /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![2.0, 4.0, 6.0], vec![8.0, 10.0, 12.0]], &device, false).unwrap();
+    /// // Add the tensors element-wise without broadcasting
+    /// let result = t1.add(&t2).unwrap();
+    /// // Result should be: [[3.0, 6.0, 9.0], [12.0, 15.0, 18.0]]
+    /// let expected = vec![3.0, 6.0, 9.0, 12.0, 15.0, 18.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    ///
+    /// // Create a 2x3 matrix and a 1x3 vector
+    /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![2.0, 4.0, 6.0]], &device, false).unwrap();
+    /// // Add the tensors element-wise with broadcasting
+    /// let result = t1.add(&t2).unwrap();
+    /// // Result should be: [[3.0, 6.0, 9.0], [6.0, 9.0, 12.0]]
+    /// let expected = vec![3.0, 6.0, 9.0, 6.0, 9.0, 12.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn add(&self, rhs: &Self) -> Result<Self, TensorError> {
         let inner1 = self.data.read()?;
@@ -66,13 +84,31 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
-    /// let device = Device::cpu();
-    /// let t1 = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
-    /// let t2 = Tensor::from_data(vec![3.0, 4.0], &device, false).unwrap();
+    /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let t3 = t1.mul(&t2).unwrap();
-    /// println!("{:?}", t3);
+    /// let device = Device::cpu();
+    ///
+    /// // Create two 2x3 matrices
+    /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![2.0, 3.0, 4.0], vec![5.0, 6.0, 7.0]], &device, false).unwrap();
+    /// // Multiply the tensors element-wise without broadcasting
+    /// let result = t1.mul(&t2).unwrap();
+    /// // Result should be: [[2.0, 6.0, 12.0], [20.0, 30.0, 42.0]]
+    /// let expected = vec![2.0, 6.0, 12.0, 20.0, 30.0, 42.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    ///
+    /// // Create a 2x3 matrix and a 1x3 vector with broadcasting
+    /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![2.0, 3.0, 4.0]], &device, false).unwrap();
+    /// // Multiply the tensors element-wise with broadcasting
+    /// let result = t1.mul(&t2).unwrap();
+    /// // Result should be: [[2.0, 6.0, 12.0], [8.0, 15.0, 24.0]]
+    /// let expected = vec![2.0, 6.0, 12.0, 8.0, 15.0, 24.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn mul(&self, rhs: &Self) -> Result<Self, TensorError> {
         let inner1 = self.data.read()?;
@@ -110,13 +146,31 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
-    /// let device = Device::cpu();
-    /// let t1 = Tensor::from_data(vec![6.0, 8.0], &device, false).unwrap();
-    /// let t2 = Tensor::from_data(vec![2.0, 4.0], &device, false).unwrap();
+    /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let t3 = t1.div(&t2).unwrap();
-    /// println!("{:?}", t3);
+    /// let device = Device::cpu();
+    ///
+    /// // Create two 2x3 matrices
+    /// let t1 = Tensor::from_data(vec![vec![12.0, 24.0, 36.0], vec![48.0, 60.0, 72.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![2.0, 3.0, 4.0], vec![6.0, 5.0, 8.0]], &device, false).unwrap();
+    /// // Divide the tensors element-wise without broadcasting
+    /// let result = t1.div(&t2).unwrap();
+    /// // Result should be: [[6.0, 8.0, 9.0], [8.0, 12.0, 9.0]]
+    /// let expected = vec![6.0, 8.0, 9.0, 8.0, 12.0, 9.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    ///
+    /// // Create a 2x3 matrix and a 1x3 vector with broadcasting
+    /// let t1 = Tensor::from_data(vec![vec![12.0, 24.0, 36.0], vec![48.0, 60.0, 72.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![2.0, 3.0, 4.0]], &device, false).unwrap();
+    /// // Divide the tensors element-wise with broadcasting
+    /// let result = t1.div(&t2).unwrap();
+    /// // Result should be: [[6.0, 8.0, 9.0], [24.0, 20.0, 18.0]]
+    /// let expected = vec![6.0, 8.0, 9.0, 24.0, 20.0, 18.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn div(&self, rhs: &Self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -155,13 +209,30 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t1 = Tensor::from_data(vec![5.0, 6.0], &device, false).unwrap();
-    /// let t2 = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
     ///
-    /// let t3 = t1.sub(&t2).unwrap();
-    /// println!("{:?}", t3);
+    /// // Create two 2x3 matrices
+    /// let t1 = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![1.0, 3.0, 5.0], vec![7.0, 9.0, 11.0]], &device, false).unwrap();
+    /// // Subtract the tensors element-wise without broadcasting
+    /// let result = t1.sub(&t2).unwrap();
+    /// // Result should be: [[9.0, 17.0, 25.0], [33.0, 41.0, 49.0]]
+    /// let expected = vec![9.0, 17.0, 25.0, 33.0, 41.0, 49.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    ///
+    /// // Create a 2x3 matrix and a 1x3 vector with broadcasting
+    /// let t1 = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![1.0, 3.0, 5.0]], &device, false).unwrap();
+    /// // Subtract the tensors element-wise with broadcasting
+    /// let result = t1.sub(&t2).unwrap();
+    /// // Result should be: [[9.0, 17.0, 25.0], [39.0, 47.0, 55.0]]
+    /// let expected = vec![9.0, 17.0, 25.0, 39.0, 47.0, 55.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn sub(&self, rhs: &Self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -197,12 +268,18 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![1.0, 4.0, 9.0], &device, false).unwrap();
+    /// // Create a 2x3 matrix with perfect squares
+    /// let t = Tensor::from_data(vec![vec![1.0, 4.0, 9.0], vec![16.0, 25.0, 36.0]], &device, false).unwrap();
     ///
+    /// // Compute square root element-wise
     /// let result = t.sqrt().unwrap();
-    /// println!("{:?}", result);
+    /// // Result should be: [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+    /// let expected = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn sqrt(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -235,13 +312,18 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![2.0, 3.0, 4.0], &device, false).unwrap();
+    /// // Create a 2x3 matrix
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     ///
+    /// // Compute power element-wise with exponent 2.0
     /// let result = t.powf(2.0).unwrap();
-    /// println!("{:?}", result);
-    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![4.0, 9.0, 16.0]);
+    /// // Result should be: [[1.0, 4.0, 9.0], [16.0, 25.0, 36.0]]
+    /// let expected = vec![1.0, 4.0, 9.0, 16.0, 25.0, 36.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn powf(&self, exponent: f64) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -263,6 +345,74 @@ impl Tensor {
         })
     }
 
+    /// Compute the power of the tensor element-wise with broadcasting.
+    ///
+    /// # Notes
+    /// * The exponent tensor must have the same [`crate::DType`] as the base tensor.
+    ///
+    /// # Arguments
+    /// * `exponent` - The exponent tensor.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The result tensor after power operation.
+    /// * `Err(TensorError)` - The error when computing the power.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// // Create a 2x3 matrix
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
+    /// let exponent = Tensor::from_data(vec![vec![2.0, 3.0, 4.0], vec![5.0, 6.0, 7.0]], &device, false).unwrap();
+    /// // Compute power element-wise without broadcasting
+    /// let result = t.pow(&exponent).unwrap();
+    /// // Result should be: [[1.0, 8.0, 81.0], [1024.0, 15625.0, 279936.0]]
+    /// let expected = vec![1.0, 8.0, 81.0, 1024.0, 15625.0, 279936.0];
+    /// // Compare results
+    /// for (lhs, rhs) in result.to_vec::<f64>().unwrap().iter().zip(expected.iter()) {
+    ///     assert!((lhs - rhs).abs() < 1e-1);
+    /// }
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    ///
+    /// // Create a 2x3 matrix and a 1x3 vector with broadcasting
+    /// let t = Tensor::from_data(vec![vec![2.0, 3.0, 4.0], vec![5.0, 6.0, 7.0]], &device, false).unwrap();
+    /// let exponent = Tensor::from_data(vec![vec![2.0, 3.0, 4.0]], &device, false).unwrap();
+    /// // Compute power element-wise with broadcasting
+    /// let result = t.pow(&exponent).unwrap();
+    /// // Result should be: [[4.0, 27.0, 256.0], [25.0, 216.0, 2401.0]]
+    /// let expected = vec![4.0, 27.0, 256.0, 25.0, 216.0, 2401.0];
+    /// // Compare results
+    /// for (lhs, rhs) in result.to_vec::<f64>().unwrap().iter().zip(expected.iter()) {
+    ///     assert!((lhs - rhs).abs() < 1e-1);
+    /// }
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// ```
+    pub fn pow(&self, exponent: &Tensor) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+        let exponent_inner = exponent.data.read()?;
+        let exponent_inner_tensor = match &exponent_inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.broadcast_pow(exponent_inner_tensor)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.copy(), exponent.copy()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
     /// Compute the absolute value of each element in the tensor.
     ///
     /// # Returns
@@ -271,12 +421,18 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &device, false).unwrap();
+    /// // Create a 2x3 matrix with mixed positive and negative values
+    /// let t = Tensor::from_data(vec![vec![-1.0, 2.0, -3.0], vec![4.0, -5.0, 6.0]], &device, false).unwrap();
     ///
+    /// // Compute absolute value element-wise
     /// let result = t.abs().unwrap();
-    /// println!("{:?}", result);
+    /// // Result should be: [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+    /// let expected = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn abs(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -306,12 +462,18 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![1.0, -2.0, 3.0, -4.0], &device, false).unwrap();
+    /// // Create a 2x3 matrix
+    /// let t = Tensor::from_data(vec![vec![1.0, -2.0, 3.0], vec![-4.0, 5.0, -6.0]], &device, false).unwrap();
     ///
+    /// // Compute negative element-wise
     /// let result = t.neg().unwrap();
-    /// println!("{:?}", result);
+    /// // Result should be: [[-1.0, 2.0, -3.0], [4.0, -5.0, 6.0]]
+    /// let expected = vec![-1.0, 2.0, -3.0, 4.0, -5.0, 6.0];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn neg(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -341,12 +503,18 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(vec![1.0, 2.0, 4.0, 8.0], &device, false).unwrap();
+    /// // Create a 2x3 matrix with non-zero values
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 4.0], vec![8.0, 10.0, 16.0]], &device, false).unwrap();
     ///
+    /// // Compute reciprocal element-wise
     /// let result = t.recip().unwrap();
-    /// println!("{:?}", result);
+    /// // Result should be: [[1.0, 0.5, 0.25], [0.125, 0.1, 0.0625]]
+    /// let expected = vec![1.0, 0.5, 0.25, 0.125, 0.1, 0.0625];
+    /// // Compare results
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn recip(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
