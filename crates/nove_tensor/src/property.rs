@@ -185,9 +185,7 @@ impl Tensor {
     pub fn reshape(&self, shape: &Shape) -> Result<Tensor, TensorError> {
         let new_inner = match &self.data.read()?.inner {
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.reshape(shape)?),
-            TensorInner::Var(var) => {
-                TensorInner::Var(candle_core::Var::from_tensor(&var.reshape(shape)?)?)
-            }
+            TensorInner::Var(var) => TensorInner::Tensor(var.reshape(shape)?),
         };
 
         let new_grad = match &self.data.read()?.grad {
@@ -300,7 +298,7 @@ impl Tensor {
     /// println!("The name of the tensor is: {:?}", name);
     /// ```
     pub fn require_name(&self, name: &str) -> Result<Tensor, TensorError> {
-        let new_tensor = self.copy();
+        let new_tensor = self.try_clone()?;
         new_tensor.data.write()?.name = Some(name.to_string());
         Ok(new_tensor)
     }

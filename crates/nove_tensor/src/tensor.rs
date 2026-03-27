@@ -219,9 +219,9 @@ impl Tensor {
         Ok(Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: match &data.inner {
-                    TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.copy()?),
+                    TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.copy()?.detach()),
                     TensorInner::Var(var) => {
-                        TensorInner::Var(candle_core::Var::from_tensor(&var.copy()?)?)
+                        TensorInner::Var(candle_core::Var::from_tensor(&var.copy()?.detach())?)
                     }
                 },
                 device: data.device.clone(),
@@ -616,19 +616,49 @@ impl Tensor {
             parents.extend(grad_enabled_parents);
         }
 
+        println!("The number of parents is {}", parents.len());
+        // Debug: print detailed parent information
+        for (i, parent) in parents.iter().enumerate() {
+            let data = parent.data.read().unwrap();
+            let inner_type = match &data.inner {
+                TensorInner::Tensor(_) => "Tensor",
+                TensorInner::Var(_) => "Var",
+            };
+            let name = data.name.clone().unwrap_or_else(|| "None".to_string());
+            let ptr = Arc::as_ptr(&parent.data) as usize;
+            let parent_count = data.parents.len();
+            println!(
+                "Parent {}: ptr={:x}, inner={}, name={}, grad_enabled={}, parents={}",
+                i,
+                ptr,
+                inner_type,
+                name,
+                parent.grad_enabled().unwrap_or(false),
+                parent_count
+            );
+            // Print inner tensor id if it's a Var
+            match &data.inner {
+                TensorInner::Var(var) => {
+                    let tensor = var.as_tensor();
+                    println!("  Var inner tensor id: {:?}", tensor.id());
+                }
+                _ => {}
+            }
+        }
+
         // Update the gradient of each parent tensor
         parents
             .par_iter()
             .map(|parent| {
                 let mut parent_write = parent.data.write()?;
                 let inner_tensor = match &parent_write.inner {
-                    TensorInner::Tensor(tensor) => tensor.clone(),
-                    TensorInner::Var(var) => var.as_tensor().clone(),
+                    TensorInner::Tensor(tensor) => tensor,
+                    TensorInner::Var(var) => var.as_tensor(),
                 };
 
                 // Get the new gradient of the parent tensor from the grad_store
                 let new_grad = grad_store
-                    .get(&inner_tensor)
+                    .get(inner_tensor)
                     .ok_or(TensorError::NoTensorGradient)?;
 
                 match &parent_write.grad {
@@ -636,11 +666,11 @@ impl Tensor {
                     Some(parent_grad) => {
                         let mut parent_grad_write = parent_grad.data.write()?;
                         let parent_grad_inner_tensor = match &parent_grad_write.inner {
-                            TensorInner::Tensor(tensor) => tensor.clone(),
-                            TensorInner::Var(var) => var.as_tensor().clone(),
+                            TensorInner::Tensor(tensor) => tensor,
+                            TensorInner::Var(var) => var.as_tensor(),
                         };
                         parent_grad_write.inner =
-                            TensorInner::Tensor(new_grad.add(&parent_grad_inner_tensor)?.detach());
+                            TensorInner::Tensor(new_grad.add(parent_grad_inner_tensor)?.detach());
                     }
                     // If the parent tensor does not have a gradient, set it to the new gradient
                     None => {

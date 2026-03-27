@@ -36,7 +36,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![],
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),

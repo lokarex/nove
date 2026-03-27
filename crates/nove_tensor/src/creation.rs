@@ -235,4 +235,42 @@ impl Tensor {
             })),
         })
     }
+
+    pub fn zeros_like(&self) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.zeros_like()?);
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: inner.device.clone(),
+                parents: vec![self.copy()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn ones_like(&self) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.ones_like()?);
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: inner.device.clone(),
+                parents: vec![self.copy()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
 }

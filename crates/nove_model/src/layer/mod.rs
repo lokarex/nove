@@ -64,3 +64,15 @@ pub use rnn::RnnBuilder;
 mod lstm_cell;
 pub use lstm_cell::LstmCell;
 pub use lstm_cell::LstmCellBuilder;
+
+mod gru_cell;
+pub use gru_cell::GruCell;
+pub use gru_cell::GruCellBuilder;
+
+mod gru;
+pub use gru::Gru;
+pub use gru::GruBuilder;
+
+mod embedding;
+pub use embedding::Embedding;
+pub use embedding::EmbeddingBuilder;

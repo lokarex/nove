@@ -283,7 +283,65 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device: self.data.read()?.device.clone(),
-                parents: vec![self.copy(), indices.copy()],
+                parents: vec![self.copy()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn index_select(&self, indices: &Self, dim: isize) -> Result<Self, TensorError> {
+        let dim: usize = match dim {
+            d if d >= 0 => d as usize,
+            -1 => self.as_ref().shape()?.dims().len() as usize - 1,
+            _ => return Err(TensorError::InvalidDimension(dim)),
+        };
+
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let indices_inner = indices.data.read()?;
+        let indices_inner_tensor = match &indices_inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.index_select(indices_inner_tensor, dim)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: inner.device.clone(),
+                parents: vec![self.copy()],
+                grad: None,
+                name: None,
+            })),
+        })
+    }
+
+    pub fn embedding(&self, indices: &Self) -> Result<Self, TensorError> {
+        let inner = self.data.read()?;
+        let inner_tensor = match &inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let indices_inner = indices.data.read()?;
+        let indices_inner_tensor = match &indices_inner.inner {
+            TensorInner::Tensor(tensor) => tensor,
+            TensorInner::Var(var) => var,
+        };
+
+        let new_inner = TensorInner::Tensor(inner_tensor.embedding(indices_inner_tensor)?);
+
+        Ok(Self {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                device: inner.device.clone(),
+                parents: vec![self.copy()],
                 grad: None,
                 name: None,
             })),
