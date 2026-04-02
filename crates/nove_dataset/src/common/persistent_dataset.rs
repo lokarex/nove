@@ -9,7 +9,7 @@ use bincode::{Decode, Encode, config};
 /// PersistentDataset could wrap another dataset and persist the items in the inner
 /// dataset to a file and load them back when needed.
 ///
-/// # Note
+/// # Notes
 /// * The dataset that is wrapped by `PersistentDataset` must implement `Dataset` trait.
 /// * The D::Item must implement Encode + Decode<()>.
 /// * When loading the dataset from the file, the type of the inner dataset should be explicitly

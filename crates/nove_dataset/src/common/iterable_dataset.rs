@@ -2,7 +2,7 @@ use crate::{Dataset, DatasetError};
 
 /// IterableDataset could wrap a dataset and offer a way to iterate over it.
 ///
-/// # Note
+/// # Notes
 /// * The dataset that is wrapped by `IterableDataset` must implement `Dataset` trait.
 ///
 /// # Lifetime Parameters

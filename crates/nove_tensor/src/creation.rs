@@ -20,27 +20,52 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
+    /// * Create a 2x3 tensor with random values uniformly distributed between 0.0 and 1.0 (grad_enabled=false)
     /// ```
-    /// use nove_tensor::{Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Device, Shape, Tensor};
     ///
-    /// // Create a 2x3 tensor with random values uniformly distributed between 0.0 and 1.0
     /// let device = Device::cpu();
     /// let shape = Shape::from(&[2, 3]);
+    /// let dtype = DType::F32;
     ///
-    /// // Create the tensor without gradient tracking
     /// let tensor = Tensor::rand(0.0f32, 1.0f32, &shape, &device, false).unwrap();
     ///
-    /// // Verify tensor properties
     /// assert_eq!(tensor.shape().unwrap(), shape);
+    /// assert_eq!(tensor.dtype().unwrap(), dtype);
     /// assert_eq!(tensor.device().unwrap(), device);
     ///
-    /// // All values should be in the range [0.0, 1.0)
     /// let data = tensor.to_vec::<f32>().unwrap();
+    /// assert_eq!(data.len(), 6);
     /// for &value in &data {
     ///     assert!(value >= 0.0 && value < 1.0);
     /// }
-    /// // Note: This method generates random values. The actual values will vary between runs
-    /// // unless the random number generator seed is fixed externally.
+    /// ```
+    /// * Create a random tensor with gradient tracking and verify backward propagation
+    /// ```
+    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let shape = Shape::from(&[2, 3]);
+    /// let dtype = DType::F32;
+    ///
+    /// let tensor = Tensor::rand(0.0f32, 1.0f32, &shape, &device, true).unwrap();
+    ///
+    /// assert_eq!(tensor.shape().unwrap(), shape);
+    /// assert_eq!(tensor.dtype().unwrap(), dtype);
+    /// assert_eq!(tensor.device().unwrap(), device);
+    ///
+    /// let data = tensor.to_vec::<f32>().unwrap();
+    /// assert_eq!(data.len(), 6);
+    /// for &value in &data {
+    ///     assert!(value >= 0.0 && value < 1.0);
+    /// }
+    ///
+    /// let sum = tensor.sum(None).unwrap();
+    /// sum.backward().unwrap();
+    ///
+    /// let grad = tensor.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), shape);
+    /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0; 6]);
     /// ```
     pub fn rand<T>(
         low: T,
@@ -82,25 +107,46 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
+    /// * Create a 2x3 tensor with random values from normal distribution (grad_enabled=false)
     /// ```
-    /// use nove_tensor::{Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Device, Shape, Tensor};
     ///
-    /// // Create a 2x3 tensor with random values from normal distribution (mean=0.0, std=1.0)
     /// let device = Device::cpu();
     /// let shape = Shape::from(&[2, 3]);
+    /// let dtype = DType::F32;
     ///
-    /// // Create the tensor without gradient tracking
     /// let tensor = Tensor::randn(0.0f32, 1.0f32, &shape, &device, false).unwrap();
     ///
-    /// // Verify tensor properties
     /// assert_eq!(tensor.shape().unwrap(), shape);
+    /// assert_eq!(tensor.dtype().unwrap(), dtype);
     /// assert_eq!(tensor.device().unwrap(), device);
     ///
-    /// // Note: This method generates random values from a normal distribution.
-    /// // The actual values will vary between runs unless the random number generator
-    /// // seed is fixed externally. We can verify the tensor has the expected size.
     /// let data = tensor.to_vec::<f32>().unwrap();
-    /// assert_eq!(data.len(), 6); // 2x3 = 6 elements
+    /// assert_eq!(data.len(), 6);
+    /// ```
+    /// * Create a random tensor from normal distribution with gradient tracking and verify backward propagation
+    /// ```
+    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let shape = Shape::from(&[2, 3]);
+    /// let dtype = DType::F32;
+    ///
+    /// let tensor = Tensor::randn(0.0f32, 1.0f32, &shape, &device, true).unwrap();
+    ///
+    /// assert_eq!(tensor.shape().unwrap(), shape);
+    /// assert_eq!(tensor.dtype().unwrap(), dtype);
+    /// assert_eq!(tensor.device().unwrap(), device);
+    ///
+    /// let data = tensor.to_vec::<f32>().unwrap();
+    /// assert_eq!(data.len(), 6);
+    ///
+    /// let sum = tensor.sum(None).unwrap();
+    /// sum.backward().unwrap();
+    ///
+    /// let grad = tensor.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), shape);
+    /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0; 6]);
     /// ```
     pub fn randn<T>(
         mean: T,
@@ -141,25 +187,46 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
+    /// * Create a 2x3 tensor of zeros with f32 data type (grad_enabled=false)
     /// ```
-    /// use nove_tensor::{DType, Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Device, Shape, Tensor};
     ///
-    /// // Create a 2x3 tensor of zeros with f32 data type on CPU
     /// let device = Device::cpu();
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
-    /// // Create the tensor without gradient tracking
     /// let tensor = Tensor::zeros(&shape, &dtype, &device, false).unwrap();
     ///
-    /// // Verify tensor properties
     /// assert_eq!(tensor.shape().unwrap(), shape);
     /// assert_eq!(tensor.dtype().unwrap(), dtype);
     /// assert_eq!(tensor.device().unwrap(), device);
     ///
-    /// // The tensor should contain all zeros
     /// let data = tensor.to_vec::<f32>().unwrap();
-    /// assert_eq!(data, vec![0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32]);
+    /// assert_eq!(data, vec![0.0f32; 6]);
+    /// ```
+    /// * Create a tensor of zeros with gradient tracking and verify backward propagation
+    /// ```
+    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let shape = Shape::from(&[2, 3]);
+    /// let dtype = DType::F32;
+    ///
+    /// let tensor = Tensor::zeros(&shape, &dtype, &device, true).unwrap();
+    ///
+    /// assert_eq!(tensor.shape().unwrap(), shape);
+    /// assert_eq!(tensor.dtype().unwrap(), dtype);
+    /// assert_eq!(tensor.device().unwrap(), device);
+    ///
+    /// let data = tensor.to_vec::<f32>().unwrap();
+    /// assert_eq!(data, vec![0.0f32; 6]);
+    ///
+    /// let sum = tensor.sum(None).unwrap();
+    /// sum.backward().unwrap();
+    ///
+    /// let grad = tensor.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), shape);
+    /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0; 6]);
     /// ```
     pub fn zeros(
         shape: &Shape,
@@ -195,25 +262,46 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
+    /// * Create a 2x3 tensor of ones with f32 data type (grad_enabled=false)
     /// ```
-    /// use nove_tensor::{DType, Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Device, Shape, Tensor};
     ///
-    /// // Create a 2x3 tensor of ones with f32 data type on CPU
     /// let device = Device::cpu();
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
-    /// // Create the tensor without gradient tracking
     /// let tensor = Tensor::ones(&shape, &dtype, &device, false).unwrap();
     ///
-    /// // Verify tensor properties
     /// assert_eq!(tensor.shape().unwrap(), shape);
     /// assert_eq!(tensor.dtype().unwrap(), dtype);
     /// assert_eq!(tensor.device().unwrap(), device);
     ///
-    /// // The tensor should contain all ones
     /// let data = tensor.to_vec::<f32>().unwrap();
-    /// assert_eq!(data, vec![1.0f32, 1.0f32, 1.0f32, 1.0f32, 1.0f32, 1.0f32]);
+    /// assert_eq!(data, vec![1.0f32; 6]);
+    /// ```
+    /// * Create a tensor of ones with gradient tracking and verify backward propagation
+    /// ```
+    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let shape = Shape::from(&[2, 3]);
+    /// let dtype = DType::F32;
+    ///
+    /// let tensor = Tensor::ones(&shape, &dtype, &device, true).unwrap();
+    ///
+    /// assert_eq!(tensor.shape().unwrap(), shape);
+    /// assert_eq!(tensor.dtype().unwrap(), dtype);
+    /// assert_eq!(tensor.device().unwrap(), device);
+    ///
+    /// let data = tensor.to_vec::<f32>().unwrap();
+    /// assert_eq!(data, vec![1.0f32; 6]);
+    ///
+    /// let sum = tensor.sum(None).unwrap();
+    /// sum.backward().unwrap();
+    ///
+    /// let grad = tensor.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), shape);
+    /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0; 6]);
     /// ```
     pub fn ones(
         shape: &Shape,
@@ -236,6 +324,52 @@ impl Tensor {
         })
     }
 
+    /// Create a new tensor with the same shape and device as the input tensor, filled with zeros.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The new tensor filled with zeros.
+    /// * `Err(TensorError)` - The error when creating the tensor.
+    ///
+    /// # Examples
+    /// * Create a tensor of zeros with the same shape as the input tensor
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, false).unwrap();
+    ///
+    /// let zeros = tensor.zeros_like().unwrap();
+    ///
+    /// assert_eq!(zeros.shape().unwrap(), tensor.shape().unwrap());
+    /// assert_eq!(zeros.dtype().unwrap(), tensor.dtype().unwrap());
+    /// assert_eq!(zeros.device().unwrap(), tensor.device().unwrap());
+    ///
+    /// let data = zeros.to_vec::<f32>().unwrap();
+    /// assert_eq!(data, vec![0.0f32, 0.0f32, 0.0f32]);
+    /// ```
+    /// * Create a zeros_like tensor from a tensor with gradient tracking and verify backward propagation
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, true).unwrap();
+    ///
+    /// let zeros = tensor.zeros_like().unwrap();
+    ///
+    /// assert_eq!(zeros.shape().unwrap(), tensor.shape().unwrap());
+    /// assert_eq!(zeros.dtype().unwrap(), tensor.dtype().unwrap());
+    /// assert_eq!(zeros.device().unwrap(), tensor.device().unwrap());
+    ///
+    /// let data = zeros.to_vec::<f32>().unwrap();
+    /// assert_eq!(data, vec![0.0f32, 0.0f32, 0.0f32]);
+    ///
+    /// let result = tensor.add(&zeros).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// let grad = tensor.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), tensor.shape().unwrap());
+    /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0; 3]);
+    /// ```
     pub fn zeros_like(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
@@ -255,6 +389,54 @@ impl Tensor {
         })
     }
 
+    /// Create a new tensor with the same shape and device as the input tensor, filled with ones.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The new tensor filled with ones.
+    /// * `Err(TensorError)` - The error when creating the tensor.
+    ///
+    /// # Examples
+    /// * Create a tensor of ones with the same shape as the input tensor
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, false).unwrap();
+    ///
+    /// let ones = tensor.ones_like().unwrap();
+    ///
+    /// assert_eq!(ones.shape().unwrap(), tensor.shape().unwrap());
+    /// assert_eq!(ones.dtype().unwrap(), tensor.dtype().unwrap());
+    /// assert_eq!(ones.device().unwrap(), tensor.device().unwrap());
+    ///
+    /// let data = ones.to_vec::<f32>().unwrap();
+    /// assert_eq!(data, vec![1.0f32, 1.0f32, 1.0f32]);
+    /// ```
+    /// * Create a ones_like tensor from a tensor with gradient tracking and verify backward propagation
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, true).unwrap();
+    ///
+    /// let ones = tensor.ones_like().unwrap();
+    ///
+    /// assert_eq!(ones.shape().unwrap(), tensor.shape().unwrap());
+    /// assert_eq!(ones.dtype().unwrap(), tensor.dtype().unwrap());
+    /// assert_eq!(ones.device().unwrap(), tensor.device().unwrap());
+    ///
+    /// let data = ones.to_vec::<f32>().unwrap();
+    /// assert_eq!(data, vec![1.0f32, 1.0f32, 1.0f32]);
+    ///
+    /// // ones_like creates a new tensor that doesn't have gradient tracking by itself
+    /// // but it can be used in computations with other gradient-enabled tensors
+    /// let result = tensor.mul(&ones).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// let grad = tensor.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), tensor.shape().unwrap());
+    /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0; 3]);
+    /// ```
     pub fn ones_like(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {

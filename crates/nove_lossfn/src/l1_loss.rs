@@ -19,7 +19,7 @@ use crate::{LossFn, LossFnError};
 /// - y_i is the target value for the i-th element
 /// - |·| denotes the absolute value
 ///
-/// # Note:
+/// # Notes:
 /// * The input is a `(input, target)` tuple
 ///   - `input`: A tensor of any shape containing predicted values
 ///   - `target`: A tensor of the same shape as input containing target values

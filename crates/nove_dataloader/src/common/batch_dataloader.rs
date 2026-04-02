@@ -9,7 +9,7 @@ use nove_dataset::Dataset;
 /// shuffle the dataset, load the data, process the data, and collate the
 /// datas into batches.
 ///
-/// # Note
+/// # Notes
 /// * When create a `BatchDataloader` from `BatchDataloaderBuilder`,
 ///   the specific `BatchDataloader` type must be determined. It means
 ///   3 generic type parameters must be set manually, so please clearly

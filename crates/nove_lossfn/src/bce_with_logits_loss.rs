@@ -25,7 +25,7 @@ use crate::{LossFn, LossFnError};
 /// - x_i is the input logit for the i-th element
 /// - y_i is the true label for the i-th element (should be in [0, 1])
 ///
-/// # Note:
+/// # Notes:
 /// * The input is a `(input, target)` tuple
 ///   - `input`: A tensor of any shape containing logits
 ///   - `target`: A tensor of the same shape as input containing true binary labels

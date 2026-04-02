@@ -2,7 +2,7 @@ use crate::{Dataset, DatasetError};
 
 /// A dataset that wraps another dataset and provides a view into a subset of it.
 ///
-/// # Note
+/// # Notes
 /// * The dataset that is wrapped by `SplitDataset` must implement `Dataset` trait.
 /// * The split is a view, not a copy. Changes to the original dataset will be reflected.
 ///

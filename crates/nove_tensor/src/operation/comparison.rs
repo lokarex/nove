@@ -19,29 +19,33 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when comparing the tensors.
     ///
     /// # Examples
+    /// * Compare two 2x3 matrices without broadcasting
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
+    ///
     /// let device = Device::cpu();
     ///
-    /// let shape = Shape::from(&[2, 3]);
-    /// // Create 2x3 matrices with typical data distribution
-    /// let lhs = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &shape, &device, false).unwrap();
-    /// let rhs = Tensor::from_vec(vec![1.0, 2.0, 0.0, 4.0, 5.0, 0.0], &shape, &device, false).unwrap();
-    /// // Compare element-wise equality without broadcasting
-    /// let result = lhs.eq(&rhs).unwrap();
-    /// // Result will be [[true, true, false], [true, true, false]]
-    /// let expected = vec![1, 1, 0, 1, 1, 0];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
+    /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![1.0, 2.0, 0.0], vec![4.0, 5.0, 0.0]], &device, false).unwrap();
+    /// let result = t1.eq(&t2).unwrap();
+    /// let expected_values = vec![1, 1, 0, 1, 1, 0];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
+    /// ```
+    /// * Compare a 1x3 vector with a 2x3 matrix with broadcasting
+    /// ```
+    /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// // Create a 1x3 vector and a 2x3 matrix
-    /// let lhs = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, false).unwrap();
-    /// let rhs = Tensor::from_data(vec![vec![1.0, 2.0, 0.0], vec![0.0, 0.0, 0.0]], &device, false).unwrap();
-    /// // Compare element-wise equality with broadcasting
-    /// let result = lhs.eq(&rhs).unwrap();
-    /// // Result will be [[true, true, false], [false, false, false]]
-    /// let expected = vec![1, 1, 0, 0, 0, 0];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
-    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![1.0, 2.0, 0.0], vec![0.0, 0.0, 0.0]], &device, false).unwrap();
+    /// let result = t1.eq(&t2).unwrap();
+    /// let expected_values = vec![1, 1, 0, 0, 0, 0];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
     /// ```
     pub fn eq(&self, rhs: &Self) -> Result<Self, TensorError> {
         let lhs_inner = self.data.read()?;
@@ -82,28 +86,33 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when comparing the tensors.
     ///
     /// # Examples
+    /// * Compare two 2x3 matrices without broadcasting
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
-    /// let device = Device::cpu();
-    /// let shape = Shape::from(&[2, 3]);
-    /// // Create 2x3 matrices with typical data distribution
-    /// let lhs = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &shape, &device, false).unwrap();
-    /// let rhs = Tensor::from_vec(vec![1.0, 2.0, 0.0, 4.0, 5.0, 0.0], &shape, &device, false).unwrap();
-    /// // Compare element-wise inequality
-    /// let result = lhs.ne(&rhs).unwrap();
-    /// // Result will be [[false, false, true], [false, false, true]]
-    /// let expected = vec![0, 0, 1, 0, 0, 1];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
     ///
-    /// // Create a 1x3 vector and a 2x3 matrix
-    /// let lhs = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, false).unwrap();
-    /// let rhs = Tensor::from_data(vec![vec![1.0, 2.0, 0.0], vec![0.0, 0.0, 0.0]], &device, false).unwrap();
-    /// // Compare element-wise inequality with broadcasting
-    /// let result = lhs.ne(&rhs).unwrap();
-    /// // Result will be [[false, false, true], [true, true, true]]
-    /// let expected = vec![0, 0, 1, 1, 1, 1];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
-    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![1.0, 2.0, 0.0], vec![4.0, 5.0, 0.0]], &device, false).unwrap();
+    /// let result = t1.ne(&t2).unwrap();
+    /// let expected_values = vec![0, 0, 1, 0, 0, 1];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
+    /// ```
+    /// * Compare a 1x3 vector with a 2x3 matrix with broadcasting
+    /// ```
+    /// use nove::tensor::{Device, Tensor, Shape};
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![1.0, 2.0, 0.0], vec![0.0, 0.0, 0.0]], &device, false).unwrap();
+    /// let result = t1.ne(&t2).unwrap();
+    /// let expected_values = vec![0, 0, 1, 1, 1, 1];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
     /// ```
     pub fn ne(&self, rhs: &Self) -> Result<Self, TensorError> {
         let lhs_inner = self.data.read()?;
@@ -144,28 +153,33 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when comparing the tensors.
     ///
     /// # Examples
+    /// * Compare two 2x3 matrices without broadcasting
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
-    /// let device = Device::cpu();
-    /// let shape = Shape::from(&[2, 3]);
-    /// // Create 2x3 matrices with mixed positive and negative values
-    /// let lhs = Tensor::from_vec(vec![1.5, -2.0, 3.0, 0.0, 5.0, -1.0], &shape, &device, false).unwrap();
-    /// let rhs = Tensor::from_vec(vec![1.0, -1.0, 2.5, -0.5, 4.0, -2.0], &shape, &device, false).unwrap();
-    /// // Compare element-wise greater-than
-    /// let result = lhs.gt(&rhs).unwrap();
-    /// // Result will be [[true, false, true], [true, true, true]]
-    /// let expected = vec![1, 0, 1, 1, 1, 1];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
     ///
-    /// // Create a 2x1 column vector and a 2x3 matrix
-    /// let lhs = Tensor::from_data(vec![vec![1.0], vec![2.0]], &device, false).unwrap();
-    /// let rhs = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
-    /// // Compare element-wise greater-than with broadcasting
-    /// let result = lhs.gt(&rhs).unwrap();
-    /// // Result will be [[false, false, false], [false, false, false]]
-    /// let expected = vec![0, 0, 0, 0, 0, 0];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
-    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![vec![1.5, -2.0, 3.0], vec![0.0, 5.0, -1.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![1.0, -1.0, 2.5], vec![-0.5, 4.0, -2.0]], &device, false).unwrap();
+    /// let result = t1.gt(&t2).unwrap();
+    /// let expected_values = vec![1, 0, 1, 1, 1, 1];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
+    /// ```
+    /// * Compare a 2x1 column vector with a 2x3 matrix with broadcasting
+    /// ```
+    /// use nove::tensor::{Device, Tensor, Shape};
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![vec![1.0], vec![2.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
+    /// let result = t1.gt(&t2).unwrap();
+    /// let expected_values = vec![0, 0, 0, 0, 0, 0];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
     /// ```
     pub fn gt(&self, rhs: &Self) -> Result<Self, TensorError> {
         let lhs_inner = self.data.read()?;
@@ -206,28 +220,33 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when comparing the tensors.
     ///
     /// # Examples
+    /// * Compare two 2x3 matrices without broadcasting
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
-    /// let device = Device::cpu();
-    /// let shape = Shape::from(&[2, 3]);
-    /// // Create 2x3 matrices with values that have clear ordering relationships
-    /// let lhs = Tensor::from_vec(vec![1.5, -2.0, 3.0, 0.0, 5.0, -1.0], &shape, &device, false).unwrap();
-    /// let rhs = Tensor::from_vec(vec![1.0, -1.0, 2.5, -0.5, 4.0, -2.0], &shape, &device, false).unwrap();
-    /// // Compare element-wise less-than
-    /// let result = lhs.lt(&rhs).unwrap();
-    /// // Result will be [[false, true, false], [false, false, false]]
-    /// let expected = vec![0, 1, 0, 0, 0, 0];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
     ///
-    /// // Create a 1x2 row vector and a 2x3 matrix
-    /// let lhs = Tensor::from_data(vec![1.0, 5.0, 100.0], &device, false).unwrap();
-    /// let rhs = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
-    /// // Compare element-wise less-than with broadcasting
-    /// let result = lhs.lt(&rhs).unwrap();
-    /// // Result will be [[true, true, false], [true, true, false]]
-    /// let expected = vec![1, 1, 0, 1, 1, 0];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
-    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![vec![1.5, -2.0, 3.0], vec![0.0, 5.0, -1.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![1.0, -1.0, 2.5], vec![-0.5, 4.0, -2.0]], &device, false).unwrap();
+    /// let result = t1.lt(&t2).unwrap();
+    /// let expected_values = vec![0, 1, 0, 0, 0, 0];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
+    /// ```
+    /// * Compare a 1x3 row vector with a 2x3 matrix with broadcasting
+    /// ```
+    /// use nove::tensor::{Device, Tensor, Shape};
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![1.0, 5.0, 100.0], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
+    /// let result = t1.lt(&t2).unwrap();
+    /// let expected_values = vec![1, 1, 0, 1, 1, 0];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
     /// ```
     pub fn lt(&self, rhs: &Self) -> Result<Self, TensorError> {
         let lhs_inner = self.data.read()?;
@@ -268,28 +287,33 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when comparing the tensors.
     ///
     /// # Examples
+    /// * Compare two 2x3 matrices without broadcasting
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
-    /// let device = Device::cpu();
-    /// let shape = Shape::from(&[2, 3]);
-    /// // Create 2x3 matrices with mixed values including equalities
-    /// let lhs = Tensor::from_vec(vec![1.0, -1.0, 3.0, 0.0, 5.0, -2.0], &shape, &device, false).unwrap();
-    /// let rhs = Tensor::from_vec(vec![1.0, -2.0, 2.5, 0.0, 4.0, -1.0], &shape, &device, false).unwrap();
-    /// // Compare element-wise greater-than-or-equal
-    /// let result = lhs.ge(&rhs).unwrap();
-    /// // Result will be [[true, true, true], [true, true, false]]
-    /// let expected = vec![1, 1, 1, 1, 1, 0];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
     ///
-    /// // Create a 2x1 column vector and a 2x3 matrix
-    /// let lhs = Tensor::from_data(vec![vec![10.0], vec![2.0]], &device, false).unwrap();
-    /// let rhs = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
-    /// // Compare element-wise greater-than-or-equal with broadcasting
-    /// let result = lhs.ge(&rhs).unwrap();
-    /// // Result will be [[true, false, false], [false, false, false]]
-    /// let expected = vec![1, 0, 0, 0, 0, 0];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
-    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![vec![1.0, -1.0, 3.0], vec![0.0, 5.0, -2.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![1.0, -2.0, 2.5], vec![0.0, 4.0, -1.0]], &device, false).unwrap();
+    /// let result = t1.ge(&t2).unwrap();
+    /// let expected_values = vec![1, 1, 1, 1, 1, 0];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
+    /// ```
+    /// * Compare a 2x1 column vector with a 2x3 matrix with broadcasting
+    /// ```
+    /// use nove::tensor::{Device, Tensor, Shape};
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![vec![10.0], vec![2.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
+    /// let result = t1.ge(&t2).unwrap();
+    /// let expected_values = vec![1, 0, 0, 0, 0, 0];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
     /// ```
     pub fn ge(&self, rhs: &Self) -> Result<Self, TensorError> {
         let lhs_inner = self.data.read()?;
@@ -330,28 +354,33 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when comparing the tensors.
     ///
     /// # Examples
+    /// * Compare two 2x3 matrices without broadcasting
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
-    /// let device = Device::cpu();
-    /// let shape = Shape::from(&[2, 3]);
-    /// // Create 2x3 matrices with mixed values including equalities
-    /// let lhs = Tensor::from_vec(vec![1.0, -1.0, 3.0, 0.0, 5.0, -2.0], &shape, &device, false).unwrap();
-    /// let rhs = Tensor::from_vec(vec![1.0, -2.0, 2.5, 0.0, 4.0, -1.0], &shape, &device, false).unwrap();
-    /// // Compare element-wise less-than-or-equal
-    /// let result = lhs.le(&rhs).unwrap();
-    /// // Result will be [[true, false, false], [true, false, true]]
-    /// let expected = vec![1, 0, 0, 1, 0, 1];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
     ///
-    /// // Create a 1x2 row vector and a 2x3 matrix
-    /// let lhs = Tensor::from_data(vec![10.0, 5.0, 100.0], &device, false).unwrap();
-    /// let rhs = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
-    /// // Compare element-wise less-than-or-equal with broadcasting
-    /// let result = lhs.le(&rhs).unwrap();
-    /// // Result will be [[true, true, false], [true, true, false]]
-    /// let expected = vec![1, 1, 0, 1, 1, 0];
-    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected);
-    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![vec![1.0, -1.0, 3.0], vec![0.0, 5.0, -2.0]], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![1.0, -2.0, 2.5], vec![0.0, 4.0, -1.0]], &device, false).unwrap();
+    /// let result = t1.le(&t2).unwrap();
+    /// let expected_values = vec![1, 0, 0, 1, 0, 1];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
+    /// ```
+    /// * Compare a 1x3 row vector with a 2x3 matrix with broadcasting
+    /// ```
+    /// use nove::tensor::{Device, Tensor, Shape};
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// let t1 = Tensor::from_data(vec![10.0, 5.0, 100.0], &device, false).unwrap();
+    /// let t2 = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
+    /// let result = t1.le(&t2).unwrap();
+    /// let expected_values = vec![1, 1, 0, 1, 1, 0];
+    /// let expected_shape: Shape = (&[2, 3]).into();
+    /// assert_eq!(result.to_vec::<u8>().unwrap(), expected_values);
+    /// assert_eq!(result.shape().unwrap(), expected_shape);
     /// ```
     pub fn le(&self, rhs: &Self) -> Result<Self, TensorError> {
         let lhs_inner = self.data.read()?;

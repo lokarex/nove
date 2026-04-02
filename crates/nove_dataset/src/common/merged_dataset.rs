@@ -2,7 +2,7 @@ use crate::{Dataset, DatasetError};
 
 /// A dataset that merges multiple datasets into a single view.
 ///
-/// # Note
+/// # Notes
 /// * All datasets that are merged must implement `Dataset` trait with the same `Item` type.
 /// * The merge is a view, not a copy. Changes to the original datasets will be reflected.
 /// * Items are accessed in order: first all items from the first dataset, then the second, etc.

@@ -3,7 +3,7 @@ use std::ops::Fn;
 
 /// A dataset that wraps another dataset and applies a transformation function to each item.
 ///
-/// # Note
+/// # Notes
 /// * The dataset that is wrapped by `AugmentedDataset` must implement `Dataset` trait.
 /// * The transformation function is applied lazily when items are accessed.
 /// * This is useful for data augmentation, preprocessing, or any item-wise transformation.

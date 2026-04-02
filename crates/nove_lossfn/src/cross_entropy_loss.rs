@@ -19,7 +19,7 @@ use crate::{LossFn, LossFnError, NllLoss, common::log_softmax};
 /// - NLL is the Negative Log Likelihood loss function
 /// - LogSoftmax is the log-softmax function applied along the class dimension
 ///
-/// # Note:
+/// # Notes:
 /// * The input is a `(input, target)` tuple
 ///   - `input`: A 2D tensor of shape (batch_size, num_classes) containing raw logits
 ///   - `target`: A 1D tensor of shape (batch_size) containing real class indices

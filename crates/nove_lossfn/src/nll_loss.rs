@@ -20,7 +20,7 @@ use crate::{LossFn, LossFnError};
 /// - y_i is the target class index for the i-th sample
 /// - x_i\[y_i\] is the log-probability at the target class position
 ///
-/// # Note:
+/// # Notes:
 /// * The input is a `(input, target)` tuple
 ///   - `input`: A 2D tensor of shape (batch_size, num_classes) containing log-probabilities
 ///   - `target`: A 1D tensor of shape (batch_size) containing real class indices

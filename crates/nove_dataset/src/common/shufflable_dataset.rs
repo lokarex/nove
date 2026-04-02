@@ -3,7 +3,7 @@ use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 
 /// A dataset that wraps another dataset and shuffles its indices.
 ///
-/// # Note
+/// # Notes
 /// * The dataset that is wrapped by `ShufflableDataset` must implement `Dataset` trait.
 ///
 /// # Lifetime Parameters

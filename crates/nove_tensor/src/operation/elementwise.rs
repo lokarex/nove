@@ -17,19 +17,33 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when applying the affine transformation.
     ///
     /// # Examples
+    /// * Apply affine transformation: 2.0 * x + 1.0 on a 2x3 matrix
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
-    /// // Create a 2x3 matrix with typical data distribution
-    /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0], vec![5.0, 6.0]], &device, false).unwrap();
     ///
-    /// // Apply affine transformation: 2.0 * x + 1.0
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     /// let result = t.affine(2.0, 1.0).unwrap();
-    /// // Result should be: [[3.0, 5.0, 7.0], [9.0, 11.0, 13.0]]
+    /// // Result should be: weight * x + bias = [[3.0, 5.0, 7.0], [9.0, 11.0, 13.0]]
     /// let expected = vec![3.0, 5.0, 7.0, 9.0, 11.0, 13.0];
-    /// // Compare results
     /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
-    /// assert_eq!(result.shape().unwrap(), (&[3, 2]).into())
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// ```
+    ///
+    /// * Backpropagate for affine transformation: weight * x + bias
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
+    /// let result = t.affine(3.0, 2.0).unwrap();
+    /// result.backward().unwrap();
+    /// // The gradient of input tensor should be the weight (3.0)
+    /// let t_grad = t.grad().unwrap().unwrap();
+    /// assert_eq!(t_grad.to_vec::<f64>().unwrap(), vec![3.0, 3.0, 3.0, 3.0, 3.0, 3.0]);
+    /// assert_eq!(t_grad.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn affine(&self, weight: f64, bias: f64) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -58,23 +72,44 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when computing the exponential.
     ///
     /// # Examples
+    /// * Compute exponential of a 2x3 matrix
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
-    /// // Create a 2x3 matrix with typical data distribution including negative, zero, and positive values
-    /// let t = Tensor::from_data(vec![vec![-1.0, 0.0], vec![1.0, 0.5], vec![2.0, -0.5]], &device, false).unwrap();
     ///
-    /// // Compute exponential element-wise
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![0.0, 1.0, 2.0], vec![3.0, 4.0, 5.0]], &device, false).unwrap();
     /// let result = t.exp().unwrap();
-    /// // Result should be: [[0.36787944117144233, 1.0, 2.718281828459045], [1.6487212707001282, 7.38905609893065, 0.6065306597126334]]
-    /// let expected = vec![0.36787944117144233, 1.0, 2.718281828459045, 1.6487212707001282, 7.38905609893065, 0.6065306597126334];
-    /// // Compare results
-    /// // Use relative tolerance for floating point comparison
+    /// // Result should be: [[1.0, 2.718281828459045, 7.38905609893065], [20.085536923187668, 54.598150033144236, 148.4131591025766]]
+    /// let expected = vec![1.0, 2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766];
+    /// // Compare results with relative tolerance
     /// for (i, (r, e)) in result.to_vec::<f64>().unwrap().iter().zip(expected.iter()).enumerate() {
     ///     let diff = (r - e).abs();
     ///     let tolerance = e.abs() * 1e-10;
     ///     assert!(diff < tolerance, "Element {}: result {} != expected {} (diff: {}, tolerance: {})", i, r, e, diff, tolerance);
     /// }
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// ```
+    ///
+    /// * Backpropagate for exponential
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![0.0, 1.0, 2.0], vec![3.0, 4.0, 5.0]], &device, true).unwrap();
+    /// let result = t.exp().unwrap();
+    /// result.backward().unwrap();
+    /// // The gradient of input tensor should be exp(x) = the result values
+    /// let t_grad = t.grad().unwrap().unwrap();
+    /// let expected_grad = vec![1.0, 2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766];
+    /// let actual = t_grad.to_vec::<f64>().unwrap();
+    /// for (i, (a, e)) in actual.iter().zip(expected_grad.iter()).enumerate() {
+    ///     let diff = (a - e).abs();
+    ///     let tolerance = e.abs() * 1e-10;
+    ///     assert!(diff < tolerance, "Element {}: gradient {} != expected {} (diff: {}, tolerance: {})", i, a, e, diff, tolerance);
+    /// }
+    /// assert_eq!(t_grad.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn exp(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -103,23 +138,44 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when computing the logarithm.
     ///
     /// # Examples
+    /// * Compute natural logarithm of a 2x3 matrix
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
-    /// // Create a 2x3 matrix with positive values (log domain requires x > 0)
-    /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0], vec![5.0, 6.0]], &device, false).unwrap();
     ///
-    /// // Compute natural logarithm element-wise
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     /// let result = t.log().unwrap();
     /// // Result should be: [[0.0, 0.6931471805599453, 1.0986122886681098], [1.3862943611198906, 1.6094379124341003, 1.791759469228055]]
     /// let expected = vec![0.0, 0.6931471805599453, 1.0986122886681098, 1.3862943611198906, 1.6094379124341003, 1.791759469228055];
-    /// // Compare results
-    /// // Use relative tolerance for floating point comparison
+    /// // Compare results with relative tolerance
     /// for (i, (r, e)) in result.to_vec::<f64>().unwrap().iter().zip(expected.iter()).enumerate() {
     ///     let diff = (r - e).abs();
     ///     let tolerance = e.abs() * 1e-10 + 1e-12; // Add small epsilon for zero case
     ///     assert!(diff < tolerance, "Element {}: result {} != expected {} (diff: {}, tolerance: {})", i, r, e, diff, tolerance);
     /// }
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// ```
+    ///
+    /// * Backpropagate for natural logarithm
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
+    /// let result = t.log().unwrap();
+    /// result.backward().unwrap();
+    /// // The gradient of input tensor should be 1/x
+    /// let t_grad = t.grad().unwrap().unwrap();
+    /// let expected_grad = vec![1.0, 0.5, 0.3333333333333333, 0.25, 0.2, 0.16666666666666666];
+    /// let actual = t_grad.to_vec::<f64>().unwrap();
+    /// for (i, (a, e)) in actual.iter().zip(expected_grad.iter()).enumerate() {
+    ///     let diff = (a - e).abs();
+    ///     let tolerance = e.abs() * 1e-10;
+    ///     assert!(diff < tolerance, "Element {}: gradient {} != expected {} (diff: {}, tolerance: {})", i, a, e, diff, tolerance);
+    /// }
+    /// assert_eq!(t_grad.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn log(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -152,20 +208,37 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when clipping the tensor.
     ///
     /// # Examples
+    /// * Clip a 2x3 matrix to range [1.0, 3.0]
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
-    /// // Create a 2x3 matrix with values below, within, and above the clipping range
-    /// let t = Tensor::from_data(vec![vec![0.5, 1.5], vec![2.5, 3.5], vec![2.0, 0.0]], &device, false).unwrap();
     ///
-    /// // Clip values to range [1.0, 3.0]
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![0.5, 1.5, 2.5], vec![3.5, 2.0, 0.0]], &device, false).unwrap();
     /// let result = t.clip(1.0, 3.0).unwrap();
-    /// // Expected: values below 1.0 become 1.0, above 3.0 become 3.0, within range stay unchanged
-    /// // Original: [[0.5, 1.5, 2.5], [3.5, 2.0, 0.0]]
-    /// // Result: [[1.0, 1.5, 2.5], [3.0, 2.0, 1.0]]
+    /// // Values below 1.0 become 1.0, above 3.0 become 3.0, within range stay unchanged
+    /// // Result should be: [[1.0, 1.5, 2.5], [3.0, 2.0, 1.0]]
     /// let expected = vec![1.0, 1.5, 2.5, 3.0, 2.0, 1.0];
-    /// // Compare results
     /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// ```
+    ///
+    /// * Backpropagate for clipping to range [1.0, 3.0]
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    ///
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![0.5, 1.5, 2.5], vec![3.5, 2.0, 0.0]], &device, true).unwrap();
+    /// let result = t.clip(1.0, 3.0).unwrap();
+    /// result.backward().unwrap();
+    /// // The gradient of input tensor should be 1.0 for values within [1.0, 3.0], 0.0 otherwise
+    /// let t_grad = t.grad().unwrap().unwrap();
+    /// // Values within range: 1.5, 2.5, 2.0 -> gradient = 1.0
+    /// // Values outside range: 0.5, 3.5, 0.0 -> gradient = 0.0
+    /// let expected_grad = vec![0.0, 1.0, 1.0, 0.0, 1.0, 0.0];
+    /// assert_eq!(t_grad.to_vec::<f64>().unwrap(), expected_grad);
+    /// assert_eq!(t_grad.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn clip(&self, min: f64, max: f64) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -199,29 +272,50 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when applying the where operation.
     ///
     /// # Examples
+    /// * Apply where operation on 2x3 matrices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
+    ///
     /// let device = Device::cpu();
     /// let shape = Shape::from(&[2, 3]);
-    /// // Create condition tensor with alternating true/false pattern
-    /// let condition = Tensor::from_data(vec![1u8, 0u8, 1u8, 0u8, 1u8, 0u8], &device, false).unwrap()
-    ///     .reshape(&shape).unwrap();
-    /// // Create true and false value tensors with different values for better visualization
-    /// let true_val = Tensor::from_data(vec![10.0, 20.0, 30.0, 40.0, 50.0, 60.0], &device, false).unwrap()
-    ///     .reshape(&shape).unwrap();
-    /// let false_val = Tensor::from_data(vec![100.0, 200.0, 300.0, 400.0, 500.0, 600.0], &device, false).unwrap()
-    ///     .reshape(&shape).unwrap();
     ///
-    /// // Apply where operation: selects from true_val where condition != 0, otherwise from false_val
+    /// let condition = Tensor::from_data(vec![vec![1u8, 0u8, 1u8], vec![0u8, 1u8, 0u8]], &device, false).unwrap();
+    /// let true_val = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
+    /// let false_val = Tensor::from_data(vec![vec![100.0, 200.0, 300.0], vec![400.0, 500.0, 600.0]], &device, false).unwrap();
+    ///
     /// let result = Tensor::where_cond(&condition, &true_val, &false_val).unwrap();
-    /// // Expected result: [[10.0, 200.0, 30.0], [400.0, 50.0, 600.0]]
     /// // Condition: [[true, false, true], [false, true, false]]
-    /// let expected_data = vec![10.0, 200.0, 30.0, 400.0, 50.0, 600.0];
-    /// let expected = Tensor::from_data(expected_data.clone(), &device, false).unwrap()
-    ///     .reshape(&shape).unwrap();
-    /// // Compare results
-    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected.to_vec::<f64>().unwrap());
-    /// assert_eq!(result.shape().unwrap(), expected.shape().unwrap());
+    /// // Result should be: [[10.0, 200.0, 30.0], [400.0, 50.0, 600.0]]
+    /// let expected = vec![10.0, 200.0, 30.0, 400.0, 50.0, 600.0];
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
+    /// assert_eq!(result.shape().unwrap(), (&[2, 3]).into());
+    /// ```
+    ///
+    /// * Backpropagate for where operation
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    ///
+    /// let device = Device::cpu();
+    /// let shape = Shape::from(&[2, 3]);
+    ///
+    /// let condition = Tensor::from_data(vec![vec![1u8, 0u8, 1u8], vec![0u8, 1u8, 0u8]], &device, false).unwrap();
+    /// let true_val = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, true).unwrap();
+    /// let false_val = Tensor::from_data(vec![vec![100.0, 200.0, 300.0], vec![400.0, 500.0, 600.0]], &device, true).unwrap();
+    ///
+    /// let result = Tensor::where_cond(&condition, &true_val, &false_val).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// // The gradient of true_val should be 1.0 where condition is true, 0.0 otherwise
+    /// let true_grad = true_val.grad().unwrap().unwrap();
+    /// let expected_true_grad = vec![1.0, 0.0, 1.0, 0.0, 1.0, 0.0];
+    /// assert_eq!(true_grad.to_vec::<f64>().unwrap(), expected_true_grad);
+    /// assert_eq!(true_grad.shape().unwrap(), (&[2, 3]).into());
+    ///
+    /// // The gradient of false_val should be 1.0 where condition is false, 0.0 otherwise
+    /// let false_grad = false_val.grad().unwrap().unwrap();
+    /// let expected_false_grad = vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0];
+    /// assert_eq!(false_grad.to_vec::<f64>().unwrap(), expected_false_grad);
+    /// assert_eq!(false_grad.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn where_cond(
         condition: &Self,
@@ -253,7 +347,7 @@ impl Tensor {
             data: Arc::new(RwLock::new(TensorData {
                 inner: new_inner,
                 device,
-                parents: vec![condition.copy(), true_value.copy(), false_value.copy()],
+                parents: vec![true_value.copy(), false_value.copy()],
                 grad: None,
                 name: None,
             })),

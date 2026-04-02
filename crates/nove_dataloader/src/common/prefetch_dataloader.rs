@@ -8,7 +8,7 @@ use crate::{Dataloader, DataloaderError};
 /// This dataloader wraps any existing dataloader and prefetches batches
 /// in a separate thread to hide data loading latency during training.
 ///
-/// # Note
+/// # Notes
 /// * This struct cannot be constructed directly. Use [`PrefetchDataloaderBuilder`]
 ///   to create instances.
 ///
@@ -78,7 +78,7 @@ where
 
 /// Builder for constructing [`PrefetchDataloader`] instances.
 ///
-/// # Note
+/// # Notes
 /// * The `PrefetchDataloaderBuilder` implements the `Default` trait. So you can use
 ///   `PrefetchDataloaderBuilder::default()` to create a new builder and then configure it.
 ///

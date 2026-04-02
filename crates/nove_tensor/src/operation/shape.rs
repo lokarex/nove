@@ -47,9 +47,9 @@ impl Tensor {
     ///
     /// # Arguments
     /// * `start_dim` - Optional starting dimension index (0-based) to begin flattening.
-    ///                If `None`, flattening starts from the first dimension.
+    ///   If `None`, flattening starts from the first dimension.
     /// * `end_dim` - Optional ending dimension index (0-based) to stop flattening.
-    ///              If `None`, flattening continues to the last dimension.
+    ///   If `None`, flattening continues to the last dimension.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The flattened tensor.

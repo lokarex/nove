@@ -94,7 +94,7 @@ impl Device {
 
     /// Get the CUDA device with the given index if available.
     ///
-    /// # Note
+    /// # Notes
     /// If the CUDA device with the given index is not available, the CPU device will be returned.
     ///
     /// # Arguments
@@ -158,7 +158,7 @@ impl Device {
 
     /// Get the Metal device with the given index if available.
     ///
-    /// # Note
+    /// # Notes
     /// If the Metal device with the given index is not available, the CPU device will be returned.
     ///
     /// # Arguments

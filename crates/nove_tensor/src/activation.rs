@@ -27,6 +27,7 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when applying the ReLU activation function.
     ///
     /// # Examples
+    /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
@@ -38,6 +39,22 @@ impl Tensor {
     /// let expected = vec![0.0, 2.0, 0.0, 4.0, 0.0, 6.0];
     /// assert_eq!(result.to_vec::<f64>().unwrap(), expected);
     /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 3]));
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    /// // Create a 2x3 matrix with positive values for gradient test
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
+    ///
+    /// let result = t.relu().unwrap();
+    /// result.backward().unwrap();
+    /// // ReLU gradient is 1 for positive inputs, 0 for negative
+    /// let grad = t.grad().unwrap().unwrap();
+    /// let expected_grad = vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+    /// assert_eq!(grad.to_vec::<f64>().unwrap(), expected_grad);
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn relu(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -81,12 +98,12 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when applying the SiLU activation function.
     ///
     /// # Examples
+    /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
     /// // Create a 2x3 matrix with values from -2 to 3
-    /// let t = Tensor::from_data(vec![-2.0, -1.0, 0.0, 1.0, 2.0, 3.0], &device, false).unwrap()
-    ///     .reshape(&Shape::from(&[2, 3])).unwrap();
+    /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
     /// let result = t.silu().unwrap();
     /// // SiLU(x) = x * sigmoid(x), with sigmoid values: 0.1192, 0.2689, 0.5, 0.7311, 0.8808, 0.9526
@@ -96,6 +113,25 @@ impl Tensor {
     ///     assert!((result_vec[i] - expected[i]).abs() < 1e-6);
     /// }
     /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 3]));
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    /// // Create a 2x3 matrix with values for gradient test
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
+    ///
+    /// let result = t.silu().unwrap();
+    /// result.backward().unwrap();
+    /// let grad = t.grad().unwrap().unwrap();
+    /// // SiLU gradient: f'(x) = sigmoid(x) + x * sigmoid(x) * (1 - sigmoid(x))
+    /// let grad_vec = grad.to_vec::<f64>().unwrap();
+    /// let expected = vec![0.927671, 1.090887, 1.088144, 1.052668, 1.026557, 1.012334];
+    /// for i in 0..6 {
+    ///     assert!((grad_vec[i] - expected[i]).abs() < 1e-3);
+    /// }
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn silu(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -146,12 +182,12 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when applying the GELU activation function.
     ///
     /// # Examples
+    /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
     /// // Create a 2x3 matrix with values from -2 to 3
-    /// let t = Tensor::from_data(vec![-2.0, -1.0, 0.0, 1.0, 2.0, 3.0], &device, false).unwrap()
-    ///     .reshape(&Shape::from(&[2, 3])).unwrap();
+    /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
     /// let result = t.gelu().unwrap();
     /// // GELU values approximate: -0.0455, -0.1588, 0.0, 0.8412, 1.9545, 2.9964
@@ -161,6 +197,25 @@ impl Tensor {
     ///     assert!((result_vec[i] - expected[i]).abs() < 1e-4);
     /// }
     /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 3]));
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    /// // Create a 2x3 matrix with values for gradient test
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
+    ///
+    /// let result = t.gelu().unwrap();
+    /// result.backward().unwrap();
+    /// let grad = t.grad().unwrap().unwrap();
+    /// // GELU gradient: approximate values for x = 1, 2, 3, 4, 5, 6
+    /// let grad_vec = grad.to_vec::<f64>().unwrap();
+    /// let expected = vec![1.082963, 1.086099, 1.011584, 1.000335, 1.000001, 1.000000];
+    /// for i in 0..6 {
+    ///     assert!((grad_vec[i] - expected[i]).abs() < 1e-4);
+    /// }
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn gelu(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -205,12 +260,12 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when applying the hyperbolic tangent.
     ///
     /// # Examples
+    /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
     /// // Create a 2x3 matrix with values from -2 to 3
-    /// let t = Tensor::from_data(vec![-2.0, -1.0, 0.0, 1.0, 2.0, 3.0], &device, false).unwrap()
-    ///     .reshape(&Shape::from(&[2, 3])).unwrap();
+    /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
     /// let result = t.tanh().unwrap();
     /// // tanh values approximate: -0.9640, -0.7616, 0.0, 0.7616, 0.9640, 0.9951
@@ -220,6 +275,25 @@ impl Tensor {
     ///     assert!((result_vec[i] - expected[i]).abs() < 1e-6);
     /// }
     /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 3]));
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    /// // Create a 2x3 matrix with values for gradient test
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
+    ///
+    /// let result = t.tanh().unwrap();
+    /// result.backward().unwrap();
+    /// let grad = t.grad().unwrap().unwrap();
+    /// // tanh gradient: f'(x) = 1 - tanh(x)^2
+    /// let grad_vec = grad.to_vec::<f64>().unwrap();
+    /// let expected = vec![0.419974, 0.070650, 0.009866, 0.001341, 0.000182, 0.000025];
+    /// for i in 0..6 {
+    ///     assert!((grad_vec[i] - expected[i]).abs() < 1e-6);
+    /// }
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn tanh(&self) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -264,12 +338,12 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when applying the sigmoid activation function.
     ///
     /// # Examples
+    /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
     /// // Create a 2x3 matrix with values from -2 to 3
-    /// let t = Tensor::from_data(vec![-2.0, -1.0, 0.0, 1.0, 2.0, 3.0], &device, false).unwrap()
-    ///     .reshape(&Shape::from(&[2, 3])).unwrap();
+    /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
     /// let result = t.sigmoid().unwrap();
     /// // sigmoid values approximate: 0.1192, 0.2689, 0.5, 0.7311, 0.8808, 0.9526
@@ -279,6 +353,25 @@ impl Tensor {
     ///     assert!((result_vec[i] - expected[i]).abs() < 1e-6);
     /// }
     /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 3]));
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    /// // Create a 2x3 matrix with values for gradient test
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
+    ///
+    /// let result = t.sigmoid().unwrap();
+    /// result.backward().unwrap();
+    /// let grad = t.grad().unwrap().unwrap();
+    /// // sigmoid gradient: f'(x) = sigmoid(x) * (1 - sigmoid(x))
+    /// let grad_vec = grad.to_vec::<f64>().unwrap();
+    /// let expected = vec![0.196612, 0.104994, 0.045176, 0.017662, 0.006648, 0.002466];
+    /// for i in 0..6 {
+    ///     assert!((grad_vec[i] - expected[i]).abs() < 1e-6);
+    /// }
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn sigmoid(&self) -> Result<Self, TensorError> {
         let denom = self.affine(-1f64, 0f64)?.exp()?.affine(1f64, 1f64)?;

@@ -22,7 +22,7 @@ type DataloaderInner<D> = crate::common::BatchDataloader<
 /// for image classification datasets, which loads images from file paths,
 /// resizes them, converts them to tensors, and batches them together.
 ///
-/// # Note
+/// # Notes
 /// * This struct cannot be constructed directly. Use [`ImageClassificationDataloaderBuilder`]
 ///   to create instances.
 /// * This dataloader is designed for datasets where `Dataset::Item` is `(PathBuf, usize)`,

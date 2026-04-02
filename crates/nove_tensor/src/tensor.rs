@@ -357,7 +357,8 @@ impl Tensor {
                 TensorInner::Var(var) => var.as_tensor().clone(),
             }
         }
-        .copy()?;
+        .copy()?
+        .detach();
 
         let new_inner = match grad_enabled {
             true => {
@@ -571,6 +572,11 @@ impl Tensor {
             }
         };
 
+        println!(
+            "The length of grad_store is {}",
+            grad_store.get_ids().count()
+        );
+
         // The parent tensors(including indirect parents) that have gradient enabled
         let mut parents = Vec::new();
         // The queue for pending tensors
@@ -581,6 +587,9 @@ impl Tensor {
         // Add the self tensor to the queue and mark it as visited
         queue.push(self.copy());
         visited.insert(Arc::as_ptr(&self.data) as usize, true);
+        if self.grad_enabled().unwrap_or(false) {
+            parents.push(self.copy());
+        }
 
         while let Some(current) = queue.pop() {
             // Get the parent tensors of the current tensor
@@ -616,35 +625,9 @@ impl Tensor {
             parents.extend(grad_enabled_parents);
         }
 
-        println!("The number of parents is {}", parents.len());
-        // Debug: print detailed parent information
-        for (i, parent) in parents.iter().enumerate() {
-            let data = parent.data.read().unwrap();
-            let inner_type = match &data.inner {
-                TensorInner::Tensor(_) => "Tensor",
-                TensorInner::Var(_) => "Var",
-            };
-            let name = data.name.clone().unwrap_or_else(|| "None".to_string());
-            let ptr = Arc::as_ptr(&parent.data) as usize;
-            let parent_count = data.parents.len();
-            println!(
-                "Parent {}: ptr={:x}, inner={}, name={}, grad_enabled={}, parents={}",
-                i,
-                ptr,
-                inner_type,
-                name,
-                parent.grad_enabled().unwrap_or(false),
-                parent_count
-            );
-            // Print inner tensor id if it's a Var
-            match &data.inner {
-                TensorInner::Var(var) => {
-                    let tensor = var.as_tensor();
-                    println!("  Var inner tensor id: {:?}", tensor.id());
-                }
-                _ => {}
-            }
-        }
+        // for parent in &parents {
+        //     println!("{}:{}", parent.name().unwrap().unwrap(), parent);
+        // }
 
         // Update the gradient of each parent tensor
         parents
@@ -660,6 +643,8 @@ impl Tensor {
                 let new_grad = grad_store
                     .get(inner_tensor)
                     .ok_or(TensorError::NoTensorGradient)?;
+
+                println!("new_grad: {:?}", new_grad);
 
                 match &parent_write.grad {
                     // If the parent tensor already has a gradient, add the new gradient to it
