@@ -9,13 +9,13 @@ mod tensor;
 pub use tensor::Tensor;
 pub use tensor::TensorError;
 
-mod activation;
-mod conversion;
+mod backpropagation;
 mod creation;
-mod operation;
+mod op;
 mod property;
 
 mod dtype;
 pub use dtype::DType;
 
-pub mod safetensor;
+mod format;
+pub use format::safetensor;

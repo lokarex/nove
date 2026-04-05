@@ -6,6 +6,151 @@ use crate::{
 };
 
 impl Tensor {
+    /// Create a new tensor like the current tensor with the specified shape.
+    ///
+    /// # Notes
+    /// * In the nove framework, gradients of intermediate Tensors are not stored.
+    ///   When `reshape` is called on a Tensor with `requires_grad=true`, it returns an intermediate Tensor whose `grad` is always `None`.
+    ///
+    /// # Arguments
+    /// * `shape` - The shape to reshape the tensor to.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - The new tensor with the specified shape.
+    /// * `Err(TensorError)` - The error when reshaping the tensor.
+    ///
+    /// # Examples
+    /// * Reshape 1D tensor to 2D
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let cpu = Device::cpu();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
+    ///
+    /// let result = tensor.reshape(&Shape::from(&[2, 2])).unwrap();
+    /// assert_eq!(result.shape().unwrap(), (&[2, 2]).into());
+    /// assert_eq!(result.to_vec::<f32>().unwrap(), vec![1.0, 2.0, 3.0, 4.0]);
+    /// ```
+    ///
+    /// * Reshape 1D tensor to column vector
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let cpu = Device::cpu();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
+    ///
+    /// let result = tensor.reshape(&Shape::from(&[3, 1])).unwrap();
+    /// assert_eq!(result.shape().unwrap(), (&[3, 1]).into());
+    /// assert_eq!(result.to_vec::<f32>().unwrap(), vec![1.0, 2.0, 3.0]);
+    /// ```
+    ///
+    /// * Backpropagate through reshape with gradient
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let cpu = Device::cpu();
+    ///
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, true).unwrap();
+    /// let result = tensor.reshape(&Shape::from(&[2, 2])).unwrap();
+    /// result.backward().unwrap();
+    /// let grad = tensor.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), (&[4]).into());
+    /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0, 1.0, 1.0, 1.0]);
+    ///
+    /// // The following Tensor is actually an intermediate Tensor, its grad is always None
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, true).unwrap().reshape(&Shape::from(&[2, 2])).unwrap();
+    /// tensor.backward().unwrap();
+    /// assert!(tensor.grad().unwrap().is_none());
+    ///
+    /// // If you need to reshape the tensor immediately using chained calls while preserving gradients, you can do so as follows
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, true).unwrap().reshape(&Shape::from(&[2, 2])).unwrap().require_grad(true).unwrap();
+    /// tensor.backward().unwrap();
+    /// let grad = tensor.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), (&[2, 2]).into());
+    /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0, 1.0, 1.0, 1.0]);
+    /// ```
+    pub fn reshape(&self, shape: &Shape) -> Result<Tensor, TensorError> {
+        let new_inner = match &self.data.read()?.inner {
+            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.reshape(shape)?),
+            TensorInner::Var(var) => TensorInner::Tensor(var.reshape(shape)?),
+        };
+
+        let new_grad = match &self.data.read()?.grad {
+            Some(grad) => Some(grad.reshape(shape)?),
+            None => None,
+        };
+
+        Ok(Tensor {
+            data: Arc::new(RwLock::new(TensorData {
+                inner: new_inner,
+                grad: new_grad,
+                device: self.data.read()?.device.clone(),
+                parents: vec![self.copy()],
+                name: self.data.read()?.name.clone(),
+            })),
+        })
+    }
+
+    /// Get the shape of the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(shape)` - The shape of the tensor.
+    /// * `Err(TensorError)` - The error when getting the shape of the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let cpu = Device::cpu();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
+    ///
+    /// let shape = tensor.shape().unwrap();
+    /// assert_eq!(shape, (&[3]).into());
+    /// ```
+    pub fn shape(&self) -> Result<Shape, TensorError> {
+        let data = self.data.read()?;
+        let shape = match &data.inner {
+            TensorInner::Tensor(tensor) => tensor.shape(),
+            TensorInner::Var(var) => var.shape(),
+        };
+        Ok(Shape::from(shape))
+    }
+
+    /// Get the number of dimensions of the tensor.
+    ///
+    /// # Returns
+    /// * `Ok(num_dim)` - The number of dimensions of the tensor.
+    /// * `Err(TensorError)` - The error when getting the number of dimensions of the tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Tensor};
+    /// let cpu = Device::cpu();
+    ///
+    /// // 1-dimensional tensor (vector)
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
+    /// let num_dim = tensor.num_dim().unwrap();
+    /// assert_eq!(num_dim, 1);
+    ///
+    /// // 2-dimensional tensor (matrix)
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
+    /// let result = tensor.reshape(&(&[2, 2]).into()).unwrap();
+    /// let num_dim = result.num_dim().unwrap();
+    /// assert_eq!(num_dim, 2);
+    ///
+    /// // 3-dimensional tensor
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32], &cpu, false).unwrap();
+    /// let result = tensor.reshape(&(&[2, 2, 2]).into()).unwrap();
+    /// let num_dim = result.num_dim().unwrap();
+    /// assert_eq!(num_dim, 3);
+    ///
+    /// // 4-dimensional tensor
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32], &cpu, false).unwrap();
+    /// let result = tensor.reshape(&(&[2, 2, 1, 2]).into()).unwrap();
+    /// let num_dim = result.num_dim().unwrap();
+    /// assert_eq!(num_dim, 4);
+    /// ```
+    pub fn num_dim(&self) -> Result<usize, TensorError> {
+        let shape = self.shape()?;
+        Ok(shape.rank())
+    }
+
     /// Broadcast the tensor to the specified shape.
     ///
     /// # Parameters
