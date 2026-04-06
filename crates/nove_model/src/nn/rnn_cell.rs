@@ -6,7 +6,7 @@ use std::{
 
 use nove_tensor::{DType, Device, Shape, Tensor};
 
-use crate::layer::Activation;
+use crate::nn::Activation;
 use crate::{Model, ModelError};
 
 static ID: AtomicUsize = AtomicUsize::new(0);
@@ -48,8 +48,8 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::RnnCellBuilder;
-/// use nove::model::layer::Activation;
+/// use nove::model::nn::RnnCellBuilder;
+/// use nove::model::nn::Activation;
 /// use nove::tensor::{Device, DType};
 ///
 /// let rnn_cell = RnnCellBuilder::new(10, 20)
@@ -319,8 +319,8 @@ impl Display for RnnCell {
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::RnnCellBuilder;
-/// use nove::model::layer::Activation;
+/// use nove::model::nn::RnnCellBuilder;
+/// use nove::model::nn::Activation;
 /// use nove::tensor::{Device, DType};
 ///
 /// let rnn_cell = RnnCellBuilder::new(10, 20)
@@ -372,7 +372,7 @@ impl RnnCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RnnCellBuilder;
+    /// use nove::model::nn::RnnCellBuilder;
     /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.input_size(10);
     /// ```
@@ -391,7 +391,7 @@ impl RnnCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RnnCellBuilder;
+    /// use nove::model::nn::RnnCellBuilder;
     /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.hidden_size(20);
     /// ```
@@ -410,8 +410,8 @@ impl RnnCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RnnCellBuilder;
-    /// use nove::model::layer::Activation;
+    /// use nove::model::nn::RnnCellBuilder;
+    /// use nove::model::nn::Activation;
     /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.activation(Activation::tanh());
     /// ```
@@ -430,7 +430,7 @@ impl RnnCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RnnCellBuilder;
+    /// use nove::model::nn::RnnCellBuilder;
     /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.bias_enabled(false);
     /// ```
@@ -449,7 +449,7 @@ impl RnnCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RnnCellBuilder;
+    /// use nove::model::nn::RnnCellBuilder;
     /// use nove::tensor::Device;
     /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.device(Device::cpu());
@@ -469,7 +469,7 @@ impl RnnCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RnnCellBuilder;
+    /// use nove::model::nn::RnnCellBuilder;
     /// use nove::tensor::DType;
     /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.dtype(DType::F32);
@@ -489,7 +489,7 @@ impl RnnCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RnnCellBuilder;
+    /// use nove::model::nn::RnnCellBuilder;
     /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.grad_enabled(false);
     /// ```
@@ -506,8 +506,8 @@ impl RnnCellBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::RnnCellBuilder;
-    /// use nove::model::layer::Activation;
+    /// use nove::model::nn::RnnCellBuilder;
+    /// use nove::model::nn::Activation;
     /// let mut builder = RnnCellBuilder::new(10, 20);
     /// builder.activation(Activation::tanh());
     /// let rnn_cell = builder.build().unwrap();

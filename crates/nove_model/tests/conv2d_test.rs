@@ -1,5 +1,5 @@
 use nove::model::Model;
-use nove::model::layer::Conv2dBuilder;
+use nove::model::nn::Conv2dBuilder;
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]

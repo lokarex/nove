@@ -24,7 +24,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Examples
 /// ```
-/// use nove::model::layer::LinearBuilder;
+/// use nove::model::nn::LinearBuilder;
 /// use nove::tensor::{Device, DType};
 ///
 /// let linear = LinearBuilder::new(10, 20)  // Required: in_features, out_features
@@ -166,7 +166,7 @@ impl Display for Linear {
 ///
 /// # Examples
 /// ```
-/// use nove::model::layer::LinearBuilder;
+/// use nove::model::nn::LinearBuilder;
 /// use nove::tensor::{Device, DType};
 ///
 /// let linear = LinearBuilder::new(10, 20)  // Required: in_features, out_features
@@ -209,7 +209,7 @@ impl LinearBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::LinearBuilder;
+    /// use nove::model::nn::LinearBuilder;
     /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.in_features(10);
     /// ```
@@ -228,7 +228,7 @@ impl LinearBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::LinearBuilder;
+    /// use nove::model::nn::LinearBuilder;
     /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.out_features(20);
     /// ```
@@ -247,7 +247,7 @@ impl LinearBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::LinearBuilder;
+    /// use nove::model::nn::LinearBuilder;
     /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.bias_enabled(false);
     /// ```
@@ -266,7 +266,7 @@ impl LinearBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::LinearBuilder;
+    /// use nove::model::nn::LinearBuilder;
     /// use nove::tensor::Device;
     /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.device(Device::cpu());
@@ -286,7 +286,7 @@ impl LinearBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::LinearBuilder;
+    /// use nove::model::nn::LinearBuilder;
     /// use nove::tensor::DType;
     /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.dtype(DType::F32);
@@ -306,7 +306,7 @@ impl LinearBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::LinearBuilder;
+    /// use nove::model::nn::LinearBuilder;
     /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.grad_enabled(false);
     /// ```
@@ -323,7 +323,7 @@ impl LinearBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::LinearBuilder;
+    /// use nove::model::nn::LinearBuilder;
     /// let mut linear_builder = LinearBuilder::new(10, 20);
     /// linear_builder.bias_enabled(true);
     /// let linear = linear_builder.build().unwrap();

@@ -36,7 +36,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// # Examples
 /// ```
 /// use nove::tensor::{Device, Tensor};
-/// use nove::model::layer::Tanh;
+/// use nove::model::nn::Tanh;
 /// use nove::model::Model;
 ///
 /// let mut tanh = Tanh::new();
@@ -86,7 +86,7 @@ impl Model for Tanh {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// use nove::model::layer::Tanh;
+    /// use nove::model::nn::Tanh;
     /// use nove::model::Model;
     ///
     /// let mut tanh = Tanh::new();

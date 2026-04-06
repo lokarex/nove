@@ -1,6 +1,6 @@
-use nove::model::layer::LstmCellBuilder;
 use nove::model::Model;
-use nove::tensor::{Device, DType, Shape, Tensor};
+use nove::model::nn::LstmCellBuilder;
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_lstm_cell_builder_creation() {
@@ -81,23 +81,28 @@ fn test_lstm_cell_single_time_step_forward() {
         &Shape::from_dims(&[batch_size, 3]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 5]),
         &DType::F32,
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let cell_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 5]),
         &DType::F32,
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
-    let (new_hidden_state, new_cell_state) = lstm_cell.forward((input, (hidden_state, cell_state))).unwrap();
+    let (new_hidden_state, new_cell_state) = lstm_cell
+        .forward((input, (hidden_state, cell_state)))
+        .unwrap();
 
     let new_hidden_shape = new_hidden_state.shape().unwrap();
     let new_cell_shape = new_cell_state.shape().unwrap();
@@ -114,30 +119,38 @@ fn test_lstm_cell_hidden_state_and_cell_state_update() {
         .unwrap();
 
     let batch_size = 4;
-    
+
     let input1 = Tensor::randn(
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[batch_size, 8]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let initial_hidden_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 12]),
         &DType::F32,
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let initial_cell_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 12]),
         &DType::F32,
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
-    let (hidden_state1, cell_state1) = lstm_cell.forward((input1, (initial_hidden_state.clone(), initial_cell_state.clone()))).unwrap();
+    let (hidden_state1, cell_state1) = lstm_cell
+        .forward((
+            input1,
+            (initial_hidden_state.clone(), initial_cell_state.clone()),
+        ))
+        .unwrap();
 
     let input2 = Tensor::randn(
         0.0f32,
@@ -145,9 +158,12 @@ fn test_lstm_cell_hidden_state_and_cell_state_update() {
         &Shape::from_dims(&[batch_size, 8]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
-    let (hidden_state2, cell_state2) = lstm_cell.forward((input2, (hidden_state1.clone(), cell_state1.clone()))).unwrap();
+    let (hidden_state2, cell_state2) = lstm_cell
+        .forward((input2, (hidden_state1.clone(), cell_state1.clone())))
+        .unwrap();
 
     let hidden_shape1 = hidden_state1.shape().unwrap();
     let hidden_shape2 = hidden_state2.shape().unwrap();
@@ -173,23 +189,28 @@ fn test_lstm_cell_gate_mechanisms() {
         &DType::F32,
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 4]),
         &DType::F32,
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let cell_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 4]),
         &DType::F32,
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
-    let (new_hidden_state, new_cell_state) = lstm_cell.forward((input, (hidden_state, cell_state))).unwrap();
+    let (new_hidden_state, new_cell_state) = lstm_cell
+        .forward((input, (hidden_state, cell_state)))
+        .unwrap();
 
     let hidden_data = new_hidden_state.to_vec::<f32>().unwrap();
     let cell_data = new_cell_state.to_vec::<f32>().unwrap();
@@ -283,9 +304,7 @@ fn test_lstm_cell_to_dtype() {
 
 #[test]
 fn test_lstm_cell_forward_invalid_input_dimensions() {
-    let mut lstm_cell = LstmCellBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut lstm_cell = LstmCellBuilder::new(10, 20).build().unwrap();
 
     let input_1d = Tensor::randn(
         0.0f32,
@@ -293,7 +312,8 @@ fn test_lstm_cell_forward_invalid_input_dimensions() {
         &Shape::from_dims(&[10]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::randn(
         0.0f32,
@@ -301,7 +321,8 @@ fn test_lstm_cell_forward_invalid_input_dimensions() {
         &Shape::from_dims(&[2, 20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let cell_state = Tensor::randn(
         0.0f32,
@@ -309,7 +330,8 @@ fn test_lstm_cell_forward_invalid_input_dimensions() {
         &Shape::from_dims(&[2, 20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = lstm_cell.forward((input_1d, (hidden_state, cell_state)));
     assert!(result.is_err());
@@ -318,9 +340,7 @@ fn test_lstm_cell_forward_invalid_input_dimensions() {
 
 #[test]
 fn test_lstm_cell_forward_invalid_hidden_dimensions() {
-    let mut lstm_cell = LstmCellBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut lstm_cell = LstmCellBuilder::new(10, 20).build().unwrap();
 
     let input = Tensor::randn(
         0.0f32,
@@ -328,7 +348,8 @@ fn test_lstm_cell_forward_invalid_hidden_dimensions() {
         &Shape::from_dims(&[2, 10]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state_1d = Tensor::randn(
         0.0f32,
@@ -336,7 +357,8 @@ fn test_lstm_cell_forward_invalid_hidden_dimensions() {
         &Shape::from_dims(&[20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let cell_state = Tensor::randn(
         0.0f32,
@@ -344,7 +366,8 @@ fn test_lstm_cell_forward_invalid_hidden_dimensions() {
         &Shape::from_dims(&[2, 20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = lstm_cell.forward((input, (hidden_state_1d, cell_state)));
     assert!(result.is_err());
@@ -353,9 +376,7 @@ fn test_lstm_cell_forward_invalid_hidden_dimensions() {
 
 #[test]
 fn test_lstm_cell_forward_invalid_input_size() {
-    let mut lstm_cell = LstmCellBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut lstm_cell = LstmCellBuilder::new(10, 20).build().unwrap();
 
     let input = Tensor::randn(
         0.0f32,
@@ -363,7 +384,8 @@ fn test_lstm_cell_forward_invalid_input_size() {
         &Shape::from_dims(&[2, 8]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::randn(
         0.0f32,
@@ -371,7 +393,8 @@ fn test_lstm_cell_forward_invalid_input_size() {
         &Shape::from_dims(&[2, 20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let cell_state = Tensor::randn(
         0.0f32,
@@ -379,7 +402,8 @@ fn test_lstm_cell_forward_invalid_input_size() {
         &Shape::from_dims(&[2, 20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = lstm_cell.forward((input, (hidden_state, cell_state)));
     assert!(result.is_err());
@@ -388,9 +412,7 @@ fn test_lstm_cell_forward_invalid_input_size() {
 
 #[test]
 fn test_lstm_cell_forward_invalid_hidden_size() {
-    let mut lstm_cell = LstmCellBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut lstm_cell = LstmCellBuilder::new(10, 20).build().unwrap();
 
     let input = Tensor::randn(
         0.0f32,
@@ -398,7 +420,8 @@ fn test_lstm_cell_forward_invalid_hidden_size() {
         &Shape::from_dims(&[2, 10]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::randn(
         0.0f32,
@@ -406,7 +429,8 @@ fn test_lstm_cell_forward_invalid_hidden_size() {
         &Shape::from_dims(&[2, 15]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let cell_state = Tensor::randn(
         0.0f32,
@@ -414,7 +438,8 @@ fn test_lstm_cell_forward_invalid_hidden_size() {
         &Shape::from_dims(&[2, 15]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = lstm_cell.forward((input, (hidden_state, cell_state)));
     assert!(result.is_err());
@@ -423,9 +448,7 @@ fn test_lstm_cell_forward_invalid_hidden_size() {
 
 #[test]
 fn test_lstm_cell_forward_batch_size_mismatch() {
-    let mut lstm_cell = LstmCellBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut lstm_cell = LstmCellBuilder::new(10, 20).build().unwrap();
 
     let input = Tensor::randn(
         0.0f32,
@@ -433,7 +456,8 @@ fn test_lstm_cell_forward_batch_size_mismatch() {
         &Shape::from_dims(&[2, 10]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::randn(
         0.0f32,
@@ -441,7 +465,8 @@ fn test_lstm_cell_forward_batch_size_mismatch() {
         &Shape::from_dims(&[3, 20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let cell_state = Tensor::randn(
         0.0f32,
@@ -449,7 +474,8 @@ fn test_lstm_cell_forward_batch_size_mismatch() {
         &Shape::from_dims(&[3, 20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = lstm_cell.forward((input, (hidden_state, cell_state)));
     assert!(result.is_err());

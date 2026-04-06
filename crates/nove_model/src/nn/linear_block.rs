@@ -45,7 +45,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::{LinearBlockBuilder, Activation};
+/// use nove::model::nn::{LinearBlockBuilder, Activation};
 /// use nove::tensor::{Device, DType};
 ///
 /// let block = LinearBlockBuilder::new(800, 10)
@@ -67,6 +67,7 @@ pub struct LinearBlockBuilder {
     device: Device,
     dtype: DType,
     grad_enabled: bool,
+    training: bool,
 }
 
 impl LinearBlockBuilder {
@@ -81,7 +82,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// let builder = LinearBlockBuilder::new(800, 10);
     /// ```
     pub fn new(in_features: usize, out_features: usize) -> Self {
@@ -95,7 +96,20 @@ impl LinearBlockBuilder {
             device: Device::cpu(),
             dtype: DType::F32,
             grad_enabled: true,
+            training: true,
         }
+    }
+
+    /// Configure the training mode.
+    ///
+    /// # Arguments
+    /// * `training` - `true` for training mode, `false` for evaluation mode.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured training mode.
+    pub fn training(&mut self, training: bool) -> &mut Self {
+        self.training = training;
+        self
     }
 
     /// Configure the number of input features.
@@ -108,7 +122,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// let mut builder = LinearBlockBuilder::new(800, 10);
     /// builder.in_features(784);
     /// ```
@@ -127,7 +141,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// let mut builder = LinearBlockBuilder::new(800, 10);
     /// builder.out_features(100);
     /// ```
@@ -150,7 +164,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::{LinearBlockBuilder, Activation};
+    /// use nove::model::nn::{LinearBlockBuilder, Activation};
     /// let builder = LinearBlockBuilder::new(800, 10).with_activation(Activation::relu());
     /// ```
     pub fn with_activation(mut self, activation: Activation) -> Self {
@@ -165,7 +179,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::{LinearBlockBuilder, Activation};
+    /// use nove::model::nn::{LinearBlockBuilder, Activation};
     /// let builder = LinearBlockBuilder::new(800, 10).with_activation(Activation::relu()).without_activation();
     /// ```
     pub fn without_activation(mut self) -> Self {
@@ -180,7 +194,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// let builder = LinearBlockBuilder::new(800, 10).with_batch_norm1d();
     /// ```
     pub fn with_batch_norm1d(mut self) -> Self {
@@ -195,7 +209,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// let builder = LinearBlockBuilder::new(800, 10).with_batch_norm1d().without_batch_norm1d();
     /// ```
     pub fn without_batch_norm1d(mut self) -> Self {
@@ -213,7 +227,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// let builder = LinearBlockBuilder::new(800, 10).bias_enabled(false);
     /// ```
     pub fn bias_enabled(mut self, bias_enabled: bool) -> Self {
@@ -231,7 +245,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// let builder = LinearBlockBuilder::new(800, 10).with_dropout(0.5);
     /// ```
     pub fn with_dropout(mut self, probability: f32) -> Self {
@@ -246,7 +260,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// let builder = LinearBlockBuilder::new(800, 10).with_dropout(0.5).without_dropout();
     /// ```
     pub fn without_dropout(mut self) -> Self {
@@ -264,7 +278,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// use nove::tensor::Device;
     /// let builder = LinearBlockBuilder::new(800, 10).device(Device::cpu());
     /// ```
@@ -283,7 +297,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// use nove::tensor::DType;
     /// let builder = LinearBlockBuilder::new(800, 10).dtype(DType::F32);
     /// ```
@@ -302,7 +316,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// let builder = LinearBlockBuilder::new(800, 10).grad_enabled(true);
     /// ```
     pub fn grad_enabled(mut self, grad_enabled: bool) -> Self {
@@ -318,7 +332,7 @@ impl LinearBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LinearBlockBuilder;
+    /// use nove::model::nn::LinearBlockBuilder;
     /// let block = LinearBlockBuilder::new(800, 10).build().unwrap();
     /// ```
     pub fn build(self) -> Result<LinearBlock, ModelError> {
@@ -356,6 +370,7 @@ impl LinearBlockBuilder {
             activation,
             dropout,
             id,
+            training: self.training,
         })
     }
 }
@@ -375,7 +390,7 @@ impl LinearBlockBuilder {
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::{LinearBlockBuilder, Activation};
+/// use nove::model::nn::{LinearBlockBuilder, Activation};
 ///
 /// let mut block = LinearBlockBuilder::new(800, 10)
 ///     .with_activation(Activation::gelu())
@@ -390,27 +405,26 @@ pub struct LinearBlock {
     activation: Option<Activation>,
     dropout: Option<Dropout>,
     id: usize,
+    training: bool,
 }
 
 impl Model for LinearBlock {
-    type Input = (Tensor, bool);
+    type Input = Tensor;
     type Output = Tensor;
 
     /// Apply the linear block to the input tensor.
     ///
     /// # Arguments
-    /// * `input: (Tensor, bool)` - A tuple containing the input tensor and a boolean flag
-    ///   indicating whether the block is in training mode. This is used by BatchNorm1d and Dropout.
+    /// * `input` - The input tensor.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The output tensor if successful.
     /// * `Err(ModelError)` - The error when applying the linear block to the input tensor.
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, ModelError> {
-        let (input, training) = input;
         let mut output = self.linear.forward(input)?;
 
         if let Some(ref mut bn) = self.batch_norm1d {
-            output = bn.forward((output, training))?;
+            output = bn.forward(output)?;
         }
 
         if let Some(ref mut activation) = self.activation {
@@ -418,10 +432,30 @@ impl Model for LinearBlock {
         }
 
         if let Some(ref mut dropout) = self.dropout {
-            output = dropout.forward((output, training))?;
+            output = dropout.forward(output)?;
         }
 
         Ok(output)
+    }
+
+    fn train(&mut self, mode: bool) -> Result<(), ModelError> {
+        self.training = mode;
+
+        self.linear.train(mode)?;
+
+        if let Some(ref mut bn) = self.batch_norm1d {
+            bn.train(mode)?;
+        }
+
+        if let Some(ref mut activation) = self.activation {
+            activation.train(mode)?;
+        }
+
+        if let Some(ref mut dropout) = self.dropout {
+            dropout.train(mode)?;
+        }
+
+        Ok(())
     }
 
     fn require_grad(&mut self, grad_enabled: bool) -> Result<(), ModelError> {
@@ -519,6 +553,7 @@ impl Display for LinearBlock {
         if let Some(ref dropout) = self.dropout {
             write!(f, "  {},\n", dropout)?;
         }
+        write!(f, "  training={}", self.training)?;
         write!(f, ")")
     }
 }

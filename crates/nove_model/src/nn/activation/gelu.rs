@@ -42,7 +42,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// # Examples
 /// ```
 /// use nove::tensor::{Device, Tensor};
-/// use nove::model::layer::GELU;
+/// use nove::model::nn::GELU;
 /// use nove::model::Model;
 ///
 /// let mut gelu = GELU::new();
@@ -92,7 +92,7 @@ impl Model for GELU {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// use nove::model::layer::GELU;
+    /// use nove::model::nn::GELU;
     /// use nove::model::Model;
     ///
     /// let mut gelu = GELU::new();

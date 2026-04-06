@@ -32,7 +32,7 @@ use std::{collections::HashMap, fmt::Display};
 /// # Examples
 /// ```no_run
 /// use nove::tensor::{Device, Tensor};
-/// use nove::model::layer::Activation;
+/// use nove::model::nn::Activation;
 /// use nove::model::Model;
 ///
 /// let mut relu = Activation::relu();

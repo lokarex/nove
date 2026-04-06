@@ -1,6 +1,6 @@
-use nove::model::layer::{Conv1dBlockBuilder, Activation, Pool1d};
 use nove::model::Model;
-use nove::tensor::{Device, DType, Shape, Tensor};
+use nove::model::nn::{Activation, Conv1dBlockBuilder, Pool1d};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_conv1d_block_builder_creation() {
@@ -27,20 +27,30 @@ fn test_conv1d_block_forward_sequential() {
         .build()
         .unwrap();
 
-    let input = Tensor::ones(&Shape::from_dims(&[1, 2, 10]), &DType::F32, &Device::cpu(), false).unwrap();
-    let output = block.forward((input, true)).unwrap();
+    let input = Tensor::ones(
+        &Shape::from_dims(&[1, 2, 10]),
+        &DType::F32,
+        &Device::cpu(),
+        false,
+    )
+    .unwrap();
+    let output = block.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[1, 4, 5]));
 }
 
 #[test]
 fn test_conv1d_block_forward_without_components() {
-    let mut block = Conv1dBlockBuilder::new(2, 4, 3, 1, 1)
-        .build()
-        .unwrap();
+    let mut block = Conv1dBlockBuilder::new(2, 4, 3, 1, 1).build().unwrap();
 
-    let input = Tensor::ones(&Shape::from_dims(&[1, 2, 10]), &DType::F32, &Device::cpu(), false).unwrap();
-    let output = block.forward((input, false)).unwrap();
+    let input = Tensor::ones(
+        &Shape::from_dims(&[1, 2, 10]),
+        &DType::F32,
+        &Device::cpu(),
+        false,
+    )
+    .unwrap();
+    let output = block.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[1, 4, 10]));
 }
@@ -52,8 +62,14 @@ fn test_conv1d_block_forward_with_batch_norm_only() {
         .build()
         .unwrap();
 
-    let input = Tensor::ones(&Shape::from_dims(&[1, 2, 10]), &DType::F32, &Device::cpu(), false).unwrap();
-    let output = block.forward((input, true)).unwrap();
+    let input = Tensor::ones(
+        &Shape::from_dims(&[1, 2, 10]),
+        &DType::F32,
+        &Device::cpu(),
+        false,
+    )
+    .unwrap();
+    let output = block.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[1, 4, 10]));
 }
@@ -65,8 +81,14 @@ fn test_conv1d_block_forward_with_activation_only() {
         .build()
         .unwrap();
 
-    let input = Tensor::ones(&Shape::from_dims(&[1, 2, 10]), &DType::F32, &Device::cpu(), false).unwrap();
-    let output = block.forward((input, false)).unwrap();
+    let input = Tensor::ones(
+        &Shape::from_dims(&[1, 2, 10]),
+        &DType::F32,
+        &Device::cpu(),
+        false,
+    )
+    .unwrap();
+    let output = block.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[1, 4, 10]));
 }
@@ -78,8 +100,14 @@ fn test_conv1d_block_forward_with_pool_only() {
         .build()
         .unwrap();
 
-    let input = Tensor::ones(&Shape::from_dims(&[1, 2, 10]), &DType::F32, &Device::cpu(), false).unwrap();
-    let output = block.forward((input, false)).unwrap();
+    let input = Tensor::ones(
+        &Shape::from_dims(&[1, 2, 10]),
+        &DType::F32,
+        &Device::cpu(),
+        false,
+    )
+    .unwrap();
+    let output = block.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[1, 4, 5]));
 }
@@ -93,7 +121,7 @@ fn test_conv1d_block_builder_method_chaining() {
         .kernel_size(3)
         .stride(2)
         .padding(1);
-    
+
     let block = builder
         .with_batch_norm1d()
         .with_activation(Activation::silu())
@@ -114,7 +142,7 @@ fn test_conv1d_block_parameters() {
 
     let params = block.parameters().unwrap();
     assert!(!params.is_empty());
-    
+
     let named_params = block.named_parameters().unwrap();
     assert!(!named_params.is_empty());
 }

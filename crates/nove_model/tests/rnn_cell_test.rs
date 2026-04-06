@@ -1,7 +1,7 @@
-use nove::model::layer::RnnCellBuilder;
-use nove::model::layer::Activation;
 use nove::model::Model;
-use nove::tensor::{Device, DType, Shape, Tensor};
+use nove::model::nn::Activation;
+use nove::model::nn::RnnCellBuilder;
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_rnn_cell_builder_creation() {
@@ -83,14 +83,16 @@ fn test_rnn_cell_single_time_step_forward() {
         &Shape::from_dims(&[batch_size, 3]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 5]),
         &DType::F32,
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let new_hidden_state = rnn_cell.forward((input, hidden_state)).unwrap();
 
@@ -116,14 +118,16 @@ fn test_rnn_cell_forward_with_different_activations() {
             &Shape::from_dims(&[batch_size, 4]),
             &Device::cpu(),
             false,
-        ).unwrap();
+        )
+        .unwrap();
 
         let hidden_state = Tensor::zeros(
             &Shape::from_dims(&[batch_size, 6]),
             &DType::F32,
             &Device::cpu(),
             false,
-        ).unwrap();
+        )
+        .unwrap();
 
         let new_hidden_state = rnn_cell.forward((input, hidden_state)).unwrap();
 
@@ -141,21 +145,23 @@ fn test_rnn_cell_hidden_state_update() {
         .unwrap();
 
     let batch_size = 4;
-    
+
     let input1 = Tensor::randn(
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[batch_size, 8]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let initial_hidden_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 12]),
         &DType::F32,
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state1 = rnn_cell.forward((input1, initial_hidden_state)).unwrap();
 
@@ -165,7 +171,8 @@ fn test_rnn_cell_hidden_state_update() {
         &Shape::from_dims(&[batch_size, 8]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state2 = rnn_cell.forward((input2, hidden_state1.clone())).unwrap();
 
@@ -178,9 +185,7 @@ fn test_rnn_cell_hidden_state_update() {
 
 #[test]
 fn test_rnn_cell_forward_invalid_input_dimensions() {
-    let mut rnn_cell = RnnCellBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut rnn_cell = RnnCellBuilder::new(10, 20).build().unwrap();
 
     let input_1d = Tensor::randn(
         0.0f32,
@@ -188,7 +193,8 @@ fn test_rnn_cell_forward_invalid_input_dimensions() {
         &Shape::from_dims(&[10]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::randn(
         0.0f32,
@@ -196,7 +202,8 @@ fn test_rnn_cell_forward_invalid_input_dimensions() {
         &Shape::from_dims(&[2, 20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = rnn_cell.forward((input_1d, hidden_state));
     assert!(result.is_err());
@@ -205,9 +212,7 @@ fn test_rnn_cell_forward_invalid_input_dimensions() {
 
 #[test]
 fn test_rnn_cell_forward_invalid_hidden_dimensions() {
-    let mut rnn_cell = RnnCellBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut rnn_cell = RnnCellBuilder::new(10, 20).build().unwrap();
 
     let input = Tensor::randn(
         0.0f32,
@@ -215,7 +220,8 @@ fn test_rnn_cell_forward_invalid_hidden_dimensions() {
         &Shape::from_dims(&[2, 10]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state_1d = Tensor::randn(
         0.0f32,
@@ -223,7 +229,8 @@ fn test_rnn_cell_forward_invalid_hidden_dimensions() {
         &Shape::from_dims(&[20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = rnn_cell.forward((input, hidden_state_1d));
     assert!(result.is_err());
@@ -232,9 +239,7 @@ fn test_rnn_cell_forward_invalid_hidden_dimensions() {
 
 #[test]
 fn test_rnn_cell_forward_invalid_input_size() {
-    let mut rnn_cell = RnnCellBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut rnn_cell = RnnCellBuilder::new(10, 20).build().unwrap();
 
     let input = Tensor::randn(
         0.0f32,
@@ -242,7 +247,8 @@ fn test_rnn_cell_forward_invalid_input_size() {
         &Shape::from_dims(&[2, 8]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::randn(
         0.0f32,
@@ -250,7 +256,8 @@ fn test_rnn_cell_forward_invalid_input_size() {
         &Shape::from_dims(&[2, 20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = rnn_cell.forward((input, hidden_state));
     assert!(result.is_err());
@@ -259,9 +266,7 @@ fn test_rnn_cell_forward_invalid_input_size() {
 
 #[test]
 fn test_rnn_cell_forward_invalid_hidden_size() {
-    let mut rnn_cell = RnnCellBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut rnn_cell = RnnCellBuilder::new(10, 20).build().unwrap();
 
     let input = Tensor::randn(
         0.0f32,
@@ -269,7 +274,8 @@ fn test_rnn_cell_forward_invalid_hidden_size() {
         &Shape::from_dims(&[2, 10]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::randn(
         0.0f32,
@@ -277,7 +283,8 @@ fn test_rnn_cell_forward_invalid_hidden_size() {
         &Shape::from_dims(&[2, 15]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = rnn_cell.forward((input, hidden_state));
     assert!(result.is_err());
@@ -286,9 +293,7 @@ fn test_rnn_cell_forward_invalid_hidden_size() {
 
 #[test]
 fn test_rnn_cell_forward_batch_size_mismatch() {
-    let mut rnn_cell = RnnCellBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut rnn_cell = RnnCellBuilder::new(10, 20).build().unwrap();
 
     let input = Tensor::randn(
         0.0f32,
@@ -296,7 +301,8 @@ fn test_rnn_cell_forward_batch_size_mismatch() {
         &Shape::from_dims(&[2, 10]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hidden_state = Tensor::randn(
         0.0f32,
@@ -304,7 +310,8 @@ fn test_rnn_cell_forward_batch_size_mismatch() {
         &Shape::from_dims(&[3, 20]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = rnn_cell.forward((input, hidden_state));
     assert!(result.is_err());

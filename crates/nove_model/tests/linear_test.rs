@@ -1,5 +1,5 @@
 use nove::model::Model;
-use nove::model::layer::LinearBuilder;
+use nove::model::nn::LinearBuilder;
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]

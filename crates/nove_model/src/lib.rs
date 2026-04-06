@@ -2,7 +2,7 @@ use nove_tensor::{DType, Device, Tensor, TensorError};
 use std::{collections::HashMap, fmt::Display, path::Path};
 use thiserror::Error;
 
-pub mod layer;
+pub mod nn;
 pub mod pretrain;
 
 #[derive(Error, Debug)]
@@ -67,6 +67,28 @@ pub trait Model: Display {
     /// * `Ok(())` - If successful.
     /// * `Err(ModelError)` - The error when setting the gradient tracking.
     fn require_grad(&mut self, grad_enabled: bool) -> Result<(), ModelError>;
+
+    /// Set the model to training or evaluation mode.
+    ///
+    /// # Arguments
+    /// * `mode` - `true` for training mode, `false` for evaluation mode.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If successful.
+    /// * `Err(ModelError)` - The error when setting the training mode.
+    fn train(&mut self, _mode: bool) -> Result<(), ModelError> {
+        // Default implementation does nothing for layers that don't need training mode
+        Ok(())
+    }
+
+    /// Set the model to evaluation mode.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If successful.
+    /// * `Err(ModelError)` - The error when setting the evaluation mode.
+    fn eval(&mut self) -> Result<(), ModelError> {
+        self.train(false)
+    }
 
     /// Move the model to the specified device.
     ///

@@ -1,5 +1,5 @@
 use nove::model::Model;
-use nove::model::layer::Dropout;
+use nove::model::nn::Dropout;
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
@@ -22,8 +22,10 @@ fn test_dropout_training_vs_inference_mode() {
 
     let input = Tensor::ones(&Shape::from_dims(&[4, 3]), &DType::F32, &device, false).unwrap();
 
-    let training_output = dropout.forward((input.copy(), true)).unwrap();
-    let inference_output = dropout.forward((input.copy(), false)).unwrap();
+    // Training mode (default)
+    let training_output = dropout.forward(input.copy()).unwrap();
+    dropout.eval().unwrap();
+    let inference_output = dropout.forward(input.copy()).unwrap();
 
     assert_ne!(
         training_output.to_vec::<f32>().unwrap(),
@@ -41,7 +43,7 @@ fn test_dropout_probability_zero() {
     let device = Device::cpu();
 
     let input = Tensor::ones(&Shape::from_dims(&[2, 2]), &DType::F32, &device, false).unwrap();
-    let training_output = dropout.forward((input.copy(), true)).unwrap();
+    let training_output = dropout.forward(input.copy()).unwrap();
 
     assert_eq!(
         training_output.to_vec::<f32>().unwrap(),
@@ -55,7 +57,7 @@ fn test_dropout_probability_high() {
     let device = Device::cpu();
 
     let input = Tensor::ones(&Shape::from_dims(&[10]), &DType::F32, &device, false).unwrap();
-    let training_output = dropout.forward((input, true)).unwrap();
+    let training_output = dropout.forward(input).unwrap();
 
     let output_values = training_output.to_vec::<f32>().unwrap();
     let zero_count = output_values.iter().filter(|&&x| x == 0.0).count();
@@ -69,7 +71,7 @@ fn test_dropout_scaling() {
 
     let input_data = [1.0f32, 2.0, 3.0, 4.0];
     let input = Tensor::from_data(&input_data, &device, false).unwrap();
-    let training_output = dropout.forward((input.copy(), true)).unwrap();
+    let training_output = dropout.forward(input.copy()).unwrap();
 
     let output_values = training_output.to_vec::<f32>().unwrap();
     let input_values = input.to_vec::<f32>().unwrap();

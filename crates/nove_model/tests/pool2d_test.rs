@@ -1,5 +1,5 @@
 use nove::model::Model;
-use nove::model::layer::{AvgPool2d, MaxPool2d, Pool2d};
+use nove::model::nn::{AvgPool2d, MaxPool2d, Pool2d};
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]

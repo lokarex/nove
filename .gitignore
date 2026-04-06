@@ -1,5 +1,7 @@
 /target
 /.vscode
 /.trae
+/.claude
+CLAUDE.md
 data/
 result/

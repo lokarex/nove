@@ -287,8 +287,4 @@ impl Tensor {
 
         Ok(())
     }
-
-    pub fn dropout(&self, p: f32) -> Result<Tensor, TensorError> {
-        todo!()
-    }
 }

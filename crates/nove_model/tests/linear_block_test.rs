@@ -1,5 +1,5 @@
 use nove::model::Model;
-use nove::model::layer::{Activation, LinearBlockBuilder};
+use nove::model::nn::{Activation, LinearBlockBuilder};
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
@@ -73,7 +73,7 @@ fn test_linear_block_forward_default() {
         false,
     )
     .unwrap();
-    let output = block.forward((input, false)).unwrap();
+    let output = block.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[2, 4]));
 }
@@ -91,7 +91,7 @@ fn test_linear_block_forward_with_activation() {
         .reshape(&Shape::from_dims(&[2, 3]))
         .unwrap();
 
-    let output = block.forward((input, false)).unwrap();
+    let output = block.forward(input).unwrap();
     let output_vec = output.to_vec::<f32>().unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[2, 4]));
@@ -115,8 +115,8 @@ fn test_linear_block_forward_with_batch_norm_training() {
     )
     .unwrap();
 
-    let output_training = block.forward((input.clone(), true)).unwrap();
-    let output_inference = block.forward((input, false)).unwrap();
+    let output_training = block.forward(input.clone()).unwrap();
+    let output_inference = block.forward(input).unwrap();
 
     assert_eq!(output_training.shape().unwrap(), Shape::from_dims(&[2, 4]));
     assert_eq!(output_inference.shape().unwrap(), Shape::from_dims(&[2, 4]));
@@ -137,8 +137,8 @@ fn test_linear_block_forward_with_dropout_training_vs_inference() {
     )
     .unwrap();
 
-    let output_training = block.forward((input.clone(), true)).unwrap();
-    let output_inference = block.forward((input, false)).unwrap();
+    let output_training = block.forward(input.clone()).unwrap();
+    let output_inference = block.forward(input).unwrap();
 
     assert_eq!(output_training.shape().unwrap(), Shape::from_dims(&[2, 4]));
     assert_eq!(output_inference.shape().unwrap(), Shape::from_dims(&[2, 4]));
@@ -167,8 +167,8 @@ fn test_linear_block_forward_complete_chain() {
     )
     .unwrap();
 
-    let output_training = block.forward((input.clone(), true)).unwrap();
-    let output_inference = block.forward((input, false)).unwrap();
+    let output_training = block.forward(input.clone()).unwrap();
+    let output_inference = block.forward(input).unwrap();
 
     assert_eq!(output_training.shape().unwrap(), Shape::from_dims(&[4, 8]));
     assert_eq!(output_inference.shape().unwrap(), Shape::from_dims(&[4, 8]));

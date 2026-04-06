@@ -25,7 +25,7 @@ use std::collections::HashMap;
 /// # Examples
 /// ```no_run
 /// use nove::tensor::{Device, Shape, Tensor};
-/// use nove::model::layer::Pool1d;
+/// use nove::model::nn::Pool1d;
 /// use nove::model::Model;
 ///
 /// let mut avg_pool = Pool1d::avg_pool1d(2, None).unwrap();
@@ -142,7 +142,7 @@ impl std::fmt::Display for Pool1d {
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::Pool2d;
+/// use nove::model::nn::Pool2d;
 ///
 /// // Create an average pooling layer
 /// let avg_pool = Pool2d::avg_pool2d((2, 2), None).unwrap();

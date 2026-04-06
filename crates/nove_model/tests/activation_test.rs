@@ -1,5 +1,5 @@
 use nove::model::Model;
-use nove::model::layer::Activation;
+use nove::model::nn::Activation;
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]

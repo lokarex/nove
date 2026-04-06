@@ -1,5 +1,5 @@
 use nove::model::Model;
-use nove::model::layer::EmbeddingBuilder;
+use nove::model::nn::EmbeddingBuilder;
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]

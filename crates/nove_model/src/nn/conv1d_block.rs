@@ -51,7 +51,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::{Conv1dBlockBuilder, Activation, Pool1d};
+/// use nove::model::nn::{Conv1dBlockBuilder, Activation, Pool1d};
 /// use nove::tensor::{Device, DType};
 ///
 /// let block = Conv1dBlockBuilder::new(1, 16, 3, 1, 1)
@@ -75,6 +75,7 @@ pub struct Conv1dBlockBuilder {
     device: Device,
     dtype: DType,
     grad_enabled: bool,
+    training: bool,
 }
 
 impl Conv1dBlockBuilder {
@@ -92,7 +93,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1);
     /// ```
     pub fn new(
@@ -114,7 +115,20 @@ impl Conv1dBlockBuilder {
             device: Device::cpu(),
             dtype: DType::F32,
             grad_enabled: true,
+            training: true,
         }
+    }
+
+    /// Configure the training mode.
+    ///
+    /// # Arguments
+    /// * `training` - `true` for training mode, `false` for evaluation mode.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured training mode.
+    pub fn training(&mut self, training: bool) -> &mut Self {
+        self.training = training;
+        self
     }
 
     /// Configure the number of input channels.
@@ -127,7 +141,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let mut builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1);
     /// builder.in_channels(3);
     /// ```
@@ -146,7 +160,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let mut builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1);
     /// builder.out_channels(64);
     /// ```
@@ -165,7 +179,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let mut builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1);
     /// builder.kernel_size(5);
     /// ```
@@ -184,7 +198,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let mut builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1);
     /// builder.stride(2);
     /// ```
@@ -203,7 +217,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let mut builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1);
     /// builder.padding(2);
     /// ```
@@ -219,7 +233,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).without_activation();
     /// ```
     pub fn without_activation(mut self) -> Self {
@@ -234,7 +248,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).with_batch_norm1d();
     /// ```
     pub fn with_batch_norm1d(mut self) -> Self {
@@ -249,7 +263,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).without_batch_norm1d();
     /// ```
     pub fn without_batch_norm1d(mut self) -> Self {
@@ -271,7 +285,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::{Conv1dBlockBuilder, Activation};
+    /// use nove::model::nn::{Conv1dBlockBuilder, Activation};
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).with_activation(Activation::relu());
     /// ```
     pub fn with_activation(mut self, activation: Activation) -> Self {
@@ -293,7 +307,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::{Conv1dBlockBuilder, Pool1d};
+    /// use nove::model::nn::{Conv1dBlockBuilder, Pool1d};
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1)
     ///     .with_pool1d(Pool1d::max_pool1d(2, None).unwrap());
     /// ```
@@ -309,7 +323,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).without_pool1d();
     /// ```
     pub fn without_pool1d(mut self) -> Self {
@@ -327,7 +341,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// use nove::tensor::Device;
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).device(Device::cpu());
     /// ```
@@ -346,7 +360,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// use nove::tensor::DType;
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).dtype(DType::F32);
     /// ```
@@ -365,7 +379,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).grad_enabled(true);
     /// ```
     pub fn grad_enabled(mut self, grad_enabled: bool) -> Self {
@@ -381,7 +395,7 @@ impl Conv1dBlockBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::Conv1dBlockBuilder;
+    /// use nove::model::nn::Conv1dBlockBuilder;
     /// let block = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).build().unwrap();
     /// ```
     pub fn build(self) -> Result<Conv1dBlock, ModelError> {
@@ -437,6 +451,7 @@ impl Conv1dBlockBuilder {
             activation: self.activation,
             pool1d: self.pool1d,
             id,
+            training: self.training,
         })
     }
 }
@@ -462,7 +477,7 @@ impl Conv1dBlockBuilder {
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::Conv1dBlockBuilder;
+/// use nove::model::nn::Conv1dBlockBuilder;
 /// let block = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).build().unwrap();
 /// ```
 #[derive(Debug, Clone)]
@@ -472,26 +487,27 @@ pub struct Conv1dBlock {
     activation: Option<Activation>,
     pool1d: Option<Pool1d>,
     id: usize,
+    training: bool,
 }
 
 impl Model for Conv1dBlock {
-    type Input = (Tensor, bool);
+    type Input = Tensor;
     type Output = Tensor;
 
     /// Apply the 1D convolutional block to the input tensor.
     ///
     /// # Arguments
-    /// * `input: (Tensor, bool)` - The input tensor with shape [batch_size, channels, length] and a boolean flag indicating training mode.
+    /// * `input` - The input tensor with shape [batch_size, channels, length].
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The output tensor if successful.
     /// * `Err(ModelError)` - The error when applying the conv1d block to the input tensor.
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, ModelError> {
-        let (x, is_training) = input;
+        let x = input;
         let mut y = self.conv.forward(x)?;
 
         if let Some(ref mut bn) = self.batch_norm1d {
-            y = bn.forward((y, is_training))?;
+            y = bn.forward(y)?;
         }
 
         if let Some(ref mut activation) = self.activation {
@@ -503,6 +519,26 @@ impl Model for Conv1dBlock {
         }
 
         Ok(y)
+    }
+
+    fn train(&mut self, mode: bool) -> Result<(), ModelError> {
+        self.training = mode;
+
+        self.conv.train(mode)?;
+
+        if let Some(ref mut bn) = self.batch_norm1d {
+            bn.train(mode)?;
+        }
+
+        if let Some(ref mut activation) = self.activation {
+            activation.train(mode)?;
+        }
+
+        if let Some(ref mut pool1d) = self.pool1d {
+            pool1d.train(mode)?;
+        }
+
+        Ok(())
     }
 
     fn require_grad(&mut self, grad_enabled: bool) -> Result<(), ModelError> {

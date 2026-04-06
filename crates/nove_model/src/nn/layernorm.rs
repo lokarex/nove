@@ -28,7 +28,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::LayerNormBuilder;
+/// use nove::model::nn::LayerNormBuilder;
 /// use nove::tensor::{Device, DType};
 ///
 /// let ln = LayerNormBuilder::new(vec![768])       // Required
@@ -94,7 +94,7 @@ impl LayerNorm {
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::LayerNormBuilder;
+/// use nove::model::nn::LayerNormBuilder;
 /// use nove::tensor::{Device, DType};
 ///
 /// let ln = LayerNormBuilder::new(vec![768])       // Required
@@ -123,7 +123,7 @@ impl LayerNormBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LayerNormBuilder;
+    /// use nove::model::nn::LayerNormBuilder;
     /// let mut ln_builder = LayerNormBuilder::new(vec![768]);
     /// ```
     pub fn new(normalized_shape: Vec<usize>) -> Self {
@@ -146,7 +146,7 @@ impl LayerNormBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LayerNormBuilder;
+    /// use nove::model::nn::LayerNormBuilder;
     /// let mut ln_builder = LayerNormBuilder::new(vec![768]);
     /// ln_builder.normalized_shape(vec![512]);
     /// ```
@@ -165,7 +165,7 @@ impl LayerNormBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LayerNormBuilder;
+    /// use nove::model::nn::LayerNormBuilder;
     /// let mut ln_builder = LayerNormBuilder::new(vec![768]);
     /// ln_builder.epsilon(1e-5);
     /// ```
@@ -184,7 +184,7 @@ impl LayerNormBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LayerNormBuilder;
+    /// use nove::model::nn::LayerNormBuilder;
     /// let mut ln_builder = LayerNormBuilder::new(vec![768]);
     /// ln_builder.affine(true);
     /// ```
@@ -203,7 +203,7 @@ impl LayerNormBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LayerNormBuilder;
+    /// use nove::model::nn::LayerNormBuilder;
     /// use nove::tensor::Device;
     /// let mut ln_builder = LayerNormBuilder::new(vec![768]);
     /// ln_builder.device(Device::cpu());
@@ -223,7 +223,7 @@ impl LayerNormBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LayerNormBuilder;
+    /// use nove::model::nn::LayerNormBuilder;
     /// use nove::tensor::DType;
     /// let mut ln_builder = LayerNormBuilder::new(vec![768]);
     /// ln_builder.dtype(DType::F32);
@@ -241,7 +241,7 @@ impl LayerNormBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::LayerNormBuilder;
+    /// use nove::model::nn::LayerNormBuilder;
     /// let mut ln_builder = LayerNormBuilder::new(vec![768]);
     /// let ln = ln_builder.build().unwrap();
     /// ```

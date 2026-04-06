@@ -17,6 +17,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// * During training, this layer computes the mean and variance of each feature
 ///   over the batch and spatial dimensions, then normalizes the input.
 /// * During inference, it uses the running mean and variance.
+/// * Use `train(true)` for training mode and `eval()` or `train(false)` for evaluation mode.
 ///
 /// # Fields
 /// * `gamma` - The learnable scale parameter (gamma) with shape \[num_features\].
@@ -28,19 +29,32 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// * `momentum` - The momentum for updating running statistics.
 /// * `id` - The unique ID of the batch normalization layer.
 /// * `affine` - Whether to use learnable affine parameters (gamma and beta).
+/// * `training` - Whether the layer is in training mode (default: `true`).
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::BatchNorm1dBuilder;
-/// use nove::tensor::{Device, DType};
+/// use nove::model::nn::BatchNorm1dBuilder;
+/// use nove::tensor::{Device, DType, Shape, Tensor};
+/// use nove::model::Model;
 ///
-/// let bn = BatchNorm1dBuilder::new(64)  // Required: num_features
+/// let mut bn = BatchNorm1dBuilder::new(64)  // Required: num_features
 ///     .epsilon(1e-5)          // Optional, default is 1e-5
 ///     .momentum(0.1)          // Optional, default is 0.1
 ///     .affine(true)           // Optional, default is true
 ///     .device(Device::cpu())  // Optional, default is cpu
 ///     .dtype(DType::F32)      // Optional, default is F32
-///     .build();
+///     .build()
+///     .unwrap();
+///
+/// let input = Tensor::randn(0.0, 1.0, &Shape::from(&[32, 64]), &Device::cpu(), false).unwrap();
+///
+/// // Training mode
+/// bn.train(true).unwrap();
+/// let output = bn.forward(input.clone()).unwrap();
+///
+/// // Evaluation mode
+/// bn.eval().unwrap();
+/// let output = bn.forward(input).unwrap();
 /// ```
 #[derive(Debug, Clone)]
 pub struct BatchNorm1d {
@@ -53,6 +67,7 @@ pub struct BatchNorm1d {
     momentum: f64,
     id: usize,
     affine: bool,
+    training: bool,
 }
 
 impl BatchNorm1d {
@@ -92,7 +107,6 @@ impl BatchNorm1d {
     ///
     /// # Arguments
     /// * `input` - The input tensor with shape [batch_size, num_features].
-    /// * `training` - Whether the layer is in training mode.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The output tensor with the same shape as input if successful.
@@ -100,18 +114,16 @@ impl BatchNorm1d {
     fn forward_batch_features(
         &mut self,
         input: Tensor,
-        training: bool,
     ) -> Result<Tensor, ModelError> {
         let perm = &[1, 0];
         let stat_shape = Shape::from_dims(&[self.num_features]);
-        self.apply_batch_norm(input, training, perm, &stat_shape)
+        self.apply_batch_norm(input, perm, &stat_shape)
     }
 
     /// Apply batch normalization to 3D input tensor with shape [batch_size, num_features, length].
     ///
     /// # Arguments
     /// * `input` - The input tensor with shape [batch_size, num_features, length].
-    /// * `training` - Whether the layer is in training mode.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The output tensor with the same shape as input if successful.
@@ -119,18 +131,16 @@ impl BatchNorm1d {
     fn forward_batch_features_length(
         &mut self,
         input: Tensor,
-        training: bool,
     ) -> Result<Tensor, ModelError> {
         let perm = &[1, 0, 2];
         let stat_shape = Shape::from_dims(&[self.num_features, 1]);
-        self.apply_batch_norm(input, training, perm, &stat_shape)
+        self.apply_batch_norm(input, perm, &stat_shape)
     }
 
     /// Internal helper function to apply batch normalization with given parameters.
     ///
     /// # Arguments
     /// * `input` - The input tensor.
-    /// * `training` - Whether the layer is in training mode.
     /// * `perm` - The permutation vector to rearrange dimensions for statistics computation.
     /// * `stat_shape` - The shape for statistics tensors (mean, variance) to allow broadcasting.
     ///
@@ -140,14 +150,13 @@ impl BatchNorm1d {
     fn apply_batch_norm(
         &mut self,
         input: Tensor,
-        training: bool,
         perm: &[usize],
         stat_shape: &Shape,
     ) -> Result<Tensor, ModelError> {
         let input_shape = input.shape()?;
         let total_size = input_shape.dims().iter().product::<usize>();
 
-        match training {
+        match self.training {
             true => {
                 let reshaped_input = input.permute(perm)?.reshape(&Shape::from_dims(&[
                     self.num_features,
@@ -210,21 +219,18 @@ impl BatchNorm1d {
 }
 
 impl Model for BatchNorm1d {
-    type Input = (Tensor, bool);
+    type Input = Tensor;
     type Output = Tensor;
 
     /// Apply the 1D batch normalization layer to the input tensor.
     ///
     /// # Arguments
-    /// * `input` - A tuple of (input_tensor, training) where:
-    ///   - `input_tensor`: The input tensor with shape [batch_size, num_features] or [batch_size, num_features, length].
-    ///   - `training`: Whether the layer is in training mode.
+    /// * `input` - The input tensor with shape [batch_size, num_features] or [batch_size, num_features, length].
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The output tensor with the same shape as input if successful.
     /// * `Err(ModelError)` - The error when applying the batch normalization layer.
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, ModelError> {
-        let (input, training) = input;
         let input_shape = input.shape()?;
         let ndim = input_shape.dims().len();
 
@@ -246,14 +252,19 @@ impl Model for BatchNorm1d {
         }
 
         match ndim {
-            2 => self.forward_batch_features(input, training),
-            3 => self.forward_batch_features_length(input, training),
+            2 => self.forward_batch_features(input),
+            3 => self.forward_batch_features_length(input),
             _ => Err(ModelError::InvalidArgument(format!(
                 "BatchNorm1d expects 2D or 3D input, got {}D with shape {:?}",
                 ndim,
                 input_shape.dims()
             ))),
         }
+    }
+
+    fn train(&mut self, mode: bool) -> Result<(), ModelError> {
+        self.training = mode;
+        Ok(())
     }
 
     /// Enable or disable gradient computation for the learnable parameters (gamma and beta).
@@ -335,8 +346,8 @@ impl Display for BatchNorm1d {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "batch_norm1d.{}(num_features={}, epsilon={}, momentum={}, affine={})",
-            self.id, self.num_features, self.epsilon, self.momentum, self.affine
+            "batch_norm1d.{}(num_features={}, epsilon={}, momentum={}, affine={}, training={})",
+            self.id, self.num_features, self.epsilon, self.momentum, self.affine, self.training
         )
     }
 }
@@ -369,7 +380,7 @@ impl Display for BatchNorm1d {
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::BatchNorm1dBuilder;
+/// use nove::model::nn::BatchNorm1dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
 /// let bn = BatchNorm1dBuilder::new(64)  // Required: num_features
@@ -387,6 +398,7 @@ pub struct BatchNorm1dBuilder {
     affine: bool,
     device: Device,
     dtype: DType,
+    training: bool,
 }
 
 impl BatchNorm1dBuilder {
@@ -398,7 +410,20 @@ impl BatchNorm1dBuilder {
             affine: true,
             device: Device::cpu(),
             dtype: DType::F32,
+            training: true,
         }
+    }
+
+    /// Configure the training mode.
+    ///
+    /// # Arguments
+    /// * `training` - `true` for training mode, `false` for evaluation mode.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with the configured training mode.
+    pub fn training(&mut self, training: bool) -> &mut Self {
+        self.training = training;
+        self
     }
     /// Configure the number of features (channels).
     ///
@@ -410,7 +435,7 @@ impl BatchNorm1dBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::BatchNorm1dBuilder;
+    /// use nove::model::nn::BatchNorm1dBuilder;
     /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.num_features(64);
     /// ```
@@ -429,7 +454,7 @@ impl BatchNorm1dBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::BatchNorm1dBuilder;
+    /// use nove::model::nn::BatchNorm1dBuilder;
     /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.epsilon(1e-5);
     /// ```
@@ -448,7 +473,7 @@ impl BatchNorm1dBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::BatchNorm1dBuilder;
+    /// use nove::model::nn::BatchNorm1dBuilder;
     /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.momentum(0.1);
     /// ```
@@ -467,7 +492,7 @@ impl BatchNorm1dBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::BatchNorm1dBuilder;
+    /// use nove::model::nn::BatchNorm1dBuilder;
     /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.affine(true);
     /// ```
@@ -486,7 +511,7 @@ impl BatchNorm1dBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::BatchNorm1dBuilder;
+    /// use nove::model::nn::BatchNorm1dBuilder;
     /// use nove::tensor::Device;
     /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.device(Device::cpu());
@@ -506,7 +531,7 @@ impl BatchNorm1dBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::BatchNorm1dBuilder;
+    /// use nove::model::nn::BatchNorm1dBuilder;
     /// use nove::tensor::DType;
     /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// bn_builder.dtype(DType::F32);
@@ -524,7 +549,7 @@ impl BatchNorm1dBuilder {
     ///
     /// # Examples
     /// ```no_run
-    /// use nove::model::layer::BatchNorm1dBuilder;
+    /// use nove::model::nn::BatchNorm1dBuilder;
     /// let mut bn_builder = BatchNorm1dBuilder::new(64);
     /// let bn = bn_builder.build().unwrap();
     /// ```
@@ -597,6 +622,7 @@ impl BatchNorm1dBuilder {
             momentum: self.momentum,
             id,
             affine: self.affine,
+            training: self.training,
         })
     }
 }

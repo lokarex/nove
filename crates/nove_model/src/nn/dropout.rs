@@ -13,31 +13,40 @@ static ID: AtomicUsize = AtomicUsize::new(1);
 ///
 /// # Notes
 /// * The `Dropout` is now only created by the `Dropout::new()` function.
-/// * The behavior of the dropout layer is controlled by the `training` flag in the `forward` method.
+/// * The behavior of the dropout layer is controlled by the internal `training` state.
+///   Use `train(true)` for training mode and `eval()` or `train(false)` for evaluation mode.
 ///
 /// # Fields
 /// * `probability` - The probability of dropping out a unit.
 /// * `id` - The unique ID of the dropout layer.
+/// * `training` - Whether the layer is in training mode (default: `true`).
 ///
 /// # Examples
 /// ```
-/// use nove::tensor::{Device, Tensor};
-/// use nove::model::layer::Dropout;
-/// use nove::model::Model;
+/// use nove_tensor::{Device, Tensor};
+/// use nove::model::nn::Dropout;
+/// use nove_model::Model;
 ///
 /// let mut dropout = Dropout::new(0.5).unwrap();
 /// println!("{}", dropout);
 ///
 /// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &Device::cpu(), false).unwrap();
-/// let output = dropout.forward((input.clone(), true)).unwrap();
+///
+/// // Training mode
+/// dropout.train(true).unwrap();
+/// let output = dropout.forward(input.clone()).unwrap();
 /// println!("{}", output);
-/// let output = dropout.forward((input, false)).unwrap();
+///
+/// // Evaluation mode
+/// dropout.eval().unwrap();
+/// let output = dropout.forward(input).unwrap();
 /// println!("{}", output);
 /// ```
 #[derive(Debug, Clone)]
 pub struct Dropout {
     probability: f32,
     id: usize,
+    training: bool,
 }
 
 impl Dropout {
@@ -56,7 +65,7 @@ impl Dropout {
     ///
     /// # Examples
     /// ```
-    /// use nove_model::layer::Dropout;
+    /// use nove::model::nn::Dropout;
     ///
     /// let dropout = Dropout::new(0.5).unwrap();
     /// println!("{}", dropout);
@@ -71,27 +80,39 @@ impl Dropout {
         Ok(Self {
             probability,
             id: ID.fetch_add(1, Ordering::Relaxed),
+            training: true, // Default to training mode
         })
+    }
+
+    /// Set the training mode for the dropout layer.
+    ///
+    /// # Arguments
+    /// * `training` - `true` for training mode, `false` for evaluation mode.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The dropout layer with the specified training mode.
+    pub fn training(mut self, training: bool) -> Self {
+        self.training = training;
+        self
     }
 }
 
 impl Model for Dropout {
-    type Input = (Tensor, bool);
+    type Input = Tensor;
 
     type Output = Tensor;
 
     /// Apply dropout layer to the input tensor.
     ///
     /// # Arguments
-    /// * `input: (Tensor, bool)` - `(xs: Tensor, training: bool)` where `xs` is the input tensor and `training` is a boolean
-    ///   indicating whether the model is in training mode.
+    /// * `input` - The input tensor.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The output tensor if successful.
     /// * `Err(ModelError)` - The error when applying dropout layer to the input tensor.
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, crate::ModelError> {
-        let (xs, training) = input;
-        if !training {
+        let xs = input;
+        if !self.training {
             return Ok(xs);
         }
 
@@ -108,6 +129,11 @@ impl Model for Dropout {
             .to_dtype(&xs_dtype)?
             .affine(scale, 0.0)?;
         Ok(xs.mul(&mask)?)
+    }
+
+    fn train(&mut self, mode: bool) -> Result<(), ModelError> {
+        self.training = mode;
+        Ok(())
     }
 
     fn require_grad(&mut self, _: bool) -> Result<(), crate::ModelError> {
@@ -133,6 +159,6 @@ impl Model for Dropout {
 
 impl Display for Dropout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "dropout.{}(probability={})", self.id, self.probability)
+        write!(f, "dropout.{}(probability={}, training={})", self.id, self.probability, self.training)
     }
 }

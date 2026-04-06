@@ -6,7 +6,7 @@ use nove::dataloader::common::{
 use nove::dataset::resource::{Cifar10, Cifar10Dataset};
 use nove::lossfn::CrossEntropyLoss;
 use nove::r#macro::Model;
-use nove::model::layer::{
+use nove::model::nn::{
     Activation, Conv2dBlock, Conv2dBlockBuilder, LinearBlock, LinearBlockBuilder, MaxPool2d, Pool2d,
 };
 use nove::model::{Model, ModelError};
@@ -20,7 +20,7 @@ pub fn model(device: Device) -> Result<Cifar10CNN, ModelError> {
 }
 
 #[derive(Debug, Clone, Model)]
-#[model(input = "(Tensor, bool)", output = "Tensor")]
+#[model(input = "Tensor", output = "Tensor")]
 pub struct Cifar10CNN {
     conv1: Conv2dBlock,
     conv2: Conv2dBlock,
@@ -58,15 +58,14 @@ impl Cifar10CNN {
         })
     }
 
-    fn forward(&mut self, input: (Tensor, bool)) -> Result<Tensor, ModelError> {
-        let (x, training) = input;
-        let mut x = self.conv1.forward((x, training))?;
-        x = self.conv2.forward((x, training))?;
+    fn forward(&mut self, input: Tensor) -> Result<Tensor, ModelError> {
+        let mut x = self.conv1.forward(input)?;
+        x = self.conv2.forward(x)?;
 
         x = x.flatten(Some(1), None)?;
 
-        x = self.linear1.forward((x, training))?;
-        x = self.linear2.forward((x, training))?;
+        x = self.linear1.forward(x)?;
+        x = self.linear2.forward(x)?;
         Ok(x)
     }
 }

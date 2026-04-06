@@ -29,7 +29,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Examples
 /// ```
-/// use nove::model::layer::Conv2dBuilder;
+/// use nove::model::nn::Conv2dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
 /// let conv = Conv2dBuilder::new(3, 64, (3, 3))  // Required: in_channels, out_channels, kernel_size
@@ -242,7 +242,7 @@ impl Display for Conv2d {
 ///
 /// # Examples
 /// ```
-/// use nove::model::layer::Conv2dBuilder;
+/// use nove::model::nn::Conv2dBuilder;
 /// use nove::tensor::{Device, DType};
 ///
 /// let conv = Conv2dBuilder::new(3, 64, (3, 3))  // Required: in_channels, out_channels, kernel_size
@@ -299,7 +299,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.in_channels(3);
     /// ```
@@ -318,7 +318,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.out_channels(64);
     /// ```
@@ -337,7 +337,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.kernel_size((3, 3));
     /// ```
@@ -356,7 +356,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.padding(1);
     /// ```
@@ -375,7 +375,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.stride(1);
     /// ```
@@ -394,7 +394,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.dilation(1);
     /// ```
@@ -413,7 +413,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.groups(1);
     /// ```
@@ -432,7 +432,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.bias_enabled(true);
     /// ```
@@ -451,7 +451,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// use nove::tensor::Device;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.device(Device::cpu());
@@ -471,7 +471,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// use nove::tensor::DType;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.dtype(DType::F32);
@@ -491,7 +491,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// conv_builder.grad_enabled(true);
     /// ```
@@ -508,7 +508,7 @@ impl Conv2dBuilder {
     ///
     /// # Examples
     /// ```
-    /// use nove::model::layer::Conv2dBuilder;
+    /// use nove::model::nn::Conv2dBuilder;
     /// let mut conv_builder = Conv2dBuilder::new(3, 64, (3, 3));
     /// let conv = conv_builder.build().unwrap();
     /// ```

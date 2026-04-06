@@ -290,11 +290,6 @@ impl Tensor {
             }
         };
 
-        println!(
-            "The length of grad_store is {}",
-            grad_store.get_ids().count()
-        );
-
         // The parent tensors(including indirect parents) that have gradient enabled
         let mut parents = Vec::new();
         // The queue for pending tensors
@@ -343,10 +338,6 @@ impl Tensor {
             parents.extend(grad_enabled_parents);
         }
 
-        // for parent in &parents {
-        //     println!("{}:{}", parent.name().unwrap().unwrap(), parent);
-        // }
-
         // Update the gradient of each parent tensor
         parents
             .par_iter()
@@ -361,8 +352,6 @@ impl Tensor {
                 let new_grad = grad_store
                     .get(inner_tensor)
                     .ok_or(TensorError::NoTensorGradient)?;
-
-                println!("new_grad: {:?}", new_grad);
 
                 match &parent_write.grad {
                     // If the parent tensor already has a gradient, add the new gradient to it

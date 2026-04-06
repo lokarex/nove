@@ -1,6 +1,6 @@
-use nove::model::layer::BatchNorm1dBuilder;
 use nove::model::Model;
-use nove::tensor::{Device, DType, Shape, Tensor};
+use nove::model::nn::BatchNorm1dBuilder;
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_batch_norm1d_basic_forward() {
@@ -13,16 +13,12 @@ fn test_batch_norm1d_basic_forward() {
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(
-        vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0],
-        &Device::cpu(),
-        false,
-    )
-    .unwrap()
-    .reshape(&Shape::from_dims(&[2, 3]))
-    .unwrap();
+    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &Device::cpu(), false)
+        .unwrap()
+        .reshape(&Shape::from_dims(&[2, 3]))
+        .unwrap();
 
-    let output = bn.forward((input, true)).unwrap();
+    let output = bn.forward(input).unwrap();
     let output_shape = output.shape().unwrap();
     assert_eq!(output_shape.dims(), &[2, 3]);
 
@@ -41,19 +37,16 @@ fn test_batch_norm1d_training_vs_inference() {
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(
-        vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0],
-        &Device::cpu(),
-        false,
-    )
-    .unwrap()
-    .reshape(&Shape::from_dims(&[2, 3]))
-    .unwrap();
+    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &Device::cpu(), false)
+        .unwrap()
+        .reshape(&Shape::from_dims(&[2, 3]))
+        .unwrap();
 
     let initial_running_mean = bn.running_mean().to_vec::<f32>().unwrap();
     let initial_running_var = bn.running_var().to_vec::<f32>().unwrap();
 
-    let output_training = bn.forward((input.copy(), true)).unwrap();
+    // Training mode (default)
+    let output_training = bn.forward(input.copy()).unwrap();
 
     let updated_running_mean = bn.running_mean().to_vec::<f32>().unwrap();
     let updated_running_var = bn.running_var().to_vec::<f32>().unwrap();
@@ -63,7 +56,9 @@ fn test_batch_norm1d_training_vs_inference() {
         assert_ne!(initial_running_var[i], updated_running_var[i]);
     }
 
-    let output_inference = bn.forward((input.copy(), false)).unwrap();
+    // Inference mode
+    bn.eval().unwrap();
+    let output_inference = bn.forward(input.copy()).unwrap();
     let output_training_vec = output_training.to_vec::<f32>().unwrap();
     let output_inference_vec = output_inference.to_vec::<f32>().unwrap();
 
@@ -99,7 +94,7 @@ fn test_batch_norm1d_running_statistics_update() {
     let initial_running_mean = bn.running_mean().to_vec::<f32>().unwrap();
     let initial_running_var = bn.running_var().to_vec::<f32>().unwrap();
 
-    bn.forward((input1, true)).unwrap();
+    bn.forward(input1).unwrap();
 
     let after_first_running_mean = bn.running_mean().to_vec::<f32>().unwrap();
     let after_first_running_var = bn.running_var().to_vec::<f32>().unwrap();
@@ -114,7 +109,7 @@ fn test_batch_norm1d_running_statistics_update() {
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
 
-    bn.forward((input2, true)).unwrap();
+    bn.forward(input2).unwrap();
 
     let after_second_running_mean = bn.running_mean().to_vec::<f32>().unwrap();
     let after_second_running_var = bn.running_var().to_vec::<f32>().unwrap();
@@ -165,8 +160,8 @@ fn test_batch_norm1d_epsilon_effect() {
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
 
-    let output_small = bn_small_epsilon.forward((input.copy(), true)).unwrap();
-    let output_large = bn_large_epsilon.forward((input.copy(), true)).unwrap();
+    let output_small = bn_small_epsilon.forward(input.copy()).unwrap();
+    let output_large = bn_large_epsilon.forward(input.copy()).unwrap();
 
     let output_small_vec = output_small.to_vec::<f32>().unwrap();
     let output_large_vec = output_large.to_vec::<f32>().unwrap();
@@ -204,7 +199,7 @@ fn test_batch_norm1d_3d_input() {
     .reshape(&Shape::from_dims(&[2, 2, 3]))
     .unwrap();
 
-    let output = bn.forward((input, true)).unwrap();
+    let output = bn.forward(input).unwrap();
     let output_shape = output.shape().unwrap();
     assert_eq!(output_shape.dims(), &[2, 2, 3]);
 
@@ -228,7 +223,7 @@ fn test_batch_norm1d_affine_false() {
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
 
-    let output = bn.forward((input, true)).unwrap();
+    let output = bn.forward(input).unwrap();
     let output_vec = output.to_vec::<f32>().unwrap();
     assert_eq!(output_vec.len(), 4);
 

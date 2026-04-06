@@ -6,66 +6,60 @@ use std::{
 
 use nove_tensor::{DType, Device, Tensor};
 
-use crate::layer::{Dropout, GruCell, GruCellBuilder};
+use crate::nn::{Activation, Dropout, RnnCell, RnnCellBuilder};
 use crate::{Model, ModelError};
 
 static ID: AtomicUsize = AtomicUsize::new(0);
 
-/// Gated Recurrent Unit layer.
+/// Recurrent Neural Network layer.
 ///
 /// <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
 ///
-/// The Gru (Gated Recurrent Unit) is a multi-layer recurrent neural network
-/// that applies gated recurrence with reset and update gates across multiple layers.
-/// It is a simpler alternative to LSTM with fewer parameters.
+/// The Rnn layer is a multi-layer recurrent neural network that applies a      
+/// transformation to the input and previous hidden state across multiple layers.
 ///
-/// The GRU computes the following for each time step and each layer:
+/// For each time step and each layer, the RNN computes the following:
 ///
-/// $$ r_t = \sigma(W_{ir} x_t + b_{ir} + W_{hr} h_{t-1} + b_{hr}) $$
-///
-/// $$ z_t = \sigma(W_{iz} x_t + b_{iz} + W_{hz} h_{t-1} + b_{hz}) $$
-///
-/// $$ n_t = \tanh(W_{in} x_t + b_{in} + r_t \odot (W_{hn} h_{t-1} + b_{hn})) $$
-///
-/// $$ h_t = (1 - z_t) \odot n_t + z_t \odot h_{t-1} $$
+/// $$ h_t' = \text{activation}(W_{ih} x_t + b_{ih} + W_{hh} h_{t-1} + b_{hh}) $$
 ///
 /// Where:
-/// - \( x_t \) is the input at time step t
+/// - \( x_t \) is the input tensor at time step t
 /// - \( h_{t-1} \) is the hidden state from previous time step
-/// - \( r_t \) is the reset gate
-/// - \( z_t \) is the update gate
-/// - \( n_t \) is the candidate hidden state
-/// - \( h_t \) is the hidden state at time step t
-/// - \( \sigma \) is the sigmoid function
-/// - \( \tanh \) is the hyperbolic tangent function
-/// - \( \odot \) denotes element-wise multiplication
+/// - \( W_{ih} \) is the weight matrix from input to hidden
+/// - \( b_{ih} \) is the bias vector for input to hidden
+/// - \( W_{hh} \) is the weight matrix from hidden to hidden
+/// - \( b_{hh} \) is the bias vector for hidden to hidden
+/// - \( \text{activation} \) is the activation function (tanh or ReLU)
 ///
 /// # Notes
-/// * The `Gru` is now only created by the [`GruBuilder`].
+/// * The `Rnn` is now only created by the [`RnnBuilder`].
 /// * The forward pass expects an input tensor and returns the output tensor and hidden states.
-/// * The GRU layer can be bidirectional, processing the input sequence in both forward and backward directions.
-/// * Dropout can be applied between GRU layers (except the last layer) to prevent overfitting.
+/// * The Rnn layer can be bidirectional, processing the input sequence in both forward and backward directions.
+/// * Dropout can be applied between RNN layers (except the last layer) to prevent overfitting.
 ///
 /// # Fields
-/// * `cells` - The GRU cells for each layer and direction (forward/backward).  
-/// * `dropout` - The dropout layer applied between GRU layers (optional).      
+/// * `cells` - The RNN cells for each layer and direction (forward/backward).  
+/// * `dropout` - The dropout layer applied between RNN layers (optional).      
 /// * `input_size` - The number of input features.
 /// * `hidden_size` - The number of hidden features.
 /// * `num_layers` - The number of recurrent layers.
+/// * `nonlinearity` - The activation function to use.
 /// * `bias` - Whether bias terms are enabled.
 /// * `batch_first` - Whether the input tensor has batch dimension first (batch, seq, feature) or last (seq, batch, feature).
-/// * `dropout_rate` - The dropout probability between GRU layers (except the last layer).
-/// * `bidirectional` - Whether the GRU is bidirectional.
+/// * `dropout_rate` - The dropout probability between RNN layers (except the last layer).
+/// * `bidirectional` - Whether the RNN is bidirectional.
 /// * `num_directions` - The number of directions (1 for unidirectional, 2 for bidirectional).
-/// * `id` - The unique ID of the GRU layer.
+/// * `id` - The unique ID of the RNN layer.
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::GruBuilder;
+/// use nove::model::nn::RnnBuilder;
+/// use nove::model::nn::Activation;
 /// use nove::tensor::{Device, DType};
 ///
-/// let gru = GruBuilder::new(10, 20)
+/// let rnn = RnnBuilder::new(10, 20)
 ///     .num_layers(2)
+///     .nonlinearity(Activation::tanh())
 ///     .bias(true)
 ///     .batch_first(true)
 ///     .dropout(0.5)
@@ -77,15 +71,16 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// ```
 ///
 /// # See Also
-/// * [`GruBuilder`] - The builder for the Gru layer.
-/// * [`GruCell`] - The basic GRU cell used by the Gru layer.
+/// * [`RnnBuilder`] - The builder for the Rnn layer.
+/// * [`RnnCell`] - The basic RNN cell used by the Rnn layer.
 #[derive(Debug, Clone)]
-pub struct Gru {
-    cells: Vec<Vec<GruCell>>,
+pub struct Rnn {
+    cells: Vec<Vec<RnnCell>>,
     dropout: Option<Dropout>,
     input_size: usize,
     hidden_size: usize,
     num_layers: usize,
+    nonlinearity: Activation,
     bias: bool,
     batch_first: bool,
     dropout_rate: f64,
@@ -94,7 +89,7 @@ pub struct Gru {
     id: usize,
 }
 
-impl Gru {
+impl Rnn {
     /// Get the input size.
     ///
     /// # Returns
@@ -119,6 +114,14 @@ impl Gru {
         self.num_layers
     }
 
+    /// Get the activation function.
+    ///
+    /// # Returns
+    /// * `Activation` - The activation function.
+    pub fn nonlinearity(&self) -> Activation {
+        self.nonlinearity.clone()
+    }
+
     /// Get whether bias is enabled.
     ///
     /// # Returns
@@ -138,15 +141,15 @@ impl Gru {
     /// Get the dropout rate.
     ///
     /// # Returns
-    /// * `f64` - The dropout probability between GRU layers.
+    /// * `f64` - The dropout probability between RNN layers.
     pub fn dropout_rate(&self) -> f64 {
         self.dropout_rate
     }
 
-    /// Get whether the GRU is bidirectional.
+    /// Get whether the RNN is bidirectional.
     ///
     /// # Returns
-    /// * `bool` - Whether the GRU is bidirectional.
+    /// * `bool` - Whether the RNN is bidirectional.
     pub fn bidirectional(&self) -> bool {
         self.bidirectional
     }
@@ -159,7 +162,7 @@ impl Gru {
         self.num_directions
     }
 
-    /// Get the unique ID of the GRU layer.
+    /// Get the unique ID of the RNN layer.
     ///
     /// # Returns
     /// * `usize` - The unique ID.
@@ -168,12 +171,12 @@ impl Gru {
     }
 }
 
-/// The builder for the Gru layer.
+/// The builder for the Rnn layer.
 ///
 /// # Notes
-/// * The `GruBuilder` provides [`GruBuilder::new()`] method to create a builder with required parameters.
-/// * The GRU cells are initialized with uniform distribution `U(-sqrt(k), sqrt(k))` where `k = 1 / hidden_size`,
-///   following PyTorch's GRU initialization.
+/// * The `RnnBuilder` provides [`RnnBuilder::new()`] method to create a builder with required parameters.
+/// * The RNN cells are initialized with uniform distribution `U(-sqrt(k), sqrt(k))` where `k = 1 / hidden_size`,
+///   following PyTorch's RNN initialization.
 ///   The bias tensors are initialized with zeros (if enabled).
 ///
 /// # Required Arguments
@@ -182,10 +185,11 @@ impl Gru {
 ///
 /// # Optional Arguments
 /// * `num_layers` - The number of recurrent layers. Default is `1`.
+/// * `nonlinearity` - The activation function to use. Default is `Activation::Tanh`.
 /// * `bias` - Whether to enable the bias terms. Default is `true`.
 /// * `batch_first` - Whether the input tensor has batch dimension first. Default is `false`.
-/// * `dropout` - The dropout probability between GRU layers (except the last layer). Default is `0.0`.
-/// * `bidirectional` - Whether the GRU is bidirectional. Default is `false`.   
+/// * `dropout` - The dropout probability between RNN layers (except the last layer). Default is `0.0`.
+/// * `bidirectional` - Whether the RNN is bidirectional. Default is `false`.   
 /// * `device` - The device to use for the layer. Default is `Device::cpu()`.   
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.    
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
@@ -194,21 +198,24 @@ impl Gru {
 /// * `input_size` - The number of input features.
 /// * `hidden_size` - The number of hidden features.
 /// * `num_layers` - The number of recurrent layers.
+/// * `nonlinearity` - The activation function to use.
 /// * `bias` - Whether to enable the bias terms.
 /// * `batch_first` - Whether the input tensor has batch dimension first.       
-/// * `dropout` - The dropout probability between GRU layers (except the last layer).
-/// * `bidirectional` - Whether the GRU is bidirectional.
+/// * `dropout` - The dropout probability between RNN layers (except the last layer).
+/// * `bidirectional` - Whether the RNN is bidirectional.
 /// * `device` - The device to use for the layer.
 /// * `dtype` - The data type to use for the layer.
 /// * `grad_enabled` - Whether to enable the gradient computation.
 ///
 /// # Examples
 /// ```no_run
-/// use nove::model::layer::GruBuilder;
+/// use nove::model::nn::RnnBuilder;
+/// use nove::model::nn::Activation;
 /// use nove::tensor::{Device, DType};
 ///
-/// let gru = GruBuilder::new(10, 20)
+/// let rnn = RnnBuilder::new(10, 20)
 ///     .num_layers(2)
+///     .nonlinearity(Activation::tanh())
 ///     .bias(true)
 ///     .batch_first(true)
 ///     .dropout(0.5)
@@ -218,10 +225,11 @@ impl Gru {
 ///     .grad_enabled(true)
 ///     .build();
 /// ```
-pub struct GruBuilder {
+pub struct RnnBuilder {
     input_size: usize,
     hidden_size: usize,
     num_layers: usize,
+    nonlinearity: Activation,
     bias: bool,
     batch_first: bool,
     dropout: f64,
@@ -231,8 +239,8 @@ pub struct GruBuilder {
     grad_enabled: bool,
 }
 
-impl GruBuilder {
-    /// Create a new GruBuilder with required input_size and hidden_size.
+impl RnnBuilder {
+    /// Create a new RnnBuilder with required input_size and hidden_size.
     ///
     /// # Arguments
     /// * `input_size` - The number of expected features in the input x
@@ -245,6 +253,7 @@ impl GruBuilder {
             input_size,
             hidden_size,
             num_layers: 1,
+            nonlinearity: Activation::tanh(),
             bias: true,
             batch_first: false,
             dropout: 0.0,
@@ -264,6 +273,18 @@ impl GruBuilder {
     /// * `&mut Self` - The builder with the configured number of layers.
     pub fn num_layers(&mut self, num_layers: usize) -> &mut Self {
         self.num_layers = num_layers;
+        self
+    }
+
+    /// Configure the activation function.
+    ///
+    /// # Arguments
+    /// * `nonlinearity` - The activation function (e.g., `Activation::Tanh`, `Activation::ReLU`)
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder with configured activation
+    pub fn nonlinearity(&mut self, nonlinearity: Activation) -> &mut Self {
+        self.nonlinearity = nonlinearity;
         self
     }
 
@@ -291,7 +312,7 @@ impl GruBuilder {
         self
     }
 
-    /// Configure the dropout probability between GRU layers (except the last layer).
+    /// Configure the dropout probability between RNN layers (except the last layer).
     ///
     /// # Arguments
     /// * `dropout` - The dropout probability (must be in range [0.0, 1.0]).
@@ -303,10 +324,10 @@ impl GruBuilder {
         self
     }
 
-    /// Configure whether the GRU is bidirectional.
+    /// Configure whether the RNN is bidirectional.
     ///
     /// # Arguments
-    /// * `bidirectional` - Whether the GRU is bidirectional.
+    /// * `bidirectional` - Whether the RNN is bidirectional.
     ///
     /// # Returns
     /// * `&mut Self` - The builder with the configured directionality.
@@ -351,33 +372,33 @@ impl GruBuilder {
         self
     }
 
-    /// Build the GRU layer.
+    /// Build the RNN layer.
     ///
     /// # Returns
-    /// * `Ok(Gru)` - The built GRU layer.
-    /// * `Err(ModelError)` - The error when building the GRU layer.
-    pub fn build(&self) -> Result<Gru, ModelError> {
+    /// * `Ok(Rnn)` - The built RNN layer.
+    /// * `Err(ModelError)` - The error when building the RNN layer.
+    pub fn build(&self) -> Result<Rnn, ModelError> {
         if self.input_size == 0 {
             return Err(ModelError::InvalidArgument(
-                "input_size in GruBuilder must be greater than 0".to_string(),
+                "input_size in RnnBuilder must be greater than 0".to_string(),
             ));
         }
 
         if self.hidden_size == 0 {
             return Err(ModelError::InvalidArgument(
-                "hidden_size in GruBuilder must be greater than 0".to_string(),
+                "hidden_size in RnnBuilder must be greater than 0".to_string(),
             ));
         }
 
         if self.num_layers == 0 {
             return Err(ModelError::InvalidArgument(
-                "num_layers in GruBuilder must be greater than 0".to_string(),
+                "num_layers in RnnBuilder must be greater than 0".to_string(),
             ));
         }
 
         if !(0.0..=1.0).contains(&self.dropout) {
             return Err(ModelError::InvalidArgument(
-                "dropout in GruBuilder must be in range [0.0, 1.0]".to_string(),
+                "dropout in RnnBuilder must be in range [0.0, 1.0]".to_string(),
             ));
         }
 
@@ -398,8 +419,9 @@ impl GruBuilder {
                     self.hidden_size * num_directions
                 };
 
-                let mut cell_builder = GruCellBuilder::new(input_size_for_layer, self.hidden_size);
+                let mut cell_builder = RnnCellBuilder::new(input_size_for_layer, self.hidden_size);
                 cell_builder
+                    .activation(self.nonlinearity.clone())
                     .bias_enabled(self.bias)
                     .device(self.device.clone())
                     .dtype(self.dtype.clone())
@@ -413,12 +435,13 @@ impl GruBuilder {
 
         let id = ID.fetch_add(1, Ordering::Relaxed);
 
-        Ok(Gru {
+        Ok(Rnn {
             cells,
             dropout: dropout_layer,
             input_size: self.input_size,
             hidden_size: self.hidden_size,
             num_layers: self.num_layers,
+            nonlinearity: self.nonlinearity.clone(),
             bias: self.bias,
             batch_first: self.batch_first,
             dropout_rate: self.dropout,
@@ -429,11 +452,11 @@ impl GruBuilder {
     }
 }
 
-impl Model for Gru {
+impl Model for Rnn {
     type Input = Tensor;
     type Output = (Tensor, Tensor);
 
-    /// Apply the GRU layer to the input tensor.
+    /// Apply the RNN layer to the input tensor.
     ///
     /// # Arguments
     /// * `input` - The input tensor with shape [batch_size, seq_len, input_size] if `batch_first` is true,
@@ -444,14 +467,14 @@ impl Model for Gru {
     ///   - The output tensor with shape [batch_size, seq_len, hidden_size * num_directions] if `batch_first` is true,
     ///     or [seq_len, batch_size, hidden_size * num_directions] if `batch_first` is false.
     ///   - The hidden state tensor with shape [num_layers * num_directions, batch_size, hidden_size].
-    /// * `Err(ModelError)` - The error when applying the GRU layer to the input tensor.
+    /// * `Err(ModelError)` - The error when applying the RNN layer to the input tensor.
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, ModelError> {
         let input_shape = input.shape()?;
         let dims = input_shape.dims();
 
         if dims.len() != 3 {
             return Err(ModelError::InvalidArgument(format!(
-                "Gru expects 3D input tensor, got shape {:?}",
+                "Rnn expects 3D input tensor, got shape {:?}",
                 dims
             )));
         }
@@ -474,7 +497,7 @@ impl Model for Gru {
         // Validate input size
         if input_size != self.input_size {
             return Err(ModelError::InvalidArgument(format!(
-                "Gru expects input size {}, got {}",
+                "Rnn expects input size {}, got {}",
                 self.input_size, input_size
             )));
         }
@@ -521,7 +544,7 @@ impl Model for Gru {
                     // Get input for this time step
                     let input_slice = layer_input.narrow(0, t, 1)?.squeeze(Some(0))?;
 
-                    // Forward through GRU cell
+                    // Forward through RNN cell
                     current_hidden_state = cell.forward((input_slice, current_hidden_state))?;
                     direction_outputs.push(current_hidden_state.unsqueeze(0)?);
                 }
@@ -549,7 +572,7 @@ impl Model for Gru {
             // Apply dropout between layers (except after last layer)
             let next_layer_input = if layer_idx < self.num_layers - 1 && self.dropout_rate > 0.0 {
                 if let Some(dropout) = &mut self.dropout {
-                    dropout.forward((layer_output, true))?
+                    dropout.forward(layer_output)?
                 } else {
                     layer_output
                 }
@@ -630,7 +653,7 @@ impl Model for Gru {
         let mut params = HashMap::new();
         for (l, layer) in self.cells.iter().enumerate() {
             for (d, cell) in layer.iter().enumerate() {
-                let prefix = format!("gru.{}.layer{}.dir{}", self.id, l, d);
+                let prefix = format!("rnn.{}.layer{}.dir{}", self.id, l, d);
                 let cell_params = cell.named_parameters()?;
                 for (name, tensor) in cell_params {
                     params.insert(format!("{}.{}", prefix, name), tensor);
@@ -645,15 +668,16 @@ impl Model for Gru {
     }
 }
 
-impl Display for Gru {
+impl Display for Rnn {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "gru.{}(input_size={}, hidden_size={}, num_layers={}, bias={}, batch_first={}, dropout_rate={}, bidirectional={})",
+            "rnn.{}(input_size={}, hidden_size={}, num_layers={}, nonlinearity={}, bias={}, batch_first={}, dropout_rate={}, bidirectional={})",
             self.id,
             self.input_size,
             self.hidden_size,
             self.num_layers,
+            self.nonlinearity,
             self.bias,
             self.batch_first,
             self.dropout_rate,

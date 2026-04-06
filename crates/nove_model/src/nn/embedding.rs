@@ -24,7 +24,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// # Examples
 /// ```
-/// use nove::model::layer::EmbeddingBuilder;
+/// use nove::model::nn::EmbeddingBuilder;
 /// use nove::tensor::{Device, DType};
 ///
 /// let embedding = EmbeddingBuilder::new(1000, 512)  // Required: num_embeddings, embedding_dim
@@ -211,7 +211,7 @@ impl Display for Embedding {
 ///
 /// # Examples
 /// ```
-/// use nove::model::layer::EmbeddingBuilder;
+/// use nove::model::nn::EmbeddingBuilder;
 /// use nove::tensor::{Device, DType};
 ///
 /// let embedding = EmbeddingBuilder::new(1000, 512)  // Required: num_embeddings, embedding_dim

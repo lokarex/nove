@@ -1,292 +1,173 @@
-use std::path::PathBuf;
-
 use nove_dataloader::Dataloader;
 use nove_lossfn::LossFn;
-use nove_metric::{
-    AccuracyMetric, AnyMetric, EvaluationMetric, LossMetric, Metric, MetricValue, ResourceMetric,
-};
+use nove_metric::{AccuracyMetric, AnyMetric, EvaluationMetric, LossMetric, ResourceMetric};
 use nove_model::Model;
 use nove_optimizer::Optimizer;
 use nove_tensor::Tensor;
 
+use crate::common::{EpochLearner, EpochLearnerBuilder};
 use crate::{Learner, LearnerError};
 
 /// Image classification learner, specialized for image classification tasks.
 ///
+/// This learner delegates core functionality to [`EpochLearner`] via predefined closures.
+///
 /// # Notes
 /// * The `ImageClassificationLearner` can only be created by the [`ImageClassificationLearnerBuilder`].
-/// * Argument validation is deferred to the actual method calls (`train`/`validate`/`test`).
 ///
 /// # Fields
-/// * `train_dataloader` - Dataloader for training data.
-/// * `validate_dataloader` - Dataloader for validation data.
-/// * `test_dataloader` - Dataloader for test data.
-/// * `model` - The model to train/evaluate.
-/// * `lossfn` - Loss function for training.
-/// * `optimizer` - Optimizer for training.
-/// * `epoch` - Number of training epochs.
-/// * `metrics` - Metrics to track during training/evaluation.
-/// * `log_interval` - Number of batches between logging.
-/// * `model_name` - Name of the model for checkpointing.
-/// * `result_dir` - Directory to save checkpoints.
-/// * `best_accuracy` - Best validation accuracy achieved during training.
+/// * `epoch_learner` - The underlying epoch learner handling training/evaluation loops.
 pub struct ImageClassificationLearner<D, M, L, O>
 where
     D: Dataloader<Output = (Tensor, Tensor)>,
-    M: Model<Input = (Tensor, bool), Output = Tensor>,
+    M: Model<Input = Tensor, Output = Tensor>,
     L: LossFn<Input = (Tensor, Tensor), Output = Tensor> + Clone,
     O: Optimizer<StepOutput = ()>,
 {
-    train_dataloader: Option<D>,
-    validate_dataloader: Option<D>,
-    test_dataloader: Option<D>,
-    model: M,
-    lossfn: Option<L>,
-    optimizer: Option<O>,
-    epoch: usize,
-    metrics: Vec<AnyMetric>,
-    log_interval: usize,
-    model_name: String,
-    result_dir: PathBuf,
-    best_accuracy: f64,
+    epoch_learner: EpochLearner<D, M, L, O>,
 }
 
 impl<D, M, L, O> ImageClassificationLearner<D, M, L, O>
 where
     D: Dataloader<Output = (Tensor, Tensor)>,
-    M: Model<Input = (Tensor, bool), Output = Tensor>,
+    M: Model<Input = Tensor, Output = Tensor>,
     L: LossFn<Input = (Tensor, Tensor), Output = Tensor> + Clone,
     O: Optimizer<StepOutput = ()>,
 {
-    fn ensure_train_ready(&self) -> Result<(), LearnerError> {
-        self.train_dataloader
-            .as_ref()
-            .ok_or(LearnerError::MissingArgument(
-                "train_dataloader is required for training".to_string(),
-            ))?;
-        self.validate_dataloader
-            .as_ref()
-            .ok_or(LearnerError::MissingArgument(
-                "validate_dataloader is required for training".to_string(),
-            ))?;
-        self.lossfn.as_ref().ok_or(LearnerError::MissingArgument(
-            "lossfn is required for training".to_string(),
-        ))?;
-        self.optimizer
-            .as_ref()
-            .ok_or(LearnerError::MissingArgument(
-                "optimizer is required for training".to_string(),
-            ))?;
-        if self.epoch == 0 {
-            return Err(LearnerError::InvalidArgument(
-                "epoch must be greater than 0 for training".to_string(),
-            ));
-        }
-        if self.log_interval == 0 {
-            return Err(LearnerError::InvalidArgument(
-                "log_interval must be greater than 0 for training".to_string(),
-            ));
-        }
-        Ok(())
+    /// Get model reference.
+    ///
+    /// # Returns
+    /// * `&M` - The model reference.
+    pub fn model(&self) -> &M {
+        self.epoch_learner.model()
     }
 
-    fn ensure_validate_ready(&self) -> Result<(), LearnerError> {
-        self.validate_dataloader
-            .as_ref()
-            .ok_or(LearnerError::MissingArgument(
-                "validate_dataloader is required for validation".to_string(),
-            ))?;
-        Ok(())
+    /// Get mutable model reference.
+    ///
+    /// # Returns
+    /// * `&mut M` - The mutable model reference.
+    pub fn model_mut(&mut self) -> &mut M {
+        self.epoch_learner.model_mut()
     }
 
-    fn ensure_test_ready(&self) -> Result<(), LearnerError> {
-        self.test_dataloader
-            .as_ref()
-            .ok_or(LearnerError::MissingArgument(
-                "test_dataloader is required for testing".to_string(),
-            ))?;
-        Ok(())
+    /// Get metrics reference.
+    ///
+    /// # Returns
+    /// * `&[AnyMetric]` - The metrics reference.
+    pub fn metrics(&self) -> &[AnyMetric] {
+        self.epoch_learner.metrics()
+    }
+
+    /// Get mutable metrics reference.
+    ///
+    /// # Returns
+    /// * `&mut Vec<AnyMetric>` - The mutable metrics reference.
+    pub fn metrics_mut(&mut self) -> &mut Vec<AnyMetric> {
+        self.epoch_learner.metrics_mut()
+    }
+
+    /// Get epoch count.
+    ///
+    /// # Returns
+    /// * `usize` - The number of epochs.
+    pub fn epoch_count(&self) -> usize {
+        self.epoch_learner.epoch_count()
+    }
+
+    /// Get log interval.
+    ///
+    /// # Returns
+    /// * `usize` - The log interval.
+    pub fn log_interval(&self) -> usize {
+        self.epoch_learner.log_interval()
+    }
+
+    /// Get mutable train dataloader reference.
+    ///
+    /// # Returns
+    /// * `Option<&mut D>` - The mutable train dataloader reference if set.
+    pub fn train_dataloader_mut(&mut self) -> Option<&mut D> {
+        self.epoch_learner.train_dataloader_mut()
+    }
+
+    /// Get mutable validate dataloader reference.
+    ///
+    /// # Returns
+    /// * `Option<&mut D>` - The mutable validate dataloader reference if set.
+    pub fn validate_dataloader_mut(&mut self) -> Option<&mut D> {
+        self.epoch_learner.validate_dataloader_mut()
+    }
+
+    /// Get mutable test dataloader reference.
+    ///
+    /// # Returns
+    /// * `Option<&mut D>` - The mutable test dataloader reference if set.
+    pub fn test_dataloader_mut(&mut self) -> Option<&mut D> {
+        self.epoch_learner.test_dataloader_mut()
+    }
+
+    /// Get lossfn reference.
+    ///
+    /// # Returns
+    /// * `Option<&L>` - The lossfn reference if set.
+    pub fn lossfn(&self) -> Option<&L> {
+        self.epoch_learner.lossfn()
+    }
+
+    /// Get mutable optimizer reference.
+    ///
+    /// # Returns
+    /// * `Option<&mut O>` - The mutable optimizer reference if set.
+    pub fn optimizer_mut(&mut self) -> Option<&mut O> {
+        self.epoch_learner.optimizer_mut()
     }
 }
 
 impl<D, M, L, O> Learner for ImageClassificationLearner<D, M, L, O>
 where
     D: Dataloader<Output = (Tensor, Tensor)>,
-    M: Model<Input = (Tensor, bool), Output = Tensor>,
+    M: Model<Input = Tensor, Output = Tensor>,
     L: LossFn<Input = (Tensor, Tensor), Output = Tensor> + Clone,
     O: Optimizer<StepOutput = ()>,
 {
+    /// Run the training loop.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If training completes successfully.
+    /// * `Err(LearnerError)` - If training fails.
     fn train(&mut self) -> Result<(), LearnerError> {
-        self.ensure_train_ready()?;
-
-        let train_dataloader = self.train_dataloader.as_mut().unwrap();
-        let validate_dataloader = self.validate_dataloader.as_mut().unwrap();
-        let lossfn = self.lossfn.as_ref().unwrap();
-        let optimizer = self.optimizer.as_mut().unwrap();
-
-        for epoch in 0..self.epoch {
-            let mut batch_count: usize = 0;
-
-            loop {
-                let (inputs, targets) = match train_dataloader.next()? {
-                    Some((inputs, targets)) => (inputs, targets),
-                    None => break,
-                };
-                let outputs = self.model.forward((inputs, true))?;
-
-                for metric in self.metrics.iter_mut() {
-                    if metric.is_evaluation() {
-                        metric.evaluate(&outputs, &targets)?
-                    } else {
-                        metric.sample()?
-                    };
-                }
-
-                let loss = lossfn.loss((outputs, targets))?;
-
-                optimizer.zero_grad()?;
-                loss.backward()?;
-                drop(loss);
-
-                optimizer.step()?;
-
-                batch_count += 1;
-                if batch_count == self.log_interval {
-                    print!("Train: Epoch {}/{}", epoch + 1, self.epoch,);
-                    for metric in self.metrics.iter_mut() {
-                        print!(", {}= {:.3}", metric.name()?, metric.value()?);
-                        metric.clear()?;
-                    }
-                    println!();
-                    batch_count = 0;
-                }
-            }
-            train_dataloader.reset()?;
-
-            print!("Validate: ");
-            let metrics_len = self.metrics.len();
-            loop {
-                let (inputs, targets) = match validate_dataloader.next()? {
-                    Some((inputs, targets)) => (inputs, targets),
-                    None => break,
-                };
-                let outputs = self.model.forward((inputs, false))?;
-                for metric in self.metrics.iter_mut() {
-                    if metric.is_evaluation() {
-                        metric.evaluate(&outputs, &targets)?
-                    } else {
-                        metric.sample()?
-                    };
-                }
-            }
-            validate_dataloader.reset()?;
-            for (i, metric) in self.metrics.iter_mut().enumerate() {
-                print!("{}= {:.3}", metric.name()?, metric.value()?);
-                if i != metrics_len - 1 {
-                    print!(", ");
-                }
-            }
-            println!();
-
-            self.model.save(
-                self.result_dir
-                    .join(format!("{}_{}.safetensors", self.model_name, epoch + 1))
-                    .to_str()
-                    .ok_or(LearnerError::InvalidPath(
-                        "result_dir in ImageClassificationLearnerBuilder".to_string(),
-                    ))?,
-            )?;
-
-            if let AnyMetric::AccuracyMetric(accuracy) = &mut self.metrics[0]
-                && let MetricValue::Scalar(accuracy) = accuracy.value()?
-                && accuracy > self.best_accuracy
-            {
-                self.best_accuracy = accuracy;
-
-                self.model.save(
-                    self.result_dir
-                        .join(format!("{}_best.safetensors", self.model_name))
-                        .to_str()
-                        .ok_or(LearnerError::InvalidPath(
-                            "result_dir in ImageClassificationLearnerBuilder".to_string(),
-                        ))?,
-                )?;
-            }
-
-            for metric in self.metrics.iter_mut() {
-                metric.clear()?;
-            }
-        }
-
-        Ok(())
+        self.epoch_learner.train()
     }
 
+    /// Run validation.
+    ///
+    /// # Returns
+    /// * `Ok(Vec<AnyMetric>)` - The validation metrics.
+    /// * `Err(LearnerError)` - If validation fails.
     fn validate(&mut self) -> Result<Vec<AnyMetric>, LearnerError> {
-        self.ensure_validate_ready()?;
-
-        let validate_dataloader = self.validate_dataloader.as_mut().unwrap();
-
-        loop {
-            let (inputs, targets) = match validate_dataloader.next()? {
-                Some((inputs, targets)) => (inputs, targets),
-                None => break,
-            };
-            let outputs = self.model.forward((inputs, false))?;
-
-            for metric in self.metrics.iter_mut() {
-                if metric.is_evaluation() {
-                    metric.evaluate(&outputs, &targets)?
-                } else {
-                    metric.sample()?
-                };
-            }
-        }
-        validate_dataloader.reset()?;
-
-        let metrics = self.metrics.clone();
-        for metric in self.metrics.iter_mut() {
-            metric.clear()?;
-        }
-
-        Ok(metrics)
+        self.epoch_learner.validate()
     }
 
+    /// Run testing.
+    ///
+    /// # Returns
+    /// * `Ok(Vec<AnyMetric>)` - The test metrics.
+    /// * `Err(LearnerError)` - If testing fails.
     fn test(&mut self) -> Result<Vec<AnyMetric>, LearnerError> {
-        self.ensure_test_ready()?;
-
-        let test_dataloader = self.test_dataloader.as_mut().unwrap();
-
-        loop {
-            let (inputs, targets) = match test_dataloader.next()? {
-                Some((inputs, targets)) => (inputs, targets),
-                None => break,
-            };
-            let outputs = self.model.forward((inputs, false))?;
-
-            for metric in self.metrics.iter_mut() {
-                if metric.is_evaluation() {
-                    metric.evaluate(&outputs, &targets)?
-                } else {
-                    metric.sample()?
-                };
-            }
-        }
-        test_dataloader.reset()?;
-
-        let metrics = self.metrics.clone();
-        for metric in self.metrics.iter_mut() {
-            metric.clear()?;
-        }
-
-        Ok(metrics)
+        self.epoch_learner.test()
     }
 }
 
 /// Builder for constructing [`ImageClassificationLearner`] instances.
 ///
+/// The builder delegates to [`EpochLearnerBuilder`] internally, setting up
+/// predefined closures for image classification tasks.
+///
 /// # Notes
-/// * The `ImageClassificationLearnerBuilder` implements the `Default` trait, so you can
-///   use `ImageClassificationLearnerBuilder::default()` to create a builder with default values.
+/// * The `ImageClassificationLearnerBuilder` implements the `Default` trait, so you can use
+///   `ImageClassificationLearnerBuilder::default()` to create a builder with default values.
+/// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::default()`].
+/// * `LossMetric` is automatically added when [`Self::lossfn()`] is called.
 /// * Argument validation is deferred to the actual method calls (`train`/`validate`/`test`).
 ///
 /// # Required Arguments
@@ -303,63 +184,38 @@ where
 /// * `test_dataloader` - Dataloader for testing. Required only for `test()`.
 /// * `lossfn` - Loss function. Required only for `train()`.
 /// * `optimizer` - Optimizer. Required only for `train()`.
-/// * `epoch` - Number of training epochs. Default is 10. Must be > 0 for `train()`.
-/// * `log_interval` - Logging frequency during training. Default is 10. Must be > 0 for `train()`.
-/// * `metrics` - Custom metrics to track. Default includes `AccuracyMetric`.
+/// * `epoch` - Number of training epochs. Default is 10.
+/// * `log_interval` - Logging frequency during training. Default is 10.
+/// * `metrics` - Custom metrics to track.
 /// * `result_dir` - Directory to save checkpoints. Default is current directory.
 ///
 /// # Fields
-/// * `train_dataloader` - Dataloader for training data.
-/// * `validate_dataloader` - Dataloader for validation data.
-/// * `test_dataloader` - Dataloader for test data.
-/// * `model` - The model to train/evaluate.
-/// * `lossfn` - Loss function for training.
-/// * `optimizer` - Optimizer for training.
-/// * `epoch` - Number of training epochs.
-/// * `metrics` - Metrics to track.
-/// * `log_interval` - Number of batches between logging.
-/// * `model_name` - Name of the model for checkpointing.
-/// * `result_dir` - Directory to save checkpoints.
+/// * `inner` - The underlying EpochLearnerBuilder handling construction.
+/// * `lossfn` - The loss function for training.
 pub struct ImageClassificationLearnerBuilder<D, M, L, O>
 where
     D: Dataloader<Output = (Tensor, Tensor)>,
-    M: Model<Input = (Tensor, bool), Output = Tensor>,
+    M: Model<Input = Tensor, Output = Tensor>,
     L: LossFn<Input = (Tensor, Tensor), Output = Tensor> + Clone,
     O: Optimizer<StepOutput = ()>,
 {
-    train_dataloader: Option<D>,
-    validate_dataloader: Option<D>,
-    test_dataloader: Option<D>,
-    model: Option<M>,
+    inner: EpochLearnerBuilder<D, M, L, O>,
     lossfn: Option<L>,
-    optimizer: Option<O>,
-    epoch: usize,
-    metrics: Vec<AnyMetric>,
-    log_interval: usize,
-    model_name: Option<String>,
-    result_dir: Option<String>,
 }
 
 impl<D, M, L, O> Default for ImageClassificationLearnerBuilder<D, M, L, O>
 where
     D: Dataloader<Output = (Tensor, Tensor)>,
-    M: Model<Input = (Tensor, bool), Output = Tensor>,
+    M: Model<Input = Tensor, Output = Tensor>,
     L: LossFn<Input = (Tensor, Tensor), Output = Tensor> + Clone,
     O: Optimizer<StepOutput = ()>,
 {
     fn default() -> Self {
+        let mut inner = EpochLearnerBuilder::new();
+        inner.metric(AnyMetric::AccuracyMetric(AccuracyMetric::new()));
         Self {
-            train_dataloader: None,
-            validate_dataloader: None,
-            test_dataloader: None,
-            model: None,
+            inner,
             lossfn: None,
-            optimizer: None,
-            epoch: 10,
-            metrics: vec![],
-            log_interval: 10,
-            model_name: None,
-            result_dir: None,
         }
     }
 }
@@ -367,117 +223,222 @@ where
 impl<D, M, L, O> ImageClassificationLearnerBuilder<D, M, L, O>
 where
     D: Dataloader<Output = (Tensor, Tensor)>,
-    M: Model<Input = (Tensor, bool), Output = Tensor>,
-    L: LossFn<Input = (Tensor, Tensor), Output = Tensor> + Clone,
+    M: Model<Input = Tensor, Output = Tensor>,
+    L: LossFn<Input = (Tensor, Tensor), Output = Tensor> + Clone + 'static,
     O: Optimizer<StepOutput = ()>,
 {
+    /// Sets the training dataloader.
+    ///
+    /// # Arguments
+    /// * `dataloader` - The training dataloader.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn train_dataloader(&mut self, dataloader: D) -> &mut Self {
-        self.train_dataloader = Some(dataloader);
+        self.inner.train_dataloader(dataloader);
         self
     }
 
+    /// Sets the validation dataloader.
+    ///
+    /// # Arguments
+    /// * `dataloader` - The validation dataloader.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn validate_dataloader(&mut self, dataloader: D) -> &mut Self {
-        self.validate_dataloader = Some(dataloader);
+        self.inner.validate_dataloader(dataloader);
         self
     }
 
+    /// Sets the test dataloader.
+    ///
+    /// # Arguments
+    /// * `dataloader` - The test dataloader.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn test_dataloader(&mut self, dataloader: D) -> &mut Self {
-        self.test_dataloader = Some(dataloader);
+        self.inner.test_dataloader(dataloader);
         self
     }
 
+    /// Sets the model.
+    ///
+    /// # Arguments
+    /// * `model` - The model to train/evaluate.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn model(&mut self, model: M) -> &mut Self {
-        self.model = Some(model);
-        let full_name = std::any::type_name::<M>();
-        let type_name = full_name
-            .rsplit("::")
-            .next()
-            .unwrap_or("model")
-            .split('<')
-            .next()
-            .unwrap_or("model");
-        self.model_name = Some(type_name.to_string());
+        self.inner.model(model);
         self
     }
 
+    /// Sets the loss function.
+    ///
+    /// # Notes
+    /// * Setting the loss function will also automatically add a [`LossMetric`] to track the loss.
+    ///
+    /// # Arguments
+    /// * `lossfn` - The loss function.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn lossfn(&mut self, lossfn: L) -> &mut Self {
         self.lossfn = Some(lossfn);
         self
     }
 
+    /// Sets the optimizer.
+    ///
+    /// # Arguments
+    /// * `optimizer` - The optimizer.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn optimizer(&mut self, optimizer: O) -> &mut Self {
-        self.optimizer = Some(optimizer);
+        self.inner.optimizer(optimizer);
         self
     }
 
+    /// Sets the number of training epochs.
+    ///
+    /// # Arguments
+    /// * `epoch` - The number of epochs. Default is 10.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn epoch(&mut self, epoch: usize) -> &mut Self {
-        self.epoch = epoch;
+        self.inner.epoch(epoch);
         self
     }
 
+    /// Sets additional metrics to track.
+    ///
+    /// # Notes
+    /// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::default()`].
+    /// * `LossMetric` is automatically added when [`Self::lossfn()`] is called.
+    /// * Do not manually add these two metrics.
+    ///
+    /// # Arguments
+    /// * `metrics` - A vector of metrics to track.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn metrics(&mut self, metrics: Vec<AnyMetric>) -> &mut Self {
-        self.metrics.extend(metrics);
+        self.inner.metrics(metrics);
         self
     }
 
+    /// Adds a single metric to track.
+    ///
+    /// # Notes
+    /// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::default()`].
+    /// * `LossMetric` is automatically added when [`Self::lossfn()`] is called.
+    /// * Do not manually add these two metrics.
+    ///
+    /// # Arguments
+    /// * `metric` - The metric to add.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn metric<MT: Into<AnyMetric>>(&mut self, metric: MT) -> &mut Self {
-        self.metrics.push(metric.into());
+        self.inner.metric(metric);
         self
     }
 
+    /// Sets the log interval.
+    ///
+    /// # Arguments
+    /// * `log_interval` - The number of batches between logging. Default is 10.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn log_interval(&mut self, log_interval: usize) -> &mut Self {
-        self.log_interval = log_interval;
+        self.inner.log_interval(log_interval);
         self
     }
 
+    /// Sets the result directory.
+    ///
+    /// # Arguments
+    /// * `result_dir` - The directory to save checkpoints.
+    ///
+    /// # Returns
+    /// * `&mut Self` - The builder itself.
     pub fn result_dir(&mut self, result_dir: &str) -> &mut Self {
-        self.result_dir = Some(result_dir.to_string());
+        self.inner.result_dir(result_dir);
         self
     }
 
+    /// Build the ImageClassificationLearner.
+    ///
+    /// This method sets up predefined closures for image classification tasks
+    /// and delegates to EpochLearnerBuilder for actual construction.
+    ///
+    /// # Returns
+    /// * `Ok(ImageClassificationLearner)` - The built learner.
+    /// * `Err(LearnerError)` - If required arguments are missing or invalid.
     pub fn build(&mut self) -> Result<ImageClassificationLearner<D, M, L, O>, LearnerError> {
-        let model = self.model.take().ok_or(LearnerError::MissingArgument(
-            "model in ImageClassificationLearnerBuilder is required".to_string(),
-        ))?;
-        let model_name = self.model_name.take().ok_or(LearnerError::MissingArgument(
-            "model_name in ImageClassificationLearnerBuilder (set by model() method)".to_string(),
-        ))?;
+        // Predefined train_step_fn for image classification
+        let train_step_fn = move |batch: (Tensor, Tensor),
+                                  model: &mut M,
+                                  lossfn: &mut L,
+                                  optimizer: &mut O,
+                                  metrics: &mut [AnyMetric]|
+              -> Result<(), LearnerError> {
+            let (inputs, targets) = batch;
+            let outputs = model.forward(inputs)?;
 
-        self.metrics
-            .insert(0, AnyMetric::AccuracyMetric(AccuracyMetric::new()));
+            for metric in metrics.iter_mut() {
+                if metric.is_evaluation() {
+                    metric.evaluate(&outputs, &targets)?
+                } else {
+                    metric.sample()?
+                };
+            }
 
-        if self.lossfn.is_some() {
-            self.metrics.insert(
-                1,
-                AnyMetric::LossMetric(LossMetric::new(nove_lossfn::CrossEntropyLoss::new())),
-            );
-        }
+            let loss = lossfn.loss((outputs, targets))?;
+            optimizer.zero_grad()?;
+            loss.backward()?;
+            drop(loss);
+            optimizer.step()?;
 
-        let result_dir = if let Some(result_dir) = self.result_dir.take() {
-            std::fs::create_dir_all(result_dir.clone()).map_err(|e| {
-                LearnerError::InvalidPath(format!(
-                    "Failed to create result_dir {:?}: {}",
-                    result_dir, e
-                ))
-            })?;
-            PathBuf::from(result_dir)
-        } else {
-            PathBuf::from(".")
+            Ok(())
         };
 
-        Ok(ImageClassificationLearner {
-            train_dataloader: self.train_dataloader.take(),
-            validate_dataloader: self.validate_dataloader.take(),
-            test_dataloader: self.test_dataloader.take(),
-            model,
-            lossfn: self.lossfn.take(),
-            optimizer: self.optimizer.take(),
-            epoch: self.epoch,
-            metrics: std::mem::take(&mut self.metrics),
-            log_interval: self.log_interval,
-            model_name,
-            result_dir,
-            best_accuracy: 0.0,
-        })
+        // Predefined eval_step_fn for image classification
+        let eval_step_fn = move |batch: (Tensor, Tensor),
+                                 model: &mut M,
+                                 metrics: &mut [AnyMetric]|
+              -> Result<(), LearnerError> {
+            let (inputs, targets) = batch;
+            let outputs = model.forward(inputs)?;
+
+            for metric in metrics.iter_mut() {
+                if metric.is_evaluation() {
+                    metric.evaluate(&outputs, &targets)?
+                } else {
+                    metric.sample()?
+                };
+            }
+
+            Ok(())
+        };
+
+        if let Some(lossfn) = &self.lossfn {
+            self.inner.lossfn(lossfn.clone());
+            self.inner.metric(LossMetric::new(lossfn.clone()));
+        }
+
+        // Take ownership of inner, set closures, and build
+        let inner = std::mem::take(&mut self.inner);
+        let epoch_learner = inner
+            .train_step_fn(train_step_fn)
+            .eval_step_fn(eval_step_fn)
+            .build()?;
+
+        Ok(ImageClassificationLearner { epoch_learner })
     }
 }

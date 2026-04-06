@@ -1,5 +1,5 @@
 use nove::model::Model;
-use nove::model::layer::GruBuilder;
+use nove::model::nn::GruBuilder;
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]

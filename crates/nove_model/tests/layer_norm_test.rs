@@ -1,5 +1,5 @@
 use nove::model::Model;
-use nove::model::layer::LayerNormBuilder;
+use nove::model::nn::LayerNormBuilder;
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]

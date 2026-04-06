@@ -1,7 +1,7 @@
-use nove::model::layer::RnnBuilder;
-use nove::model::layer::Activation;
 use nove::model::Model;
-use nove::tensor::{Device, DType, Shape, Tensor};
+use nove::model::nn::Activation;
+use nove::model::nn::RnnBuilder;
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_rnn_builder_creation() {
@@ -31,10 +31,7 @@ fn test_rnn_builder_creation() {
 
 #[test]
 fn test_rnn_builder_without_bias() {
-    let rnn = RnnBuilder::new(5, 8)
-        .bias(false)
-        .build()
-        .unwrap();
+    let rnn = RnnBuilder::new(5, 8).bias(false).build().unwrap();
 
     assert_eq!(rnn.input_size(), 5);
     assert_eq!(rnn.hidden_size(), 8);
@@ -43,10 +40,7 @@ fn test_rnn_builder_without_bias() {
 
 #[test]
 fn test_rnn_builder_batch_first() {
-    let rnn = RnnBuilder::new(10, 20)
-        .batch_first(true)
-        .build()
-        .unwrap();
+    let rnn = RnnBuilder::new(10, 20).batch_first(true).build().unwrap();
 
     assert_eq!(rnn.input_size(), 10);
     assert_eq!(rnn.hidden_size(), 20);
@@ -88,18 +82,14 @@ fn test_rnn_builder_invalid_hidden_size() {
 
 #[test]
 fn test_rnn_builder_invalid_num_layers() {
-    let result = RnnBuilder::new(10, 20)
-        .num_layers(0)
-        .build();
+    let result = RnnBuilder::new(10, 20).num_layers(0).build();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("num_layers"));
 }
 
 #[test]
 fn test_rnn_builder_invalid_dropout() {
-    let result = RnnBuilder::new(10, 20)
-        .dropout(1.5)
-        .build();
+    let result = RnnBuilder::new(10, 20).dropout(1.5).build();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("dropout"));
 }
@@ -122,7 +112,8 @@ fn test_rnn_forward_batch_last() {
         &Shape::from_dims(&[seq_len, batch_size, 8]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let (output, hidden_states) = rnn.forward(input).unwrap();
 
@@ -151,7 +142,8 @@ fn test_rnn_forward_batch_first() {
         &Shape::from_dims(&[batch_size, seq_len, 12]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let (output, hidden_states) = rnn.forward(input).unwrap();
 
@@ -180,7 +172,8 @@ fn test_rnn_forward_bidirectional() {
         &Shape::from_dims(&[seq_len, batch_size, 10]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let (output, hidden_states) = rnn.forward(input).unwrap();
 
@@ -209,7 +202,8 @@ fn test_rnn_forward_multilayer_bidirectional_dropout() {
         &Shape::from_dims(&[seq_len, batch_size, 16]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let (output, hidden_states) = rnn.forward(input).unwrap();
 
@@ -242,7 +236,8 @@ fn test_rnn_forward_with_different_activations() {
             &Shape::from_dims(&[seq_len, batch_size, 8]),
             &Device::cpu(),
             false,
-        ).unwrap();
+        )
+        .unwrap();
 
         let (output, hidden_states) = rnn.forward(input).unwrap();
 
@@ -281,10 +276,7 @@ fn test_rnn_named_parameters() {
 
 #[test]
 fn test_rnn_require_grad() {
-    let mut rnn = RnnBuilder::new(10, 20)
-        .grad_enabled(false)
-        .build()
-        .unwrap();
+    let mut rnn = RnnBuilder::new(10, 20).grad_enabled(false).build().unwrap();
 
     let params = rnn.parameters().unwrap();
     for param in params {
@@ -314,10 +306,7 @@ fn test_rnn_to_device() {
 
 #[test]
 fn test_rnn_to_dtype() {
-    let rnn = RnnBuilder::new(10, 20)
-        .dtype(DType::F32)
-        .build()
-        .unwrap();
+    let rnn = RnnBuilder::new(10, 20).dtype(DType::F32).build().unwrap();
 
     let params = rnn.parameters().unwrap();
     for param in params {
@@ -327,9 +316,7 @@ fn test_rnn_to_dtype() {
 
 #[test]
 fn test_rnn_forward_invalid_input_dimensions() {
-    let mut rnn = RnnBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut rnn = RnnBuilder::new(10, 20).build().unwrap();
 
     let input = Tensor::randn(
         0.0f32,
@@ -337,7 +324,8 @@ fn test_rnn_forward_invalid_input_dimensions() {
         &Shape::from_dims(&[5, 10]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = rnn.forward(input);
     assert!(result.is_err());
@@ -346,9 +334,7 @@ fn test_rnn_forward_invalid_input_dimensions() {
 
 #[test]
 fn test_rnn_forward_invalid_input_size() {
-    let mut rnn = RnnBuilder::new(10, 20)
-        .build()
-        .unwrap();
+    let mut rnn = RnnBuilder::new(10, 20).build().unwrap();
 
     let input = Tensor::randn(
         0.0f32,
@@ -356,7 +342,8 @@ fn test_rnn_forward_invalid_input_size() {
         &Shape::from_dims(&[5, 3, 8]),
         &Device::cpu(),
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     let result = rnn.forward(input);
     assert!(result.is_err());
