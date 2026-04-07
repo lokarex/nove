@@ -1,6 +1,6 @@
 use nove_dataloader::Dataloader;
 use nove_lossfn::LossFn;
-use nove_metric::{AccuracyMetric, AnyMetric, EvaluationMetric, LossMetric, ResourceMetric};
+use nove_metric::{AccuracyMetric, AnyMetric, EvaluationMetric, LossMetric, Metric, MetricValue, ResourceMetric};
 use nove_model::Model;
 use nove_optimizer::Optimizer;
 use nove_tensor::Tensor;
@@ -166,7 +166,7 @@ where
 /// # Notes
 /// * The `ImageClassificationLearnerBuilder` implements the `Default` trait, so you can use
 ///   `ImageClassificationLearnerBuilder::default()` to create a builder with default values.
-/// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::default()`].
+/// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::new()`].
 /// * `LossMetric` is automatically added when [`Self::lossfn()`] is called.
 /// * Argument validation is deferred to the actual method calls (`train`/`validate`/`test`).
 ///
@@ -207,16 +207,11 @@ impl<D, M, L, O> Default for ImageClassificationLearnerBuilder<D, M, L, O>
 where
     D: Dataloader<Output = (Tensor, Tensor)>,
     M: Model<Input = Tensor, Output = Tensor>,
-    L: LossFn<Input = (Tensor, Tensor), Output = Tensor> + Clone,
+    L: LossFn<Input = (Tensor, Tensor), Output = Tensor> + Clone + 'static,
     O: Optimizer<StepOutput = ()>,
 {
     fn default() -> Self {
-        let mut inner = EpochLearnerBuilder::new();
-        inner.metric(AnyMetric::AccuracyMetric(AccuracyMetric::new()));
-        Self {
-            inner,
-            lossfn: None,
-        }
+        Self::new()
     }
 }
 
@@ -227,6 +222,22 @@ where
     L: LossFn<Input = (Tensor, Tensor), Output = Tensor> + Clone + 'static,
     O: Optimizer<StepOutput = ()>,
 {
+    /// Creates a new `ImageClassificationLearnerBuilder` with default values.
+    ///
+    /// # Notes
+    /// * `AccuracyMetric` is automatically added by default.
+    ///
+    /// # Returns
+    /// * `Self` - A new builder instance with default values.
+    pub fn new() -> Self {
+        let mut inner = EpochLearnerBuilder::new();
+        inner.metric(AnyMetric::AccuracyMetric(AccuracyMetric::new()));
+        Self {
+            inner,
+            lossfn: None,
+        }
+    }
+
     /// Sets the training dataloader.
     ///
     /// # Arguments
@@ -317,7 +328,7 @@ where
     /// Sets additional metrics to track.
     ///
     /// # Notes
-    /// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::default()`].
+    /// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::new()`].
     /// * `LossMetric` is automatically added when [`Self::lossfn()`] is called.
     /// * Do not manually add these two metrics.
     ///
@@ -334,7 +345,7 @@ where
     /// Adds a single metric to track.
     ///
     /// # Notes
-    /// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::default()`].
+    /// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::new()`].
     /// * `LossMetric` is automatically added when [`Self::lossfn()`] is called.
     /// * Do not manually add these two metrics.
     ///
@@ -432,11 +443,36 @@ where
             self.inner.metric(LossMetric::new(lossfn.clone()));
         }
 
+        // Predefined is_best_model: compares accuracy (first metric)
+        let is_best_model_fn = move |best_metrics: Vec<AnyMetric>,
+                                     current_metrics: Vec<AnyMetric>|
+              -> bool {
+            let best_first = best_metrics
+                .first()
+                .and_then(|m| m.value().ok())
+                .and_then(|v| match v {
+                    MetricValue::Scalar(s) => Some(s),
+                    _ => None,
+                })
+                .unwrap_or(0.0);
+            let current_first = current_metrics
+                .first()
+                .and_then(|m| m.value().ok())
+                .and_then(|v| match v {
+                    MetricValue::Scalar(s) => Some(s),
+                    _ => None,
+                })
+                .unwrap_or(0.0);
+            current_first > best_first
+        };
+
         // Take ownership of inner, set closures, and build
         let inner = std::mem::take(&mut self.inner);
         let epoch_learner = inner
             .train_step_fn(train_step_fn)
             .eval_step_fn(eval_step_fn)
+            .test_step_fn(eval_step_fn)
+            .is_best_model(is_best_model_fn)
             .build()?;
 
         Ok(ImageClassificationLearner { epoch_learner })

@@ -16,7 +16,7 @@ use crate::{Learner, LearnerError};
 /// * The `EpochLearner` can only be created by the [`EpochLearnerBuilder`].
 /// * Argument validation is deferred to the actual method calls (`train`/`validate`/`test`).
 /// * Users can choose between fine-grained closures (`forward_fn`, `metrics_fn`, etc.)
-///   or combined closures (`train_step_fn`, `eval_step_fn`) to control the training loop.
+///   or combined closures (`train_step_fn`, `eval_step_fn`, `test_step_fn`) to control the training loop.
 ///
 /// # Fields
 /// * `train_dataloader` - Dataloader for training data.
@@ -32,6 +32,7 @@ use crate::{Learner, LearnerError};
 /// * `optimizer_step_fn` - Fine-grained optimizer step function closure.
 /// * `train_step_fn` - Combined training step function closure.
 /// * `eval_step_fn` - Combined evaluation step function closure.
+/// * `test_step_fn` - Combined test step function closure.
 /// * `epoch` - Number of training epochs.
 /// * `log_interval` - Number of batches between logging.
 /// * `metrics` - Metrics to track during training/evaluation.
@@ -106,6 +107,13 @@ where
         >,
     >,
     eval_step_fn: Option<
+        Box<
+            dyn for<'a> FnMut(D::Output, &'a mut M, &'a mut [AnyMetric]) -> Result<(), LearnerError>
+                + Send
+                + 'static,
+        >,
+    >,
+    test_step_fn: Option<
         Box<
             dyn for<'a> FnMut(D::Output, &'a mut M, &'a mut [AnyMetric]) -> Result<(), LearnerError>
                 + Send
@@ -218,11 +226,11 @@ where
                 "test_dataloader is required for testing".to_string(),
             ))?;
         let has_fine_grained = self.forward_fn.is_some() && self.metrics_fn.is_some();
-        let has_combined = self.eval_step_fn.is_some();
+        let has_combined = self.test_step_fn.is_some();
 
         if !has_fine_grained && !has_combined {
             return Err(LearnerError::MissingArgument(
-                "Either eval_step_fn or (forward_fn, metrics_fn) must be set".to_string(),
+                "Either test_step_fn or (forward_fn, metrics_fn) must be set".to_string(),
             ));
         }
         Ok(())
@@ -456,6 +464,24 @@ where
         eval_step_fn(batch, &mut self.model, &mut self.metrics)?;
         Ok(())
     }
+
+    /// Execute test step using fine-grained closures.
+    fn execute_test_step_fine_grained(&mut self, batch: &D::Output) -> Result<(), LearnerError> {
+        let forward_fn = self.forward_fn.as_mut().unwrap();
+        let output = forward_fn(&mut self.model, batch)?;
+
+        if let Some(ref mut metrics_fn) = self.metrics_fn {
+            metrics_fn(&output, batch, &mut self.metrics)?;
+        }
+        Ok(())
+    }
+
+    /// Execute test step using combined closure.
+    fn execute_test_step_combined(&mut self, batch: D::Output) -> Result<(), LearnerError> {
+        let test_step_fn = self.test_step_fn.as_mut().unwrap();
+        test_step_fn(batch, &mut self.model, &mut self.metrics)?;
+        Ok(())
+    }
 }
 
 impl<D, M, L, O> Learner for EpochLearner<D, M, L, O>
@@ -531,6 +557,11 @@ where
                 self.validate_dataloader = Some(validate_dataloader);
 
                 self.print_metrics("Validate", epoch, 0);
+
+                if self.check_and_update_best_model()? {
+                    self.save_best_checkpoint()?;
+                }
+
                 for metric in self.metrics.iter_mut() {
                     metric.clear().ok();
                 }
@@ -538,10 +569,6 @@ where
 
             if self.save_every_epoch {
                 self.save_checkpoint(epoch)?;
-            }
-
-            if self.check_and_update_best_model()? {
-                self.save_best_checkpoint()?;
             }
         }
 
@@ -600,9 +627,9 @@ where
                 None => break,
             };
             if use_fine_grained {
-                self.execute_eval_step_fine_grained(&batch)?;
+                self.execute_test_step_fine_grained(&batch)?;
             } else {
-                self.execute_eval_step_combined(batch)?;
+                self.execute_test_step_combined(batch)?;
             }
         }
         test_dataloader.reset()?;
@@ -630,7 +657,7 @@ where
 /// # Conditional Required Arguments by Method
 /// * `train()` requires: `train_dataloader`, `validate_dataloader`, `lossfn`, `optimizer`, `epoch` > 0, `log_interval` > 0, and either `train_step_fn` or all fine-grained closures (`forward_fn`, `loss_fn`, `backward_fn`, `optimizer_step_fn`)
 /// * `validate()` requires: `validate_dataloader`, and either `eval_step_fn` or (`forward_fn`, `metrics_fn`)
-/// * `test()` requires: `test_dataloader`, and either `eval_step_fn` or (`forward_fn`, `metrics_fn`)
+/// * `test()` requires: `test_dataloader`, and either `test_step_fn` or (`forward_fn`, `metrics_fn`)
 ///
 /// # Optional Arguments
 /// * `train_dataloader` - Dataloader for training. Required only for `train()`.
@@ -646,7 +673,8 @@ where
 /// * `save_every_epoch` - Whether to save checkpoint every epoch. Default is true.
 /// * `is_best_model` - Function to determine best model.
 /// * `forward_fn`, `metrics_fn`, `loss_fn`, `backward_fn`, `optimizer_step_fn` - Fine-grained closures.
-/// * `train_step_fn`, `eval_step_fn` - Combined closures.
+/// * `train_step_fn`, `eval_step_fn` - Combined closures for training/validation.
+/// * `test_step_fn` - Combined closure for testing.
 ///
 /// # Fields
 /// * `train_dataloader` - Dataloader for training data.
@@ -662,6 +690,7 @@ where
 /// * `optimizer_step_fn` - Fine-grained optimizer step function closure.
 /// * `train_step_fn` - Combined training step function closure.
 /// * `eval_step_fn` - Combined evaluation step function closure.
+/// * `test_step_fn` - Combined test step function closure.
 /// * `epoch` - Number of training epochs.
 /// * `log_interval` - Number of batches between logging.
 /// * `metrics` - Metrics to track.
@@ -737,6 +766,13 @@ where
                 + 'static,
         >,
     >,
+    test_step_fn: Option<
+        Box<
+            dyn for<'a> FnMut(D::Output, &'a mut M, &'a mut [AnyMetric]) -> Result<(), LearnerError>
+                + Send
+                + 'static,
+        >,
+    >,
 
     // Configuration
     epoch: usize,
@@ -782,6 +818,7 @@ where
             optimizer_step_fn: None,
             train_step_fn: None,
             eval_step_fn: None,
+            test_step_fn: None,
             epoch: 10,
             log_interval: 10,
             metrics: Vec::new(),
@@ -994,6 +1031,23 @@ where
         self
     }
 
+    /// Sets the combined test step function.
+    ///
+    /// # Arguments
+    /// * `f` - The test step function closure with signature `FnMut(D::Output, &mut M, &mut [AnyMetric]) -> Result<(), LearnerError>`.
+    ///
+    /// # Returns
+    /// * `Self` - The builder itself.
+    pub fn test_step_fn<Fn>(mut self, f: Fn) -> Self
+    where
+        Fn: for<'a> FnMut(D::Output, &'a mut M, &'a mut [AnyMetric]) -> Result<(), LearnerError>
+            + Send
+            + 'static,
+    {
+        self.test_step_fn = Some(Box::new(f));
+        self
+    }
+
     /// Sets the number of training epochs.
     ///
     /// # Arguments
@@ -1103,14 +1157,6 @@ where
             "model in EpochLearnerBuilder is required".to_string(),
         ))?;
 
-        let lossfn = self.lossfn.take().ok_or(LearnerError::MissingArgument(
-            "lossfn in EpochLearnerBuilder is required".to_string(),
-        ))?;
-
-        let optimizer = self.optimizer.take().ok_or(LearnerError::MissingArgument(
-            "optimizer in EpochLearnerBuilder is required".to_string(),
-        ))?;
-
         let result_dir = if let Some(result_dir) = self.result_dir.take() {
             std::fs::create_dir_all(result_dir.clone()).map_err(|e| {
                 LearnerError::InvalidPath(format!(
@@ -1128,8 +1174,8 @@ where
             validate_dataloader: self.validate_dataloader.take(),
             test_dataloader: self.test_dataloader.take(),
             model,
-            lossfn: Some(lossfn),
-            optimizer: Some(optimizer),
+            lossfn: self.lossfn.take(),
+            optimizer: self.optimizer.take(),
             forward_fn: self.forward_fn.take(),
             metrics_fn: self.metrics_fn.take(),
             loss_fn: self.loss_fn.take(),
@@ -1137,6 +1183,7 @@ where
             optimizer_step_fn: self.optimizer_step_fn.take(),
             train_step_fn: self.train_step_fn.take(),
             eval_step_fn: self.eval_step_fn.take(),
+            test_step_fn: self.test_step_fn.take(),
             epoch: self.epoch,
             log_interval: self.log_interval,
             metrics: std::mem::take(&mut self.metrics),
