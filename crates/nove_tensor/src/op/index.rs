@@ -13,8 +13,8 @@ impl Tensor {
     ///
     /// # Arguments
     /// * `indexes` - The tensor with i64 data type([`crate::DType::I64`]) containing the indexes to gather.
-    /// * `dim` - The dimension along which to gather values. It must be greater than or equal to `-1`.
-    ///   When `dim` is equal to `-1`, the tensors are gathered along the last dimension.
+    /// * `dim` - The dimension along which to gather values (0-based).
+    ///   Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The result tensor with gathered values.
@@ -67,10 +67,11 @@ impl Tensor {
     /// assert_eq!(grad.shape().unwrap(), (&[4]).into());
     /// ```
     pub fn gather(&self, indexes: &Self, dim: isize) -> Result<Self, TensorError> {
-        let dim: usize = match dim {
-            d if d >= 0 => d as usize,
-            -1 => self.as_ref().shape()?.dims().len() - 1,
-            _ => return Err(TensorError::InvalidDimension(dim)),
+        let num_dims = self.as_ref().shape()?.dims().len();
+        let dim = if dim < 0 {
+            (num_dims as isize + dim) as usize
+        } else {
+            dim as usize
         };
 
         let inner = self.data.read()?;
@@ -105,8 +106,8 @@ impl Tensor {
     ///
     /// # Arguments
     /// * `indexes` - The tensor with i64 data type([`crate::DType::I64`]) containing the indexes to select.
-    /// * `dim` - The dimension along which to select values. It must be greater than or equal to `-1`.
-    ///   When `dim` is equal to `-1`, the values are selected along the last dimension.
+    /// * `dim` - The dimension along which to select values (0-based).
+    ///   Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The result tensor with selected values.
@@ -159,10 +160,11 @@ impl Tensor {
     /// assert_eq!(grad.shape().unwrap(), (&[3, 3]).into());
     /// ```
     pub fn index_select(&self, indexes: &Self, dim: isize) -> Result<Self, TensorError> {
-        let dim: usize = match dim {
-            d if d >= 0 => d as usize,
-            -1 => self.as_ref().shape()?.dims().len() - 1,
-            _ => return Err(TensorError::InvalidDimension(dim)),
+        let num_dims = self.as_ref().shape()?.dims().len();
+        let dim = if dim < 0 {
+            (num_dims as isize + dim) as usize
+        } else {
+            dim as usize
         };
 
         let inner = self.data.read()?;

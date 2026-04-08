@@ -153,7 +153,7 @@ impl Tensor {
 
     /// Broadcast the tensor to the specified shape.
     ///
-    /// # Parameters
+    /// # Arguments
     /// * `shape` - The shape to broadcast the tensor to.
     ///
     /// # Returns
@@ -161,20 +161,36 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when broadcasting the tensor.
     ///
     /// # Examples
+    /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
+    ///
     /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
     /// let shape = Shape::from_dims(&[2, 4]);
     ///
     /// let result = t.broadcast(&shape).unwrap();
-    /// println!("{:?}", result);
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 4]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0]);
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, true).unwrap();
+    ///
+    /// let result = t.broadcast(&Shape::from_dims(&[2, 4])).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// let grad = t.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[4]));
+    /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![2.0, 2.0, 2.0, 2.0]);
     /// ```
     pub fn broadcast(&self, shape: &Shape) -> Result<Self, TensorError> {
         let inner = match &self.data.read()?.inner {
-            TensorInner::Var(var) => {
-                TensorInner::Var(candle_core::Var::from_tensor(&var.broadcast_as(shape)?)?)
-            }
+            TensorInner::Var(var) => TensorInner::Tensor(var.broadcast_as(shape)?),
             TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.broadcast_as(shape)?),
         };
         Ok(Self {
@@ -191,50 +207,97 @@ impl Tensor {
     /// Flatten the tensor by merging multiple dimensions into one.
     ///
     /// # Arguments
-    /// * `start_dim` - Optional starting dimension index (0-based) to begin flattening.
-    ///   If `None`, flattening starts from the first dimension.
-    /// * `end_dim` - Optional ending dimension index (0-based) to stop flattening.
+    /// * `start_dim` - Optional starting dimension index to begin flattening (0-based).
+    ///   If `None`, flattening starts from the first dimension (0).
+    ///   Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
+    /// * `end_dim` - Optional ending dimension index to stop flattening (0-based, inclusive).
     ///   If `None`, flattening continues to the last dimension.
+    ///   Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The flattened tensor.
     /// * `Err(TensorError)` - The error when flattening the tensor.
     ///
     /// # Examples
+    /// * Forward pass with shape and value verification
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(&[[1.0, 2.0], [3.0, 4.0]], &device, false).unwrap();
     ///
-    /// // Flatten entire tensor
-    /// let flattened = t.flatten(None, None).unwrap();
-    /// println!("{:?}", flattened);
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
-    /// // Flatten from dimension 1 to the end
-    /// let flattened = t.flatten(Some(1), None).unwrap();
-    /// println!("{:?}", flattened);
+    /// let result = t.flatten(None, None).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[4]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 2.0, 3.0, 4.0]);
+    /// ```
     ///
-    /// // Flatten from start to dimension 0
-    /// let flattened = t.flatten(None, Some(0)).unwrap();
-    /// println!("{:?}", flattened);
+    /// * Forward pass with start_dim
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
     ///
-    /// // Flatten dimensions 1 to 2
-    /// let t3d = Tensor::from_data(&[[[1.0, 2.0]], [[3.0, 4.0]]], &device, false).unwrap();
-    /// let flattened = t3d.flatten(Some(1), Some(2)).unwrap();
-    /// println!("{:?}", flattened);
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
+    ///
+    /// let result = t.flatten(Some(1), None).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 2]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 2.0, 3.0, 4.0]);
+    /// ```
+    ///
+    /// * Forward pass with negative indices
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
+    ///
+    /// let result = t.flatten(Some(0), Some(-1)).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[4]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 2.0, 3.0, 4.0]);
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, true).unwrap();
+    ///
+    /// let result = t.flatten(None, None).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// let grad = t.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 2]));
+    /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![1.0, 1.0, 1.0, 1.0]);
     /// ```
     pub fn flatten(
         &self,
-        start_dim: Option<usize>,
-        end_dim: Option<usize>,
+        start_dim: Option<isize>,
+        end_dim: Option<isize>,
     ) -> Result<Self, TensorError> {
+        let num_dims = self.num_dim()?;
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
 
-        let new_inner = match (start_dim, end_dim) {
+        // Convert negative indices to positive
+        let start = start_dim.map(|d| {
+            if d < 0 {
+                (num_dims as isize + d) as usize
+            } else {
+                d as usize
+            }
+        });
+        let end = end_dim.map(|d| {
+            if d < 0 {
+                (num_dims as isize + d) as usize
+            } else {
+                d as usize
+            }
+        });
+
+        let new_inner = match (start, end) {
             (None, None) => TensorInner::Tensor(inner_tensor.flatten_all()?),
             (Some(start_dim), None) => TensorInner::Tensor(inner_tensor.flatten_from(start_dim)?),
             (None, Some(end_dim)) => TensorInner::Tensor(inner_tensor.flatten_to(end_dim)?),
@@ -264,13 +327,43 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when squeezing the tensor.
     ///
     /// # Examples
+    /// * Forward pass with shape and value verification
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(&[[[1.0]], [[2.0]]], &device, false).unwrap();
     ///
-    /// let squeezed = t.squeeze(None).unwrap();
-    /// println!("{:?}", squeezed);
+    /// let t = Tensor::from_data(vec![vec![1.0], vec![2.0]], &device, false).unwrap();
+    ///
+    /// let result = t.squeeze(None).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 2.0]);
+    /// ```
+    ///
+    /// * Forward pass with specific dimension
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0]], &device, false).unwrap();
+    ///
+    /// let result = t.squeeze(Some(0)).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 2.0]);
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0], vec![2.0]], &device, true).unwrap();
+    ///
+    /// let result = t.squeeze(None).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// let grad = t.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 1]));
+    /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![1.0, 1.0]);
     /// ```
     pub fn squeeze(&self, dim: Option<usize>) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -317,13 +410,43 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when unsqueezing the tensor.
     ///
     /// # Examples
+    /// * Forward pass with shape and value verification
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
+    ///
     /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
     ///
-    /// let unsqueezed = t.unsqueeze(0).unwrap();
-    /// println!("{:?}", unsqueezed);
+    /// let result = t.unsqueeze(0).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[1, 4]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 2.0, 3.0, 4.0]);
+    /// ```
+    ///
+    /// * Forward pass at different dimension
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
+    ///
+    /// let result = t.unsqueeze(1).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 1]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 2.0]);
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, true).unwrap();
+    ///
+    /// let result = t.unsqueeze(0).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// let grad = t.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[4]));
+    /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![1.0, 1.0, 1.0, 1.0]);
     /// ```
     pub fn unsqueeze(&self, dim: usize) -> Result<Self, TensorError> {
         let inner = self.data.read()?;
@@ -348,23 +471,67 @@ impl Tensor {
     /// Transpose the tensor by swapping the two specified dimensions.
     ///
     /// # Arguments
-    /// * `dim0` - The first dimension to swap.
-    /// * `dim1` - The second dimension to swap.
+    /// * `dim0` - The first dimension to swap (0-based). Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
+    /// * `dim1` - The second dimension to swap (0-based). Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The transposed tensor.
     /// * `Err(TensorError)` - The error when transposing the tensor.
     ///
     /// # Examples
+    /// * Forward pass with shape and value verification
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(&[[1.0, 2.0], [3.0, 4.0]], &device, false).unwrap();
     ///
-    /// let transposed = t.transpose(0, 1).unwrap();
-    /// println!("{:?}", transposed);
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
+    ///
+    /// let result = t.transpose(0, 1).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 2]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 3.0, 2.0, 4.0]);
     /// ```
-    pub fn transpose(&self, dim0: usize, dim1: usize) -> Result<Self, TensorError> {
+    ///
+    /// * Forward pass with negative indices
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
+    ///
+    /// let result = t.transpose(-2, -1).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 2]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 3.0, 2.0, 4.0]);
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, true).unwrap();
+    ///
+    /// let result = t.transpose(0, 1).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// let grad = t.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 2]));
+    /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![1.0, 1.0, 1.0, 1.0]);
+    /// ```
+    pub fn transpose(&self, dim0: isize, dim1: isize) -> Result<Self, TensorError> {
+        let num_dims = self.num_dim()?;
+
+        let dim0 = if dim0 < 0 {
+            (num_dims as isize + dim0) as usize
+        } else {
+            dim0 as usize
+        };
+
+        let dim1 = if dim1 < 0 {
+            (num_dims as isize + dim1) as usize
+        } else {
+            dim1 as usize
+        };
+
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
             TensorInner::Tensor(tensor) => tensor,
@@ -387,29 +554,73 @@ impl Tensor {
     /// Permute the dimensions of the tensor according to the given order.
     ///
     /// # Arguments
-    /// * `dims` - The new order of dimensions.
+    /// * `dims` - The new order of dimensions (0-based). Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The permuted tensor.
     /// * `Err(TensorError)` - The error when permuting the tensor.
     ///
     /// # Examples
+    /// * Forward pass with shape and value verification
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(&[[[1.0, 2.0]], [[3.0, 4.0]]], &device, false).unwrap();
     ///
-    /// let permuted = t.permute(&[2, 0, 1]).unwrap();
-    /// println!("{:?}", permuted);
+    /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0]], vec![vec![3.0, 4.0]]], &device, false).unwrap();
+    ///
+    /// let result = t.permute(&[1, 0, 2]).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[1, 2, 2]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 2.0, 3.0, 4.0]);
     /// ```
-    pub fn permute(&self, dims: &[usize]) -> Result<Self, TensorError> {
+    ///
+    /// * Forward pass with negative indices
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// // Shape [2, 1, 2] permuted with [-1, 0, 1] (same as [2, 0, 1])
+    /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0]], vec![vec![3.0, 4.0]]], &device, false).unwrap();
+    ///
+    /// let result = t.permute(&[-1, 0, 1]).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 2, 1]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 3.0, 2.0, 4.0]);
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0]], vec![vec![3.0, 4.0]]], &device, true).unwrap();
+    ///
+    /// let result = t.permute(&[1, 0, 2]).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// let grad = t.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 1, 2]));
+    /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![1.0, 1.0, 1.0, 1.0]);
+    /// ```
+    pub fn permute(&self, dims: &[isize]) -> Result<Self, TensorError> {
+        let num_dims = self.num_dim()?;
+
+        let dims: Vec<usize> = dims
+            .iter()
+            .map(|&d| {
+                if d < 0 {
+                    (num_dims as isize + d) as usize
+                } else {
+                    d as usize
+                }
+            })
+            .collect();
+
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
             TensorInner::Tensor(tensor) => tensor,
             TensorInner::Var(var) => var,
         };
 
-        let new_inner = TensorInner::Tensor(inner_tensor.permute(dims)?);
+        let new_inner = TensorInner::Tensor(inner_tensor.permute(dims.as_slice())?);
 
         Ok(Self {
             data: Arc::new(RwLock::new(TensorData {
@@ -425,8 +636,8 @@ impl Tensor {
     /// Narrow the tensor along a dimension by selecting a range of indices.
     ///
     /// # Arguments
-    /// * `dim` - The dimension to narrow along.
-    /// * `start` - The starting index (inclusive) for the narrowing operation.
+    /// * `dim` - The dimension to narrow along (0-based). Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
+    /// * `start` - The starting index (inclusive) for the narrowing operation. Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
     /// * `length` - The number of elements to include in the narrowed dimension.
     ///
     /// # Returns
@@ -434,16 +645,74 @@ impl Tensor {
     /// * `Err(TensorError)` - The error when narrowing the tensor.
     ///
     /// # Examples
+    /// * Forward pass with shape and value verification
     /// ```
-    /// use nove::tensor::{Device, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     /// let device = Device::cpu();
-    /// let t = Tensor::from_data(&[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], &device, false).unwrap();
     ///
-    /// // Narrow along dimension 1 (columns), starting at index 1, length 2
-    /// let narrowed = t.narrow(1, 1, 2).unwrap();
-    /// println!("{:?}", narrowed);
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
+    ///
+    /// let result = t.narrow(1, 1, 2).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 2]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![2.0, 3.0, 5.0, 6.0]);
     /// ```
-    pub fn narrow(&self, dim: usize, start: usize, length: usize) -> Result<Self, TensorError> {
+    ///
+    /// * Forward pass with negative indices
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
+    ///
+    /// let result = t.narrow(-1, -2, 2).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 2]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![2.0, 3.0, 5.0, 6.0]);
+    /// ```
+    ///
+    /// * Forward pass along first dimension
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
+    ///
+    /// let result = t.narrow(0, 0, 1).unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[1, 3]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 2.0, 3.0]);
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::cpu();
+    ///
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
+    ///
+    /// let result = t.narrow(1, 1, 2).unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// let grad = t.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
+    /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![0.0, 1.0, 1.0, 0.0, 1.0, 1.0]);
+    /// ```
+    pub fn narrow(&self, dim: isize, start: isize, length: usize) -> Result<Self, TensorError> {
+        let shape = self.shape()?;
+        let dims = shape.dims();
+        let num_dims = dims.len();
+
+        let dim = if dim < 0 {
+            (num_dims as isize + dim) as usize
+        } else {
+            dim as usize
+        };
+
+        let dim_size = dims[dim] as isize;
+        let start = if start < 0 {
+            (dim_size + start) as usize
+        } else {
+            start as usize
+        };
+
         let inner = self.data.read()?;
         let inner_tensor = match &inner.inner {
             TensorInner::Tensor(tensor) => tensor,

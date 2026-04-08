@@ -230,9 +230,9 @@ impl Model for GruCell {
         // gates shape: [batch_size, 3 * hidden_size]
         let chunk_size = self.hidden_size;
         let (reset_gate, update_gate, candidate) = (
-            gates.narrow(1, 0 * chunk_size, chunk_size)?,
-            gates.narrow(1, 1 * chunk_size, chunk_size)?,
-            gates.narrow(1, 2 * chunk_size, chunk_size)?,
+            gates.narrow(1, 0 * chunk_size as isize, chunk_size)?,
+            gates.narrow(1, 1 * chunk_size as isize, chunk_size)?,
+            gates.narrow(1, 2 * chunk_size as isize, chunk_size)?,
         );
 
         // Apply sigmoid activation to reset and update gates
@@ -248,13 +248,13 @@ impl Model for GruCell {
             &self
                 .weight_hh
                 .transpose(0, 1)?
-                .narrow(1, 2 * chunk_size, chunk_size)?,
+                .narrow(1, 2 * chunk_size as isize, chunk_size)?,
         )?;
 
         // Add bias for candidate part if enabled
         let mut hidden_candidate_with_bias = hidden_candidate_part;
         if let Some(bias_hh) = &self.bias_hh {
-            let candidate_bias = bias_hh.narrow(0, 2 * chunk_size, chunk_size)?;
+            let candidate_bias = bias_hh.narrow(0, 2 * chunk_size as isize, chunk_size)?;
             hidden_candidate_with_bias = hidden_candidate_with_bias.add(&candidate_bias)?;
         }
 

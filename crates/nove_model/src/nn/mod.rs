@@ -76,3 +76,7 @@ pub use gru::GruBuilder;
 mod embedding;
 pub use embedding::Embedding;
 pub use embedding::EmbeddingBuilder;
+
+mod flatten;
+pub use flatten::Flatten;
+pub use flatten::FlattenBuilder;

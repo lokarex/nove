@@ -115,7 +115,7 @@ impl BatchNorm1d {
         &mut self,
         input: Tensor,
     ) -> Result<Tensor, ModelError> {
-        let perm = &[1, 0];
+        let perm = &[1isize, 0];
         let stat_shape = Shape::from_dims(&[self.num_features]);
         self.apply_batch_norm(input, perm, &stat_shape)
     }
@@ -132,7 +132,7 @@ impl BatchNorm1d {
         &mut self,
         input: Tensor,
     ) -> Result<Tensor, ModelError> {
-        let perm = &[1, 0, 2];
+        let perm = &[1isize, 0, 2];
         let stat_shape = Shape::from_dims(&[self.num_features, 1]);
         self.apply_batch_norm(input, perm, &stat_shape)
     }
@@ -150,7 +150,7 @@ impl BatchNorm1d {
     fn apply_batch_norm(
         &mut self,
         input: Tensor,
-        perm: &[usize],
+        perm: &[isize],
         stat_shape: &Shape,
     ) -> Result<Tensor, ModelError> {
         let input_shape = input.shape()?;

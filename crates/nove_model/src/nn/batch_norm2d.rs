@@ -121,7 +121,7 @@ impl Model for BatchNorm2d {
             true => {
                 let total_size = input.shape()?.dims().iter().product::<usize>();
                 let reshaped_input =
-                    input.permute(&[1, 0, 2, 3])?.reshape(&Shape::from_dims(&[
+                    input.permute(&[1isize, 0, 2, 3])?.reshape(&Shape::from_dims(&[
                         self.num_features,
                         total_size / self.num_features,
                     ]))?;

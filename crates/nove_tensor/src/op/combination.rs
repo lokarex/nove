@@ -10,8 +10,8 @@ impl Tensor {
     ///
     /// # Arguments
     /// * `tensors` - The list of tensors to stack.
-    /// * `dim` - The dimension along which to stack the tensors. It must be greater than or equal to `-1`.
-    ///   When `dim` is equal to `-1`, the tensors are stacked along the last dimension.
+    /// * `dim` - The dimension along which to stack the tensors (0-based).
+    ///   Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The result tensor after stacking.
@@ -78,10 +78,11 @@ impl Tensor {
     where
         A: AsRef<Tensor> + std::clone::Clone,
     {
-        let dim: usize = match dim {
-            d if d >= 0 => d as usize,
-            -1 => tensors[0].as_ref().shape()?.dims().len(),
-            _ => return Err(TensorError::InvalidDimension(dim)),
+        let num_dims = tensors[0].as_ref().shape()?.dims().len();
+        let dim = if dim < 0 {
+            (num_dims as isize + dim + 1) as usize
+        } else {
+            dim as usize
         };
 
         let inner_tensors = tensors
@@ -132,8 +133,8 @@ impl Tensor {
     ///
     /// # Arguments
     /// * `tensors` - The tensors to concatenate.
-    /// * `dim` - The dimension along which to concatenate. It must be greater than or equal to `-1`.
-    ///   When `dim` is equal to `-1`, the tensors are concatenated along the last dimension.
+    /// * `dim` - The dimension along which to concatenate (0-based).
+    ///   Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The concatenated tensor.
@@ -193,10 +194,11 @@ impl Tensor {
     where
         A: AsRef<Tensor> + std::clone::Clone,
     {
-        let dim: usize = match dim {
-            d if d >= 0 => d as usize,
-            -1 => tensors[0].as_ref().shape()?.dims().len() - 1,
-            _ => return Err(TensorError::InvalidDimension(dim)),
+        let num_dims = tensors[0].as_ref().shape()?.dims().len();
+        let dim = if dim < 0 {
+            (num_dims as isize + dim) as usize
+        } else {
+            dim as usize
         };
 
         let inner_tensors = tensors
@@ -243,10 +245,12 @@ impl Tensor {
 
     /// Concatenate a sequence of tensors along the specified dimension.
     ///
+    /// This is an alias for [`Tensor::concat`].
+    ///
     /// # Arguments
     /// * `tensors` - The tensors to concatenate.
-    /// * `dim` - The dimension along which to concatenate. It must be greater than or equal to `-1`.
-    ///   When `dim` is equal to `-1`, the tensors are concatenated along the last dimension.
+    /// * `dim` - The dimension along which to concatenate (0-based).
+    ///   Supports negative indexing: -1 means the last dimension, -2 means second last, etc.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The concatenated tensor.

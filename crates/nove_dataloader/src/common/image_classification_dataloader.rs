@@ -400,7 +400,7 @@ where
             let labels: Vec<Tensor> = batch.iter().map(|(_, lbl)| lbl.clone()).collect();
 
             let batch_images = Tensor::stack(&images, 0)?;
-            let batch_images = batch_images.permute(&[0, 3, 1, 2])?;
+            let batch_images = batch_images.permute(&[0isize, 3, 1, 2])?;
             let batch_labels = Tensor::stack(&labels, 0)?;
 
             Ok((batch_images, batch_labels))

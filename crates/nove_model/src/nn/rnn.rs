@@ -542,7 +542,7 @@ impl Model for Rnn {
 
                 for t in sequence_indices {
                     // Get input for this time step
-                    let input_slice = layer_input.narrow(0, t, 1)?.squeeze(Some(0))?;
+                    let input_slice = layer_input.narrow(0, t as isize, 1)?.squeeze(Some(0))?;
 
                     // Forward through RNN cell
                     current_hidden_state = cell.forward((input_slice, current_hidden_state))?;
