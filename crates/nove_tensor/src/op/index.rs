@@ -1,9 +1,4 @@
-use std::sync::{Arc, RwLock};
-
-use crate::{
-    Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
-};
+use crate::{Tensor, TensorError, backend::BackendStorage, backpropagation::graph::OpKind};
 
 impl Tensor {
     /// Gather values from the tensor along the specified dimension using the provided indexes.
@@ -25,7 +20,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
     /// let indexes = Tensor::from_data(vec![0i64, 2i64], &device, false).unwrap();
     ///
@@ -40,7 +35,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t2d = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0], vec![5.0, 6.0]], &device, false).unwrap();
     /// let indexes_2d = Tensor::from_data(vec![vec![0i64], vec![1i64], vec![0i64]], &device, false).unwrap();
     ///
@@ -55,7 +50,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, true).unwrap();
     /// let indexes = Tensor::from_data(vec![0i64, 2i64], &device, false).unwrap();
     ///
@@ -67,36 +62,17 @@ impl Tensor {
     /// assert_eq!(grad.shape().unwrap(), (&[4]).into());
     /// ```
     pub fn gather(&self, indexes: &Self, dim: isize) -> Result<Self, TensorError> {
-        let num_dims = self.as_ref().shape()?.dims().len();
-        let dim = if dim < 0 {
-            (num_dims as isize + dim) as usize
-        } else {
-            dim as usize
-        };
-
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let indexes_inner = indexes.data.read()?;
-        let indexes_inner_tensor = match &indexes_inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.gather(indexes_inner_tensor, dim)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        let dim = normalize_dim(dim, input_shape.rank());
+        let storage = self
+            .backend_storage()?
+            .gather(&indexes.backend_storage()?, dim)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy(), indexes.copy()],
+            OpKind::Gather { dim, input_shape },
+        ))
     }
 
     /// Select values from the tensor along the specified dimension using the provided indexes.
@@ -118,7 +94,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t = Tensor::from_data(&[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]], &device, false).unwrap();
     /// let indexes = Tensor::from_data(vec![0i64, 2i64], &device, false).unwrap();
     ///
@@ -133,7 +109,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t = Tensor::from_data(&[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], &device, false).unwrap();
     /// let indexes = Tensor::from_data(vec![0i64, 2i64], &device, false).unwrap();
     ///
@@ -148,7 +124,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t = Tensor::from_data(&[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]], &device, true).unwrap();
     /// let indexes = Tensor::from_data(vec![0i64, 2i64], &device, false).unwrap();
     ///
@@ -160,36 +136,17 @@ impl Tensor {
     /// assert_eq!(grad.shape().unwrap(), (&[3, 3]).into());
     /// ```
     pub fn index_select(&self, indexes: &Self, dim: isize) -> Result<Self, TensorError> {
-        let num_dims = self.as_ref().shape()?.dims().len();
-        let dim = if dim < 0 {
-            (num_dims as isize + dim) as usize
-        } else {
-            dim as usize
-        };
-
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let indexes_inner = indexes.data.read()?;
-        let indexes_inner_tensor = match &indexes_inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.index_select(indexes_inner_tensor, dim)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: inner.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        let dim = normalize_dim(dim, input_shape.rank());
+        let storage = self
+            .backend_storage()?
+            .index_select(&indexes.backend_storage()?, dim)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy(), indexes.copy()],
+            OpKind::IndexSelect { dim, input_shape },
+        ))
     }
 
     /// Look up embeddings from a fixed dictionary and size.
@@ -197,7 +154,7 @@ impl Tensor {
     /// # Notes
     /// * The data type([`crate::DType`]) of the indexes tensor must be i64([`crate::DType::I64`]).
     /// * The embedding table must be a 2D tensor with shape [num_embeddings, embedding_dim].
-    /// * The indexes must be a 1D tensor with shape [batch_size].
+    /// * The indexes must be a 1D tensor with shape \[batch_size\].
     ///
     /// # Arguments
     /// * `indexes` - The tensor with i64 data type([`crate::DType::I64`]) containing the indexes to look up.
@@ -211,7 +168,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let embedding_table = Tensor::from_data(&[[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], &device, false).unwrap();
     /// let indexes = Tensor::from_data(vec![0i64, 2i64, 1i64], &device, false).unwrap();
     ///
@@ -226,7 +183,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let embedding_table = Tensor::from_data(&[[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], &device, false).unwrap();
     /// let indexes = Tensor::from_data(vec![1i64], &device, false).unwrap();
     ///
@@ -241,7 +198,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let embedding_table = Tensor::from_data(&[[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], &device, true).unwrap();
     /// let indexes = Tensor::from_data(vec![0i64, 2i64], &device, false).unwrap();
     ///
@@ -253,29 +210,16 @@ impl Tensor {
     /// assert_eq!(grad.shape().unwrap(), (&[3, 2]).into());
     /// ```
     pub fn embedding(&self, indexes: &Self) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let indexes_inner = indexes.data.read()?;
-        let indexes_inner_tensor = match &indexes_inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.embedding(indexes_inner_tensor)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: inner.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let table_shape = self.shape()?;
+        let storage = self
+            .backend_storage()?
+            .embedding(&indexes.backend_storage()?)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy(), indexes.copy()],
+            OpKind::Embedding { table_shape },
+        ))
     }
 
     /// Apply the where operation: `condition ? true_value : false_value` element-wise.
@@ -294,7 +238,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let shape = Shape::from(&[2, 3]);
     ///
     /// let condition = Tensor::from_data(vec![vec![1u8, 0u8, 1u8], vec![0u8, 1u8, 0u8]], &device, false).unwrap();
@@ -313,7 +257,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let shape = Shape::from(&[2, 3]);
     ///
     /// let condition = Tensor::from_data(vec![vec![1u8, 0u8, 1u8], vec![0u8, 1u8, 0u8]], &device, false).unwrap();
@@ -340,35 +284,24 @@ impl Tensor {
         true_value: &Self,
         false_value: &Self,
     ) -> Result<Self, TensorError> {
-        let cond_inner = condition.data.read()?;
-        let cond_tensor = match &cond_inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-        let true_inner = true_value.data.read()?;
-        let true_tensor = match &true_inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-        let false_inner = false_value.data.read()?;
-        let false_tensor = match &false_inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
+        let condition_storage = condition.backend_storage()?;
+        let true_storage = true_value.backend_storage()?;
+        let false_storage = false_value.backend_storage()?;
+        let storage =
+            BackendStorage::where_cond(&condition_storage, &true_storage, &false_storage)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            condition.device()?,
+            vec![condition.copy(), true_value.copy(), false_value.copy()],
+            OpKind::WhereCond,
+        ))
+    }
+}
 
-        let new_inner_tensor = cond_tensor.where_cond(true_tensor, false_tensor)?;
-        let new_inner = TensorInner::Tensor(new_inner_tensor);
-
-        let device = condition.data.read()?.device.clone();
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device,
-                parents: vec![true_value.copy(), false_value.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+fn normalize_dim(dim: isize, rank: usize) -> usize {
+    if dim < 0 {
+        (rank as isize + dim) as usize
+    } else {
+        dim as usize
     }
 }

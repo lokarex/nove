@@ -1,9 +1,9 @@
+use nove::tensor::Tensor;
 use nove_lossfn::{BCEWithLogitsLoss, LossFn};
-use nove_tensor::{Device, Tensor};
 
 #[test]
 fn test_bce_with_logits_lossfn() {
-    let device = Device::cpu();
+    let device = nove_tensor::device::candle::cpu().unwrap();
 
     // Test case 1: Zero logits, equivalent to BCE with p=0.5
     let input = Tensor::from_data(&[0.0, 0.0], &device, false).unwrap();
@@ -47,7 +47,7 @@ fn test_bce_with_logits_lossfn() {
 
 #[test]
 fn test_bce_with_logits_lossfn_shape_mismatch() {
-    let device = Device::cpu();
+    let device = nove_tensor::device::candle::cpu().unwrap();
     let input = Tensor::from_data(&[[0.5, 0.5], [0.5, 0.5]], &device, false).unwrap();
     let target = Tensor::from_data(&[1.0, 0.0], &device, false).unwrap();
 

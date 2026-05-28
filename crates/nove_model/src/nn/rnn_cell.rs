@@ -55,7 +55,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// let rnn_cell = RnnCellBuilder::new(10, 20)
 ///     .activation(Activation::tanh())
 ///     .bias_enabled(true)
-///     .device(Device::cpu())
+///     .device(nove::device::candle::cpu().unwrap())
 ///     .dtype(DType::F32)
 ///     .build();
 /// ```
@@ -304,7 +304,7 @@ impl Display for RnnCell {
 ///
 /// # Optional Arguments
 /// * `bias_enabled` - Whether to enable the bias terms. Default is `true`.
-/// * `device` - The device to use for the layer. Default is `Device::cpu()`.
+/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
 ///
@@ -326,7 +326,7 @@ impl Display for RnnCell {
 /// let rnn_cell = RnnCellBuilder::new(10, 20)
 ///     .activation(Activation::tanh())
 ///     .bias_enabled(true)
-///     .device(Device::cpu())
+///     .device(nove::device::candle::cpu().unwrap())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true)
 ///     .build();
@@ -356,7 +356,7 @@ impl RnnCellBuilder {
             hidden_size,
             bias_enabled: true,
             activation: Activation::tanh(),
-            device: Device::cpu(),
+            device: nove_tensor::device::candle::cpu().unwrap(),
             dtype: DType::F32,
             grad_enabled: true,
         }
@@ -452,7 +452,7 @@ impl RnnCellBuilder {
     /// use nove::model::nn::RnnCellBuilder;
     /// use nove::tensor::Device;
     /// let mut builder = RnnCellBuilder::new(10, 20);
-    /// builder.device(Device::cpu());
+    /// builder.device(nove::device::candle::cpu().unwrap());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
         self.device = device;

@@ -1,6 +1,8 @@
 use nove_dataloader::Dataloader;
 use nove_lossfn::LossFn;
-use nove_metric::{AccuracyMetric, AnyMetric, EvaluationMetric, LossMetric, Metric, MetricValue, ResourceMetric};
+use nove_metric::{
+    AccuracyMetric, AnyMetric, EvaluationMetric, LossMetric, Metric, MetricValue, ResourceMetric,
+};
 use nove_model::Model;
 use nove_optimizer::Optimizer;
 use nove_tensor::Tensor;
@@ -444,27 +446,26 @@ where
         }
 
         // Predefined is_best_model: compares accuracy (first metric)
-        let is_best_model_fn = move |best_metrics: Vec<AnyMetric>,
-                                     current_metrics: Vec<AnyMetric>|
-              -> bool {
-            let best_first = best_metrics
-                .first()
-                .and_then(|m| m.value().ok())
-                .and_then(|v| match v {
-                    MetricValue::Scalar(s) => Some(s),
-                    _ => None,
-                })
-                .unwrap_or(0.0);
-            let current_first = current_metrics
-                .first()
-                .and_then(|m| m.value().ok())
-                .and_then(|v| match v {
-                    MetricValue::Scalar(s) => Some(s),
-                    _ => None,
-                })
-                .unwrap_or(0.0);
-            current_first > best_first
-        };
+        let is_best_model_fn =
+            move |best_metrics: Vec<AnyMetric>, current_metrics: Vec<AnyMetric>| -> bool {
+                let best_first = best_metrics
+                    .first()
+                    .and_then(|m| m.value().ok())
+                    .and_then(|v| match v {
+                        MetricValue::Scalar(s) => Some(s),
+                        _ => None,
+                    })
+                    .unwrap_or(0.0);
+                let current_first = current_metrics
+                    .first()
+                    .and_then(|m| m.value().ok())
+                    .and_then(|v| match v {
+                        MetricValue::Scalar(s) => Some(s),
+                        _ => None,
+                    })
+                    .unwrap_or(0.0);
+                current_first > best_first
+            };
 
         // Take ownership of inner, set closures, and build
         let inner = std::mem::take(&mut self.inner);

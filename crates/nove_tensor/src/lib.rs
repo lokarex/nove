@@ -1,9 +1,8 @@
-mod device;
-pub use device::Device;
-pub use device::DeviceError;
-
-mod shape;
-pub use shape::Shape;
+pub use nove_backend::{
+    BackendError, BackendKind, DType, Device, DeviceError, DeviceKind, FloatTensorElement, Shape,
+    TensorBuffer, IntoTensorPayload, TensorElement, TensorPayload,
+};
+pub use nove_backend::{backend, device};
 
 mod tensor;
 pub use tensor::Tensor;
@@ -14,8 +13,8 @@ mod creation;
 mod op;
 mod property;
 
-mod dtype;
-pub use dtype::DType;
+#[cfg(feature = "candle")]
+mod backend_candle_compat;
 
 mod format;
 pub use format::safetensor;

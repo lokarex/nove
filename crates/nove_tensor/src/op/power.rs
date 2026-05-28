@@ -1,9 +1,4 @@
-use std::sync::{Arc, RwLock};
-
-use crate::{
-    Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
-};
+use crate::{Tensor, TensorError, backpropagation::graph::OpKind};
 
 impl Tensor {
     /// Compute the power of the tensor element-wise with broadcasting.
@@ -22,7 +17,7 @@ impl Tensor {
     /// * Compute power element-wise without broadcasting
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     /// let exponent = Tensor::from_data(vec![vec![2.0, 3.0, 4.0], vec![5.0, 6.0, 7.0]], &device, false).unwrap();
@@ -38,7 +33,7 @@ impl Tensor {
     /// * Compute power element-wise with broadcasting
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![2.0, 3.0, 4.0], vec![5.0, 6.0, 7.0]], &device, false).unwrap();
     /// let exponent = Tensor::from_data(vec![vec![2.0, 3.0, 4.0]], &device, false).unwrap();
@@ -54,7 +49,7 @@ impl Tensor {
     /// * Backpropagate for power operation without broadcasting
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![2.0, 3.0, 4.0], vec![5.0, 6.0, 7.0]], &device, true).unwrap();
     /// let exponent = Tensor::from_data(vec![vec![2.0, 3.0, 4.0], vec![5.0, 6.0, 7.0]], &device, true).unwrap();
@@ -71,7 +66,7 @@ impl Tensor {
     /// * Backpropagate for power operation with broadcasting
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![2.0, 3.0, 4.0], vec![5.0, 6.0, 7.0]], &device, true).unwrap();
     /// let exponent = Tensor::from_data(vec![vec![2.0, 3.0, 4.0]], &device, true).unwrap();
@@ -85,28 +80,15 @@ impl Tensor {
     /// assert_eq!(exponent_grad.shape().unwrap(), (&[1, 3]).into());
     /// ```
     pub fn pow(&self, exponent: &Tensor) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-        let exponent_inner = exponent.data.read()?;
-        let exponent_inner_tensor = match &exponent_inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.broadcast_pow(exponent_inner_tensor)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy(), exponent.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = self
+            .backend_storage()?
+            .broadcast_pow(&exponent.backend_storage()?)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy(), exponent.copy()],
+            OpKind::Pow,
+        ))
     }
 
     /// Compute the square root of the tensor element-wise.
@@ -120,7 +102,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 4.0, 9.0], vec![16.0, 25.0, 36.0]], &device, false).unwrap();
     /// let result = t.sqrt().unwrap();
@@ -134,7 +116,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![4.0, 9.0, 16.0], vec![25.0, 36.0, 49.0]], &device, true).unwrap();
     /// let result = t.sqrt().unwrap();
@@ -151,23 +133,13 @@ impl Tensor {
     /// assert_eq!(t_grad.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn sqrt(&self) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.sqrt()?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = self.backend_storage()?.sqrt()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Sqrt,
+        ))
     }
 
     /// Compute the power of the tensor element-wise.
@@ -184,7 +156,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     /// let result = t.powf(2.0).unwrap();
@@ -198,7 +170,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     /// let result = t.powf(2.0).unwrap();
@@ -209,23 +181,13 @@ impl Tensor {
     /// assert_eq!(t_grad.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn powf(&self, exponent: f64) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.powf(exponent)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = self.backend_storage()?.powf(exponent)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Powf(exponent),
+        ))
     }
 
     /// Compute the reciprocal (1/x) of each element in the tensor.
@@ -239,7 +201,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 4.0], vec![8.0, 10.0, 16.0]], &device, false).unwrap();
     /// let result = t.recip().unwrap();
@@ -253,7 +215,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 4.0], vec![8.0, 10.0, 16.0]], &device, true).unwrap();
     /// let result = t.recip().unwrap();
@@ -264,22 +226,12 @@ impl Tensor {
     /// assert_eq!(t_grad.shape().unwrap(), (&[2, 3]).into());
     /// ```
     pub fn recip(&self) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.recip()?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = self.backend_storage()?.recip()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Recip,
+        ))
     }
 }

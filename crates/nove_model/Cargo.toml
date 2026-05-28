@@ -14,6 +14,15 @@ rand = { workspace = true }
 thiserror = { workspace = true }
 nove_macro = { path = "../nove_macro", version = "=0.1.2" }
 
+[features]
+default = ["candle-cpu"]
+candle = ["nove_tensor/candle"]
+candle-cpu = ["candle", "nove_tensor/candle-cpu"]
+candle-cuda = ["candle", "nove_tensor/candle-cuda"]
+candle-metal = ["candle", "nove_tensor/candle-metal"]
+native = ["nove_tensor/native"]
+native-cpu = ["native", "nove_tensor/native-cpu"]
+
 [dev-dependencies]
 nove = { path = "../nove" }
 tempfile = { workspace = true }

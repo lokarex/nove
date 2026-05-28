@@ -1,8 +1,7 @@
-use std::sync::{Arc, RwLock};
-
 use crate::{
     DType, Device, Shape, Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
+    backend::{BackendStorage, FloatTensorElement},
+    backpropagation::graph::OpKind,
 };
 
 impl Tensor {
@@ -13,18 +12,18 @@ impl Tensor {
     /// * `high` - The upper bound of the uniform distribution.
     /// * `shape` - The shape of the tensor.
     /// * `device` - The device to store the tensor.
-    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    /// * `requires_grad` - Whether to enable gradient tracking for the tensor.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The new tensor if successful.
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
-    /// * Create a 2x3 tensor with random values uniformly distributed between 0.0 and 1.0 (grad_enabled=false)
+    /// * Create a 2x3 tensor with random values uniformly distributed between 0.0 and 1.0 (requires_grad=false)
     /// ```
-    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -42,9 +41,9 @@ impl Tensor {
     /// ```
     /// * Create a random tensor with gradient tracking and verify backward propagation
     /// ```
-    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -72,25 +71,19 @@ impl Tensor {
         high: T,
         shape: &Shape,
         device: &Device,
-        grad_enabled: bool,
+        requires_grad: bool,
     ) -> Result<Self, TensorError>
     where
-        T: candle_core::FloatDType,
+        T: FloatTensorElement,
     {
-        let inner = match grad_enabled {
-            true => TensorInner::Var(candle_core::Var::rand(low, high, shape, device)?),
-            false => TensorInner::Tensor(candle_core::Tensor::rand(low, high, shape, device)?),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner,
-                device: device.clone(),
-                parents: vec![],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = BackendStorage::rand(low, high, shape, device, requires_grad)?;
+        Ok(Self::from_backend_storage(
+            storage,
+            device.clone(),
+            requires_grad,
+            vec![],
+            OpKind::Leaf,
+        ))
     }
 
     /// Create a new tensor with random values normally distributed with mean `mean` and standard deviation `std`.
@@ -100,18 +93,18 @@ impl Tensor {
     /// * `std` - The standard deviation of the normal distribution.
     /// * `shape` - The shape of the tensor.
     /// * `device` - The device to store the tensor.
-    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    /// * `requires_grad` - Whether to enable gradient tracking for the tensor.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The new tensor if successful.
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
-    /// * Create a 2x3 tensor with random values from normal distribution (grad_enabled=false)
+    /// * Create a 2x3 tensor with random values from normal distribution (requires_grad=false)
     /// ```
-    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -126,9 +119,9 @@ impl Tensor {
     /// ```
     /// * Create a random tensor from normal distribution with gradient tracking and verify backward propagation
     /// ```
-    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -153,25 +146,19 @@ impl Tensor {
         std: T,
         shape: &Shape,
         device: &Device,
-        grad_enabled: bool,
+        requires_grad: bool,
     ) -> Result<Self, TensorError>
     where
-        T: candle_core::FloatDType,
+        T: FloatTensorElement,
     {
-        let inner = match grad_enabled {
-            true => TensorInner::Var(candle_core::Var::randn(mean, std, shape, device)?),
-            false => TensorInner::Tensor(candle_core::Tensor::randn(mean, std, shape, device)?),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner,
-                device: device.clone(),
-                parents: vec![],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = BackendStorage::randn(mean, std, shape, device, requires_grad)?;
+        Ok(Self::from_backend_storage(
+            storage,
+            device.clone(),
+            requires_grad,
+            vec![],
+            OpKind::Leaf,
+        ))
     }
 
     /// Create a new tensor filled with zeros.
@@ -180,18 +167,18 @@ impl Tensor {
     /// * `shape` - The shape of the tensor.
     /// * `dtype` - The data type of the tensor.
     /// * `device` - The device to store the tensor.
-    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    /// * `requires_grad` - Whether to enable gradient tracking for the tensor.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The new tensor if successful.
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
-    /// * Create a 2x3 tensor of zeros with f32 data type (grad_enabled=false)
+    /// * Create a 2x3 tensor of zeros with f32 data type (requires_grad=false)
     /// ```
-    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -206,9 +193,9 @@ impl Tensor {
     /// ```
     /// * Create a tensor of zeros with gradient tracking and verify backward propagation
     /// ```
-    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -232,21 +219,16 @@ impl Tensor {
         shape: &Shape,
         dtype: &DType,
         device: &Device,
-        grad_enabled: bool,
+        requires_grad: bool,
     ) -> Result<Self, TensorError> {
-        let inner = match grad_enabled {
-            true => TensorInner::Var(candle_core::Var::zeros(shape, *dtype, device)?),
-            false => TensorInner::Tensor(candle_core::Tensor::zeros(shape, *dtype, device)?),
-        };
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner,
-                device: device.clone(),
-                parents: vec![],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = BackendStorage::zeros(shape, *dtype, device, requires_grad)?;
+        Ok(Self::from_backend_storage(
+            storage,
+            device.clone(),
+            requires_grad,
+            vec![],
+            OpKind::Leaf,
+        ))
     }
 
     /// Create a new tensor filled with ones.
@@ -255,18 +237,18 @@ impl Tensor {
     /// * `shape` - The shape of the tensor.
     /// * `dtype` - The data type of the tensor.
     /// * `device` - The device to store the tensor.
-    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    /// * `requires_grad` - Whether to enable gradient tracking for the tensor.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - The new tensor if successful.
     /// * `Err(TensorError)` - The error when creating the tensor.
     ///
     /// # Examples
-    /// * Create a 2x3 tensor of ones with f32 data type (grad_enabled=false)
+    /// * Create a 2x3 tensor of ones with f32 data type (requires_grad=false)
     /// ```
-    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -281,9 +263,9 @@ impl Tensor {
     /// ```
     /// * Create a tensor of ones with gradient tracking and verify backward propagation
     /// ```
-    /// use nove::tensor::{DType, Device, Shape, Tensor};
+    /// use nove::tensor::{DType, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -307,21 +289,16 @@ impl Tensor {
         shape: &Shape,
         dtype: &DType,
         device: &Device,
-        grad_enabled: bool,
+        requires_grad: bool,
     ) -> Result<Self, TensorError> {
-        let inner = match grad_enabled {
-            true => TensorInner::Var(candle_core::Var::ones(shape, *dtype, device)?),
-            false => TensorInner::Tensor(candle_core::Tensor::ones(shape, *dtype, device)?),
-        };
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner,
-                device: device.clone(),
-                parents: vec![],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = BackendStorage::ones(shape, *dtype, device, requires_grad)?;
+        Ok(Self::from_backend_storage(
+            storage,
+            device.clone(),
+            requires_grad,
+            vec![],
+            OpKind::Leaf,
+        ))
     }
 
     /// Create a new tensor with the same shape and device as the input tensor, filled with zeros.
@@ -335,7 +312,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, false).unwrap();
     ///
     /// let zeros = tensor.zeros_like().unwrap();
@@ -351,7 +328,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, true).unwrap();
     ///
     /// let zeros = tensor.zeros_like().unwrap();
@@ -371,22 +348,17 @@ impl Tensor {
     /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0; 3]);
     /// ```
     pub fn zeros_like(&self) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
+        let data = self.data.read()?;
+        let storage = data.storage.zeros_like()?;
+        let device = data.device.clone();
+        drop(data);
 
-        let new_inner = TensorInner::Tensor(inner_tensor.zeros_like()?);
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: inner.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        Ok(Self::op_result_with_kind(
+            storage,
+            device,
+            vec![self.copy()],
+            OpKind::ZerosLike,
+        ))
     }
 
     /// Create a new tensor with the same shape and device as the input tensor, filled with ones.
@@ -400,7 +372,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, false).unwrap();
     ///
     /// let ones = tensor.ones_like().unwrap();
@@ -416,7 +388,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, true).unwrap();
     ///
     /// let ones = tensor.ones_like().unwrap();
@@ -438,21 +410,16 @@ impl Tensor {
     /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0; 3]);
     /// ```
     pub fn ones_like(&self) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
+        let data = self.data.read()?;
+        let storage = data.storage.ones_like()?;
+        let device = data.device.clone();
+        drop(data);
 
-        let new_inner = TensorInner::Tensor(inner_tensor.ones_like()?);
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: inner.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        Ok(Self::op_result_with_kind(
+            storage,
+            device,
+            vec![self.copy()],
+            OpKind::OnesLike,
+        ))
     }
 }

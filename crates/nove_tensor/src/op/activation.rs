@@ -1,9 +1,4 @@
-use std::sync::{Arc, RwLock};
-
-use crate::{
-    Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
-};
+use crate::{Tensor, TensorError, backpropagation::graph::OpKind};
 
 impl Tensor {
     /// Apply the Rectified Linear Unit (ReLU) activation function element-wise.
@@ -30,7 +25,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// // Create a 2x3 matrix with positive and negative values
     /// let t = Tensor::from_data(vec![vec![-1.0, 2.0, -3.0], vec![4.0, -5.0, 6.0]], &device, false).unwrap();
     ///
@@ -44,7 +39,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// // Create a 2x3 matrix with positive values for gradient test
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///
@@ -57,23 +52,13 @@ impl Tensor {
     /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn relu(&self) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.relu()?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = self.backend_storage()?.relu()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Relu,
+        ))
     }
 
     /// Apply the Sigmoid Linear Unit (SiLU) activation function element-wise.
@@ -90,7 +75,7 @@ impl Tensor {
     ///
     /// Where:
     /// - x is the input value
-    /// - σ(x) is the sigmoid function: σ(x) = 1 / (1 + e^(-x))
+    /// - sigmoid(x) is the sigmoid function: sigmoid(x) = 1 / (1 + e^(-x))
     /// - f(x) is the output value
     ///
     /// # Returns
@@ -101,7 +86,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// // Create a 2x3 matrix with values from -2 to 3
     /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
@@ -118,7 +103,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// // Create a 2x3 matrix with values for gradient test
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///
@@ -134,23 +119,13 @@ impl Tensor {
     /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn silu(&self) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.silu()?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = self.backend_storage()?.silu()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Silu,
+        ))
     }
 
     /// Apply the Gaussian Error Linear Unit (GELU) activation function element-wise.
@@ -171,7 +146,7 @@ impl Tensor {
     ///
     /// Where:
     /// - x is the input value
-    /// - Φ(x) is the cumulative distribution function of the standard normal distribution:
+    /// - Phi(x) is the cumulative distribution function of the standard normal distribution:
     ///
     /// $$ \Phi(x) = \frac{1}{\sqrt{2\pi}} \int_{-\infty}^{x} e^{-\frac{t^2}{2}} dt = \frac{1}{2} \left[1 + \text{erf}\left(\frac{x}{\sqrt{2}}\right)\right] $$
     ///
@@ -185,7 +160,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// // Create a 2x3 matrix with values from -2 to 3
     /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
@@ -202,7 +177,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// // Create a 2x3 matrix with values for gradient test
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///
@@ -218,23 +193,13 @@ impl Tensor {
     /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn gelu(&self) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.gelu()?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = self.backend_storage()?.gelu()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Gelu,
+        ))
     }
 
     /// Apply the hyperbolic tangent (tanh) activation function element-wise.
@@ -263,7 +228,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// // Create a 2x3 matrix with values from -2 to 3
     /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
@@ -280,7 +245,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// // Create a 2x3 matrix with values for gradient test
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///
@@ -296,23 +261,13 @@ impl Tensor {
     /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn tanh(&self) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.tanh()?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = self.backend_storage()?.tanh()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Tanh,
+        ))
     }
 
     /// Apply the sigmoid activation function element-wise.
@@ -341,7 +296,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// // Create a 2x3 matrix with values from -2 to 3
     /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
@@ -358,7 +313,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// // Create a 2x3 matrix with values for gradient test
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///
@@ -374,9 +329,6 @@ impl Tensor {
     /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn sigmoid(&self) -> Result<Self, TensorError> {
-        let denom = self.affine(-1f64, 0f64)?.exp()?.affine(1f64, 1f64)?;
-        let numer = Tensor::from_scalar(1u8, &self.device()?, false)?.to_dtype(&self.dtype()?)?;
-
-        numer.div(&denom)
+        self.neg()?.exp()?.affine(1.0, 1.0)?.recip()
     }
 }

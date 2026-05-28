@@ -1,9 +1,4 @@
-use std::sync::{Arc, RwLock};
-
-use crate::{
-    Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
-};
+use crate::{Tensor, TensorError, backpropagation::graph::OpKind};
 
 impl Tensor {
     /// Apply the 2D max pooling operation.
@@ -24,7 +19,7 @@ impl Tensor {
     /// * Forward computation with standard parameters
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with shape [batch=1, channels=1, height=2, width=2]
     /// let t = Tensor::from_data(vec![vec![vec![vec![1.0, 2.0], vec![3.0, 4.0]]]], &device, false).unwrap();
@@ -43,7 +38,7 @@ impl Tensor {
     /// * Backpropagation with requires_grad=true
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with requires_grad=true
     /// let t = Tensor::from_data(vec![vec![vec![vec![1.0, 2.0], vec![3.0, 4.0]]]], &device, true).unwrap();
@@ -55,9 +50,9 @@ impl Tensor {
     /// // Verify gradient shapes
     /// let t_grad = t.grad().unwrap().unwrap();
     /// assert_eq!(t_grad.shape().unwrap(), Shape::from_dims(&[1, 1, 2, 2]));
-    /// // For max pooling with kernel_size=stride, gradient is distributed to max element
+    /// // For max pooling, each output gradient is routed to the max element in its window.
     /// // In input [[1,2],[3,4]], max element is at position (1,1) (0-indexed)
-    /// let expected_grad = vec![0.0, 0.0, 0.0, 0.25]; // Notes: gradient is normalized by kernel area (4)
+    /// let expected_grad = vec![0.0, 0.0, 0.0, 1.0];
     /// assert_eq!(t_grad.to_vec::<f64>().unwrap(), expected_grad);
     /// ```
     pub fn max_pool2d(
@@ -65,24 +60,20 @@ impl Tensor {
         kernel_size: (usize, usize),
         stride: (usize, usize),
     ) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner =
-            TensorInner::Tensor(inner_tensor.max_pool2d_with_stride(kernel_size, stride)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        let storage = self
+            .backend_storage()?
+            .max_pool2d_with_stride(kernel_size, stride)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::MaxPool2d {
+                kernel_size,
+                stride,
+                input_shape,
+            },
+        ))
     }
 
     /// Apply the 2D average pooling operation.
@@ -104,7 +95,7 @@ impl Tensor {
     /// * Forward computation with standard parameters
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with shape [batch=1, channels=1, height=2, width=2]
     /// let t = Tensor::from_data(vec![vec![vec![vec![1.0, 2.0], vec![3.0, 4.0]]]], &device, false).unwrap();
@@ -123,7 +114,7 @@ impl Tensor {
     /// * Backpropagation with requires_grad=true
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with requires_grad=true
     /// let t = Tensor::from_data(vec![vec![vec![vec![1.0, 2.0], vec![3.0, 4.0]]]], &device, true).unwrap();
@@ -145,24 +136,20 @@ impl Tensor {
         kernel_size: (usize, usize),
         stride: (usize, usize),
     ) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner =
-            TensorInner::Tensor(inner_tensor.avg_pool2d_with_stride(kernel_size, stride)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        let storage = self
+            .backend_storage()?
+            .avg_pool2d_with_stride(kernel_size, stride)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::AvgPool2d {
+                kernel_size,
+                stride,
+                input_shape,
+            },
+        ))
     }
 
     /// Apply the 1D max pooling operation.
@@ -182,7 +169,7 @@ impl Tensor {
     /// * Forward computation with standard parameters
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with shape [batch=1, channels=1, length=4]
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 4.0, 3.0, 2.0]]], &device, false).unwrap();
@@ -200,7 +187,7 @@ impl Tensor {
     /// * Backpropagation with requires_grad=true
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with requires_grad=true
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 4.0, 3.0, 2.0]]], &device, true).unwrap();
@@ -212,36 +199,30 @@ impl Tensor {
     /// // Verify gradient shapes and sparse gradient characteristic
     /// let t_grad = t.grad().unwrap().unwrap();
     /// assert_eq!(t_grad.shape().unwrap(), Shape::from_dims(&[1, 1, 4]));
-    /// // For max pooling, gradient is distributed among max elements
+    /// // For max pooling, each output gradient is routed to the max element in its window.
     /// // In input [1.0, 4.0, 3.0, 2.0], max element in window 0-1 is at position 1 (4.0)
     /// // and max element in window 2-3 is at position 2 (3.0)
-    /// // Each max element receives gradient 0.5 (distributed equally among output elements)
-    /// let expected_grad = vec![0.0, 0.5, 0.5, 0.0];
+    /// let expected_grad = vec![0.0, 1.0, 1.0, 0.0];
     /// assert_eq!(t_grad.to_vec::<f64>().unwrap(), expected_grad);
     /// ```
     pub fn max_pool1d(&self, kernel_size: usize, stride: usize) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let dims_len = inner_tensor.shape().dims().len();
-        let insert_dim = dims_len;
-        let unsqueezed = inner_tensor.unsqueeze(insert_dim)?;
-        let pooled = unsqueezed.max_pool2d_with_stride((kernel_size, 1), (stride, 1))?;
-        let squeezed = pooled.squeeze(insert_dim)?;
-        let new_inner = TensorInner::Tensor(squeezed);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        let insert_dim = input_shape.rank();
+        let storage = self
+            .backend_storage()?
+            .unsqueeze(insert_dim)?
+            .max_pool2d_with_stride((kernel_size, 1), (stride, 1))?
+            .squeeze(insert_dim)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::MaxPool1d {
+                kernel_size,
+                stride,
+                input_shape,
+            },
+        ))
     }
 
     /// Apply the 1D average pooling operation.
@@ -261,7 +242,7 @@ impl Tensor {
     /// * Forward computation with standard parameters
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with shape [batch=1, channels=1, length=4]
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0, 3.0, 4.0]]], &device, false).unwrap();
@@ -279,7 +260,7 @@ impl Tensor {
     /// * Backpropagation with requires_grad=true
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with requires_grad=true
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0, 3.0, 4.0]]], &device, true).unwrap();
@@ -297,27 +278,22 @@ impl Tensor {
     /// assert_eq!(t_grad.to_vec::<f64>().unwrap(), expected_grad);
     /// ```
     pub fn avg_pool1d(&self, kernel_size: usize, stride: usize) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let dims_len = inner_tensor.shape().dims().len();
-        let insert_dim = dims_len;
-        let unsqueezed = inner_tensor.unsqueeze(insert_dim)?;
-        let pooled = unsqueezed.avg_pool2d_with_stride((kernel_size, 1), (stride, 1))?;
-        let squeezed = pooled.squeeze(insert_dim)?;
-        let new_inner = TensorInner::Tensor(squeezed);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        let insert_dim = input_shape.rank();
+        let storage = self
+            .backend_storage()?
+            .unsqueeze(insert_dim)?
+            .avg_pool2d_with_stride((kernel_size, 1), (stride, 1))?
+            .squeeze(insert_dim)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::AvgPool1d {
+                kernel_size,
+                stride,
+                input_shape,
+            },
+        ))
     }
 }

@@ -64,7 +64,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///     .batch_first(true)
 ///     .dropout(0.5)
 ///     .bidirectional(false)
-///     .device(Device::cpu())
+///     .device(nove::device::candle::cpu().unwrap())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true)
 ///     .build();
@@ -190,7 +190,7 @@ impl Rnn {
 /// * `batch_first` - Whether the input tensor has batch dimension first. Default is `false`.
 /// * `dropout` - The dropout probability between RNN layers (except the last layer). Default is `0.0`.
 /// * `bidirectional` - Whether the RNN is bidirectional. Default is `false`.   
-/// * `device` - The device to use for the layer. Default is `Device::cpu()`.   
+/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.   
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.    
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
 ///
@@ -220,7 +220,7 @@ impl Rnn {
 ///     .batch_first(true)
 ///     .dropout(0.5)
 ///     .bidirectional(false)
-///     .device(Device::cpu())
+///     .device(nove::device::candle::cpu().unwrap())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true)
 ///     .build();
@@ -258,7 +258,7 @@ impl RnnBuilder {
             batch_first: false,
             dropout: 0.0,
             bidirectional: false,
-            device: Device::cpu(),
+            device: nove_tensor::device::candle::cpu().unwrap(),
             dtype: DType::F32,
             grad_enabled: true,
         }

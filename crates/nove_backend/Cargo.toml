@@ -1,0 +1,22 @@
+[package]
+name = "nove_backend"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+nove_candle = { path = "../nove_candle", optional = true }
+nove_native = { path = "../nove_native", optional = true }
+thiserror = { workspace = true }
+
+[features]
+default = ["candle-cpu"]
+candle = ["dep:nove_candle"]
+candle-cpu = ["candle"]
+candle-cuda = ["candle", "nove_candle/cuda"]
+candle-metal = ["candle", "nove_candle/metal"]
+native = ["dep:nove_native"]
+native-cpu = ["native", "nove_native/cpu"]

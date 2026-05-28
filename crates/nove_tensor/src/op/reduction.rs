@@ -1,9 +1,4 @@
-use std::sync::{Arc, RwLock};
-
-use crate::{
-    Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
-};
+use crate::{Tensor, TensorError, backpropagation::graph::OpKind};
 
 impl Tensor {
     /// Compute the sum of tensor elements along a specified dimension or across all elements.
@@ -23,7 +18,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -47,7 +42,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor with requires_grad=true for gradient test
     /// let mut tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -80,29 +75,18 @@ impl Tensor {
     /// assert_eq!(grad_dim1.to_vec::<f32>().unwrap(), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
     /// ```
     pub fn sum(&self, axis: Option<(usize, bool)>) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
+        let storage = match axis {
+            Some((dim, true)) => self.backend_storage()?.sum_keepdim(dim)?,
+            Some((dim, false)) => self.backend_storage()?.sum(dim)?,
+            None => self.backend_storage()?.sum_all()?,
         };
-
-        let new_inner = match axis {
-            Some((dim, keep_dim)) => match keep_dim {
-                true => TensorInner::Tensor(inner_tensor.sum_keepdim(dim)?),
-                false => TensorInner::Tensor(inner_tensor.sum(dim)?),
-            },
-            None => TensorInner::Tensor(inner_tensor.sum_all()?),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Sum { axis, input_shape },
+        ))
     }
 
     /// Compute the maximum value along a specified dimension or across all elements.
@@ -122,7 +106,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -146,7 +130,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor with requires_grad=true for gradient test
     /// let mut tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -182,29 +166,18 @@ impl Tensor {
     /// assert_eq!(grad_dim1.to_vec::<f32>().unwrap(), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0]);
     /// ```
     pub fn max(&self, axis: Option<(usize, bool)>) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
+        let storage = match axis {
+            Some((dim, true)) => self.backend_storage()?.max_keepdim(dim)?,
+            Some((dim, false)) => self.backend_storage()?.max(dim)?,
+            None => self.backend_storage()?.max_all()?,
         };
-
-        let new_inner = match axis {
-            Some((dim, keep_dim)) => match keep_dim {
-                true => TensorInner::Tensor(inner_tensor.max_keepdim(dim)?),
-                false => TensorInner::Tensor(inner_tensor.max(dim)?),
-            },
-            None => TensorInner::Tensor(inner_tensor.max_all()?),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Max { axis, input_shape },
+        ))
     }
 
     /// Compute the minimum value along a specified dimension or across all elements.
@@ -224,7 +197,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -248,7 +221,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor with requires_grad=true for gradient test
     /// let mut tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -284,29 +257,18 @@ impl Tensor {
     /// assert_eq!(grad_dim1.to_vec::<f32>().unwrap(), vec![1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
     /// ```
     pub fn min(&self, axis: Option<(usize, bool)>) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
+        let storage = match axis {
+            Some((dim, true)) => self.backend_storage()?.min_keepdim(dim)?,
+            Some((dim, false)) => self.backend_storage()?.min(dim)?,
+            None => self.backend_storage()?.min_all()?,
         };
-
-        let new_inner = match axis {
-            Some((dim, keep_dim)) => match keep_dim {
-                true => TensorInner::Tensor(inner_tensor.min_keepdim(dim)?),
-                false => TensorInner::Tensor(inner_tensor.min(dim)?),
-            },
-            None => TensorInner::Tensor(inner_tensor.min_all()?),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Min { axis, input_shape },
+        ))
     }
 
     /// Compute the mean along the specified axis.
@@ -326,7 +288,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -358,7 +320,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor with requires_grad=true for gradient test
     /// let mut tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -406,27 +368,18 @@ impl Tensor {
     /// }
     /// ```
     pub fn mean(&self, axis: Option<(usize, bool)>) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
+        let storage = match axis {
+            Some((dim, true)) => self.backend_storage()?.mean_keepdim(dim)?,
+            Some((dim, false)) => self.backend_storage()?.mean(dim)?,
+            None => self.backend_storage()?.mean_all()?,
         };
-
-        let new_inner = match axis {
-            Some((axis, false)) => TensorInner::Tensor(inner_tensor.mean(axis)?),
-            Some((axis, true)) => TensorInner::Tensor(inner_tensor.mean_keepdim(axis)?),
-            None => TensorInner::Tensor(inner_tensor.mean_all()?),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Mean { axis, input_shape },
+        ))
     }
 
     /// Compute the variance along the specified axis.
@@ -444,7 +397,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -493,7 +446,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor with requires_grad=true for gradient test
     /// let mut tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -514,36 +467,33 @@ impl Tensor {
     /// assert_eq!(grad_dim1.shape().unwrap(), Shape::from_dims(&[2, 3]));
     /// ```
     pub fn var(&self, dim: usize, keep_dim: bool, unbiased: bool) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
+        let input = self.backend_storage()?;
+        let mut storage = if keep_dim {
+            input.var_keepdim(dim)?
+        } else {
+            input.var(dim)?
         };
 
-        let new_inner_tensor = match (dim, keep_dim) {
-            (dim, false) => inner_tensor.var(dim)?,
-            (dim, true) => inner_tensor.var_keepdim(dim)?,
-        };
+        if !unbiased {
+            let dims = input.shape()?.dims().to_vec();
+            let total_size = dims.iter().product::<usize>();
+            let num_features = dims[dim];
+            let n = total_size / num_features;
+            storage = storage.affine((n as f64 - 1.0) / n as f64, 0.0)?;
+        }
 
-        let new_inner = match unbiased {
-            false => {
-                let total_size = inner_tensor.shape().dims().iter().product::<usize>();
-                let num_features = inner_tensor.shape().dims()[dim];
-                let n = total_size / num_features;
-                TensorInner::Tensor(new_inner_tensor.affine((n as f64 - 1f64) / n as f64, 0f64)?)
-            }
-            true => TensorInner::Tensor(new_inner_tensor),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Var {
+                dim,
+                keep_dim,
+                unbiased,
+                input_shape,
+            },
+        ))
     }
 
     /// Compute the indices of the maximum values along a specified dimension.
@@ -563,7 +513,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -581,27 +531,18 @@ impl Tensor {
     /// assert_eq!(result_dim1.to_vec::<u32>().unwrap(), vec![2, 2]);
     /// ```
     pub fn argmax(&self, axis: (usize, bool)) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
         let (dim, keep_dim) = axis;
-        let new_inner = match keep_dim {
-            true => TensorInner::Tensor(inner_tensor.argmax_keepdim(dim)?),
-            false => TensorInner::Tensor(inner_tensor.argmax(dim)?),
+        let storage = if keep_dim {
+            self.backend_storage()?.argmax_keepdim(dim)?
+        } else {
+            self.backend_storage()?.argmax(dim)?
         };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::ArgMax,
+        ))
     }
 
     /// Compute the indices of the minimum values along a specified dimension.
@@ -621,7 +562,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -639,26 +580,17 @@ impl Tensor {
     /// assert_eq!(result_dim1.to_vec::<u32>().unwrap(), vec![0, 0]);
     /// ```
     pub fn argmin(&self, axis: (usize, bool)) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
         let (dim, keep_dim) = axis;
-        let new_inner = match keep_dim {
-            true => TensorInner::Tensor(inner_tensor.argmin_keepdim(dim)?),
-            false => TensorInner::Tensor(inner_tensor.argmin(dim)?),
+        let storage = if keep_dim {
+            self.backend_storage()?.argmin_keepdim(dim)?
+        } else {
+            self.backend_storage()?.argmin(dim)?
         };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::ArgMin,
+        ))
     }
 }

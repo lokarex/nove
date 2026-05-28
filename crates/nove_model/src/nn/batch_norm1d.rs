@@ -41,12 +41,12 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///     .epsilon(1e-5)          // Optional, default is 1e-5
 ///     .momentum(0.1)          // Optional, default is 0.1
 ///     .affine(true)           // Optional, default is true
-///     .device(Device::cpu())  // Optional, default is cpu
+///     .device(nove::device::candle::cpu().unwrap())  // Optional, default is cpu
 ///     .dtype(DType::F32)      // Optional, default is F32
 ///     .build()
 ///     .unwrap();
 ///
-/// let input = Tensor::randn(0.0, 1.0, &Shape::from(&[32, 64]), &Device::cpu(), false).unwrap();
+/// let input = Tensor::randn(0.0, 1.0, &Shape::from(&[32, 64]), &nove::device::candle::cpu().unwrap(), false).unwrap();
 ///
 /// // Training mode
 /// bn.train(true).unwrap();
@@ -111,10 +111,7 @@ impl BatchNorm1d {
     /// # Returns
     /// * `Ok(Tensor)` - The output tensor with the same shape as input if successful.
     /// * `Err(ModelError)` - The error when applying batch normalization.
-    fn forward_batch_features(
-        &mut self,
-        input: Tensor,
-    ) -> Result<Tensor, ModelError> {
+    fn forward_batch_features(&mut self, input: Tensor) -> Result<Tensor, ModelError> {
         let perm = &[1isize, 0];
         let stat_shape = Shape::from_dims(&[self.num_features]);
         self.apply_batch_norm(input, perm, &stat_shape)
@@ -128,10 +125,7 @@ impl BatchNorm1d {
     /// # Returns
     /// * `Ok(Tensor)` - The output tensor with the same shape as input if successful.
     /// * `Err(ModelError)` - The error when applying batch normalization.
-    fn forward_batch_features_length(
-        &mut self,
-        input: Tensor,
-    ) -> Result<Tensor, ModelError> {
+    fn forward_batch_features_length(&mut self, input: Tensor) -> Result<Tensor, ModelError> {
         let perm = &[1isize, 0, 2];
         let stat_shape = Shape::from_dims(&[self.num_features, 1]);
         self.apply_batch_norm(input, perm, &stat_shape)
@@ -367,7 +361,7 @@ impl Display for BatchNorm1d {
 /// * `epsilon` - A small value added to the variance for numerical stability. Default is `1e-5`.
 /// * `momentum` - The momentum for updating running statistics. Default is `0.1`.
 /// * `affine` - Whether to use learnable affine parameters (gamma and beta). Default is `true`.
-/// * `device` - The device to use for the layer. Default is `Device::cpu()`.
+/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 ///
 /// # Fields
@@ -387,7 +381,7 @@ impl Display for BatchNorm1d {
 ///     .epsilon(1e-5)          // Optional, default is 1e-5
 ///     .momentum(0.1)          // Optional, default is 0.1
 ///     .affine(true)           // Optional, default is true
-///     .device(Device::cpu())  // Optional, default is cpu
+///     .device(nove::device::candle::cpu().unwrap())  // Optional, default is cpu
 ///     .dtype(DType::F32)      // Optional, default is F32
 ///     .build();
 /// ```
@@ -408,7 +402,7 @@ impl BatchNorm1dBuilder {
             epsilon: 1e-5,
             momentum: 0.1,
             affine: true,
-            device: Device::cpu(),
+            device: nove_tensor::device::candle::cpu().unwrap(),
             dtype: DType::F32,
             training: true,
         }
@@ -514,7 +508,7 @@ impl BatchNorm1dBuilder {
     /// use nove::model::nn::BatchNorm1dBuilder;
     /// use nove::tensor::Device;
     /// let mut bn_builder = BatchNorm1dBuilder::new(64);
-    /// bn_builder.device(Device::cpu());
+    /// bn_builder.device(nove::device::candle::cpu().unwrap());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
         self.device = device;

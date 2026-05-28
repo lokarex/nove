@@ -11,5 +11,14 @@ repository.workspace = true
 thiserror = { workspace = true }
 nove_tensor = { path = "../nove_tensor", version = "=0.1.2" }
 
+[features]
+default = ["candle-cpu"]
+candle = ["nove_tensor/candle"]
+candle-cpu = ["candle", "nove_tensor/candle-cpu"]
+candle-cuda = ["candle", "nove_tensor/candle-cuda"]
+candle-metal = ["candle", "nove_tensor/candle-metal"]
+native = ["nove_tensor/native"]
+native-cpu = ["native", "nove_tensor/native-cpu"]
+
 [dev-dependencies]
 nove = { path = "../nove" }

@@ -1,8 +1,7 @@
-use std::sync::{Arc, RwLock};
-
 use crate::{
     Device, Shape, Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
+    backend::{BackendStorage, IntoTensorPayload, TensorElement},
+    backpropagation::graph::OpKind,
 };
 
 impl Tensor {
@@ -18,7 +17,7 @@ impl Tensor {
     /// # Arguments
     /// * `data` - The data to create the tensor from.
     /// * `device` - The device to place the tensor on.
-    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    /// * `requires_grad` - Whether to enable gradient tracking for the tensor.
     ///
     /// # Returns
     /// * `Ok(tensor)` - The created tensor if successful.
@@ -28,7 +27,7 @@ impl Tensor {
     /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Vec<&[S]> - Vec of 1D slices
     /// let data: Vec<&[f32]> = vec![&[1.0f32, 2.0f32, 3.0f32], &[4.0f32, 5.0f32, 6.0f32]];
@@ -92,24 +91,18 @@ impl Tensor {
     /// let tensor = Tensor::from_data(data, &device, false).unwrap();
     /// println!("{:?}", tensor);
     /// ```
-    pub fn from_data<A>(data: A, device: &Device, grad_enabled: bool) -> Result<Self, TensorError>
+    pub fn from_data<A>(data: A, device: &Device, requires_grad: bool) -> Result<Self, TensorError>
     where
-        A: candle_core::NdArray,
+        A: IntoTensorPayload,
     {
-        let inner = match grad_enabled {
-            true => TensorInner::Var(candle_core::Var::new(data, device)?),
-            false => TensorInner::Tensor(candle_core::Tensor::new(data, device)?),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner,
-                device: device.clone(),
-                parents: vec![],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = BackendStorage::from_data(data, device, requires_grad)?;
+        Ok(Self::from_backend_storage(
+            storage,
+            device.clone(),
+            requires_grad,
+            vec![],
+            OpKind::Leaf,
+        ))
     }
 
     /// Create a new tensor from a vector with the specified shape.
@@ -122,7 +115,7 @@ impl Tensor {
     /// * `data` - The vector of data to create the tensor from.
     /// * `shape` - The shape of the tensor.
     /// * `device` - The device to place the tensor on.
-    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    /// * `requires_grad` - Whether to enable gradient tracking for the tensor.
     ///
     /// # Returns
     /// * `Ok(tensor)` - The created tensor if successful.
@@ -131,7 +124,7 @@ impl Tensor {
     /// # Examples
     /// ```no_run
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     /// let shape = Shape::from(&[2, 3]);
@@ -142,25 +135,19 @@ impl Tensor {
         data: Vec<D>,
         shape: &Shape,
         device: &Device,
-        grad_enabled: bool,
+        requires_grad: bool,
     ) -> Result<Self, TensorError>
     where
-        D: candle_core::WithDType,
+        D: TensorElement,
     {
-        let inner = match grad_enabled {
-            true => TensorInner::Var(candle_core::Var::from_vec(data, shape, device)?),
-            false => TensorInner::Tensor(candle_core::Tensor::from_vec(data, shape, device)?),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner,
-                device: device.clone(),
-                parents: vec![],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = BackendStorage::from_vec(data, shape, device, requires_grad)?;
+        Ok(Self::from_backend_storage(
+            storage,
+            device.clone(),
+            requires_grad,
+            vec![],
+            OpKind::Leaf,
+        ))
     }
 
     /// Create a new tensor from a slice with the specified shape.
@@ -173,7 +160,7 @@ impl Tensor {
     /// * `data` - The slice of data to create the tensor from.
     /// * `shape` - The shape of the tensor.
     /// * `device` - The device to place the tensor on.
-    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    /// * `requires_grad` - Whether to enable gradient tracking for the tensor.
     ///
     /// # Returns
     /// * `Ok(tensor)` - The created tensor if successful.
@@ -182,7 +169,7 @@ impl Tensor {
     /// # Examples
     /// ```no_run
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let data = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     /// let shape = Shape::from(&[2, 3]);
@@ -193,25 +180,19 @@ impl Tensor {
         data: &[D],
         shape: &Shape,
         device: &Device,
-        grad_enabled: bool,
+        requires_grad: bool,
     ) -> Result<Self, TensorError>
     where
-        D: candle_core::WithDType,
+        D: TensorElement,
     {
-        let inner = match grad_enabled {
-            true => TensorInner::Var(candle_core::Var::from_slice(data, shape, device)?),
-            false => TensorInner::Tensor(candle_core::Tensor::from_slice(data, shape, device)?),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner,
-                device: device.clone(),
-                parents: vec![],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = BackendStorage::from_slice(data, shape, device, requires_grad)?;
+        Ok(Self::from_backend_storage(
+            storage,
+            device.clone(),
+            requires_grad,
+            vec![],
+            OpKind::Leaf,
+        ))
     }
 
     /// Create a new tensor from a scalar.
@@ -223,7 +204,7 @@ impl Tensor {
     /// # Arguments
     /// * `scalar` - The scalar to create the tensor from. It should be a single value not a vector or array.
     /// * `device` - The device to place the tensor on.
-    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
+    /// * `requires_grad` - Whether to enable gradient tracking for the tensor.
     ///
     /// # Returns
     /// * `Ok(tensor)` - The created tensor if successful.
@@ -233,7 +214,7 @@ impl Tensor {
     /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let tensor = Tensor::from_scalar(1.0f32, &device, false).unwrap();
     /// println!("{:?}", tensor);
@@ -241,12 +222,12 @@ impl Tensor {
     pub fn from_scalar<S>(
         scalar: S,
         device: &Device,
-        grad_enabled: bool,
+        requires_grad: bool,
     ) -> Result<Self, TensorError>
     where
-        S: candle_core::NdArray + candle_core::WithDType,
+        S: IntoTensorPayload + TensorElement,
     {
-        Self::from_data(scalar, device, grad_enabled)
+        Self::from_data(scalar, device, requires_grad)
     }
 
     /// Convert the tensor to a scalar.
@@ -265,32 +246,16 @@ impl Tensor {
     /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let tensor = Tensor::from_scalar(1.0f32, &device, false).unwrap();
     /// println!("{}", tensor.to_scalar::<f32>().unwrap());
     /// ```
     pub fn to_scalar<S>(&self) -> Result<S, TensorError>
     where
-        S: candle_core::WithDType,
+        S: TensorElement,
     {
-        let data = self.data.read()?;
-        let inner_tensor = match &data.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        // If the tensor dimension number is 0, it is a scalar tensor.
-        // We can directly convert it to a scalar.
-        // Otherwise, we need to squeeze the tensor to remove the dimension.
-        let num_dim = self.num_dim()?;
-        match num_dim {
-            0 => Ok(inner_tensor.to_scalar::<S>()?),
-            _ => {
-                let squeezed = inner_tensor.squeeze(0)?;
-                Ok(squeezed.to_scalar::<S>()?)
-            }
-        }
+        Ok(self.backend_storage()?.to_scalar::<S>()?)
     }
 
     /// Convert the tensor to a one-dimensional vector.
@@ -309,7 +274,7 @@ impl Tensor {
     /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let tensor = Tensor::from_data(&[[1.0f64, 2.0f64, 3.0f64], [4.0f64, 5.0f64, 6.0f64]], &device, false).unwrap();
     /// println!("{:?}", tensor.to_vec::<f64>().unwrap());
@@ -317,145 +282,8 @@ impl Tensor {
     ///
     pub fn to_vec<S>(&self) -> Result<Vec<S>, TensorError>
     where
-        S: candle_core::WithDType,
+        S: TensorElement,
     {
-        let data = self.data.read()?;
-        let vec = match &data.inner {
-            TensorInner::Tensor(tensor) => tensor.flatten_all()?.to_vec1::<S>()?,
-            TensorInner::Var(var) => var.flatten_all()?.to_vec1::<S>()?,
-        };
-        Ok(vec)
-    }
-
-    /// Create a tensor from a candle tensor.
-    ///
-    /// # Arguments
-    /// * `tensor` - The candle tensor to create the tensor from.
-    /// * `device` - The device to place the tensor on.
-    /// * `grad_enabled` - Whether to enable gradient tracking for the tensor.
-    ///
-    /// # Returns
-    /// * `Ok(Self)` - The created tensor if successful.
-    /// * `Err(TensorError)` - The error when creating the tensor.
-    ///
-    /// # Examples
-    /// ```
-    /// use nove::tensor::Device;
-    /// use nove::tensor::Tensor;
-    /// use candle_core::Tensor as CandleTensor;
-    ///
-    /// let device = Device::cpu();
-    ///
-    /// // Create a candle tensor first
-    /// let candle_tensor = CandleTensor::from_slice(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device).unwrap();
-    ///
-    /// // Convert to nove tensor without gradient tracking
-    /// let nove_tensor = Tensor::from_candle_tensor(candle_tensor, &device, false).unwrap();
-    ///
-    /// // Verify the shape is preserved
-    /// assert_eq!(nove_tensor.shape().unwrap().dims(), &[2, 3]);
-    ///
-    /// // Verify the data is correct by converting back to vector
-    /// let data = nove_tensor.to_vec::<f32>().unwrap();
-    /// assert_eq!(data, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-    /// ```
-    pub fn from_candle_tensor(
-        tensor: candle_core::Tensor,
-        device: &Device,
-        grad_enabled: bool,
-    ) -> Result<Self, TensorError> {
-        let inner_tensor = tensor.copy()?.to_device(device)?.detach();
-        let inner = match grad_enabled {
-            true => TensorInner::Var(candle_core::Var::from_tensor(&inner_tensor)?),
-            false => TensorInner::Tensor(inner_tensor),
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner,
-                device: device.clone(),
-                parents: vec![],
-                grad: None,
-                name: None,
-            })),
-        })
-    }
-
-    /// Convert the tensor to a `candle_core::Tensor`.
-    ///
-    /// # Returns
-    /// * `Ok(candle_core::Tensor)` - The `candle_core::Tensor` if successful.
-    /// * `Err(TensorError)` - The error when converting the tensor to a `candle_core::Tensor`.
-    ///
-    /// # Examples
-    /// ```
-    /// use nove::tensor::Device;
-    /// use nove::tensor::Shape;
-    /// use nove::tensor::Tensor;
-    /// use candle_core::Tensor as CandleTensor;
-    ///
-    /// let device = Device::cpu();
-    ///
-    /// // Create a nove tensor first (without gradient tracking)
-    /// let nove_tensor = Tensor::from_slice(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &Shape::from(&[2, 3]), &device, false).unwrap();
-    ///
-    /// // Convert to candle tensor
-    /// let candle_tensor: CandleTensor = nove_tensor.to_candle_tensor().unwrap();
-    ///
-    /// // Verify the candle tensor has correct shape
-    /// assert_eq!(candle_tensor.dims(), &[2, 3]);
-    ///
-    /// // Verify the data is correct by converting back to slice
-    /// let data = candle_tensor.flatten_all().unwrap().to_vec1::<f32>().unwrap();
-    /// assert_eq!(data, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-    /// ```
-    pub fn to_candle_tensor(&self) -> Result<candle_core::Tensor, TensorError> {
-        let data = self.data.read()?;
-        let tensor = match &data.inner {
-            TensorInner::Tensor(tensor) => tensor.copy()?.detach(),
-            TensorInner::Var(var) => var.as_tensor().copy()?.detach(),
-        };
-        Ok(tensor)
-    }
-
-    /// Convert the tensor to a `candle_core::Var`.
-    ///
-    /// # Returns
-    /// * `Ok(candle_core::Var)` - The `candle_core::Var` if successful.
-    /// * `Err(TensorError)` - The error when converting the tensor to a `candle_core::Var`.
-    ///
-    /// # Examples
-    /// ```
-    /// use nove::tensor::Device;
-    /// use nove::tensor::Shape;
-    /// use nove::tensor::Tensor;
-    /// use candle_core::Var as CandleVar;
-    ///
-    /// let device = Device::cpu();
-    ///
-    /// // Create a nove tensor with gradient tracking disabled first
-    /// let nove_tensor_without_grad = Tensor::from_slice(&[1.0f32, 2.0, 3.0, 4.0], &Shape::from(&[2, 2]), &device, false).unwrap();
-    ///
-    /// // Convert to candle var - creates a new variable from the tensor
-    /// let candle_var: CandleVar = nove_tensor_without_grad.to_candle_var().unwrap();
-    ///
-    /// // The variable should be a variable (supports gradient tracking)
-    /// assert!(candle_var.is_variable());
-    ///
-    /// // Verify shape and data
-    /// assert_eq!(candle_var.as_tensor().dims(), &[2, 2]);
-    /// let data = candle_var.as_tensor().flatten_all().unwrap().to_vec1::<f32>().unwrap();
-    /// assert_eq!(data, vec![1.0, 2.0, 3.0, 4.0]);
-    /// ```
-    pub fn to_candle_var(&self) -> Result<candle_core::Var, TensorError> {
-        let data = self.data.read()?;
-        match &data.inner {
-            TensorInner::Tensor(tensor) => {
-                Ok(candle_core::Var::from_tensor(&tensor.copy()?.detach())?)
-            }
-            TensorInner::Var(var) => Ok(candle_core::Var::from_tensor(
-                &var.as_tensor().copy()?.detach(),
-            )?),
-        }
+        Ok(self.backend_storage()?.to_vec::<S>()?)
     }
 }

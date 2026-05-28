@@ -23,14 +23,14 @@ static ID: AtomicUsize = AtomicUsize::new(1);
 ///
 /// # Examples
 /// ```
-/// use nove_tensor::{Device, Tensor};
+/// use nove::tensor::{Device, Tensor};
 /// use nove::model::nn::Dropout;
 /// use nove_model::Model;
 ///
 /// let mut dropout = Dropout::new(0.5).unwrap();
 /// println!("{}", dropout);
 ///
-/// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &Device::cpu(), false).unwrap();
+/// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &nove::device::candle::cpu().unwrap(), false).unwrap();
 ///
 /// // Training mode
 /// dropout.train(true).unwrap();
@@ -159,6 +159,10 @@ impl Model for Dropout {
 
 impl Display for Dropout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "dropout.{}(probability={}, training={})", self.id, self.probability, self.training)
+        write!(
+            f,
+            "dropout.{}(probability={}, training={})",
+            self.id, self.probability, self.training
+        )
     }
 }

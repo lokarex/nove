@@ -1,4 +1,8 @@
-use crate::{DType, Device, Shape};
+use crate::{
+    DType, Device, Shape,
+    backend::{BackendError, BackendStorage},
+    backpropagation::graph::{GraphNode, OpKind},
+};
 use std::{
     fmt::Display,
     sync::{Arc, RwLock},
@@ -8,8 +12,8 @@ use thiserror::Error;
 /// Error type for tensor operations.
 #[derive(Error, Debug)]
 pub enum TensorError {
-    #[error("Error from Candle: {0}")]
-    CandleError(#[from] candle_core::Error),
+    #[error("Backend error: {0}")]
+    BackendError(#[from] BackendError),
 
     #[error("Cannot perform gradient operation: tensor has gradients disabled")]
     GradientDisabled,
@@ -34,6 +38,9 @@ pub enum TensorError {
 
     #[error("Invalid dimension: {0}, must be >= -1")]
     InvalidDimension(isize),
+
+    #[error("Invalid tensor operation: {0}")]
+    InvalidOperation(String),
 }
 
 impl<T> From<std::sync::PoisonError<T>> for TensorError {
@@ -58,65 +65,88 @@ impl PartialEq for TensorError {
             (TensorError::DeviceMismatch(a1, b1), TensorError::DeviceMismatch(a2, b2)) => {
                 a1 == a2 && b1 == b2
             }
+            (TensorError::InvalidDimension(a), TensorError::InvalidDimension(b)) => a == b,
+            (TensorError::InvalidOperation(a), TensorError::InvalidOperation(b)) => a == b,
             _ => false,
         }
     }
 }
 
-/// Inner representation of tensor data.
-#[derive(Clone, Debug)]
-pub(crate) enum TensorInner {
-    Tensor(candle_core::Tensor),
-    Var(candle_core::Var),
-}
-
-/// The data structure for a tensor.
-///
-/// # Fields
-/// * `inner` - The inner representation of the tensor data.
-/// * `parents` - The list of parent tensors used to backpropagate gradients.
-/// * `grad` - The gradient of the tensor data.
-/// * `name` - The name of the tensor.
+/// Inner tensor state.
 #[derive(Debug)]
 pub(crate) struct TensorData {
-    pub(crate) inner: TensorInner,
+    pub(crate) storage: BackendStorage,
     pub(crate) device: Device,
-    pub(crate) parents: Vec<Tensor>,
+    pub(crate) graph: GraphNode,
     pub(crate) grad: Option<Tensor>,
     pub(crate) name: Option<String>,
+    pub(crate) requires_grad: bool,
 }
 
 /// The tensor struct.
-///
-/// # Fields
-/// * `data` - The data structure of the tensor.
-///
-/// # See Also
-/// * [`try_clone`](crate::tensor::Tensor::try_clone) - The fallible version for cloning a tensor that returns `Result`.
-/// * [`clone`](crate::tensor::Tensor::clone) - The unfallible version for cloning a tensor that panics on failure.
-/// * [`copy`](crate::tensor::Tensor::copy) - Shallow copy that shares underlying data.
 #[derive(Debug)]
 pub struct Tensor {
     pub(crate) data: Arc<RwLock<TensorData>>,
 }
 
 impl Clone for Tensor {
-    /// Clone the tensor.
-    ///
-    /// This is a convenience method that calls [`try_clone`](crate::tensor::Tensor::try_clone)
-    /// and unwraps the result. If cloning fails, it will panic.
-    ///
-    /// For error-safe cloning, use [`try_clone`](crate::tensor::Tensor::try_clone) instead.
-    ///
-    /// # See Also
-    /// * [`try_clone`](crate::tensor::Tensor::try_clone) - The fallible version that returns `Result`.
-    /// * [`copy`](crate::tensor::Tensor::copy) - Shallow copy that shares underlying data.
     fn clone(&self) -> Self {
         self.try_clone().unwrap()
     }
 }
 
 impl Tensor {
+    pub(crate) fn from_backend_storage(
+        storage: BackendStorage,
+        device: Device,
+        requires_grad: bool,
+        parents: Vec<Tensor>,
+        op: OpKind,
+    ) -> Self {
+        Self::from_backend_parts(storage, device, requires_grad, parents, op, None, None)
+    }
+
+    pub(crate) fn from_backend_parts(
+        storage: BackendStorage,
+        device: Device,
+        requires_grad: bool,
+        parents: Vec<Tensor>,
+        op: OpKind,
+        grad: Option<Tensor>,
+        name: Option<String>,
+    ) -> Self {
+        Tensor {
+            data: Arc::new(RwLock::new(TensorData {
+                storage,
+                device,
+                graph: GraphNode::new(op, parents),
+                grad,
+                name,
+                requires_grad,
+            })),
+        }
+    }
+
+    pub(crate) fn backend_storage(&self) -> Result<BackendStorage, TensorError> {
+        Ok(self.data.read()?.storage.clone())
+    }
+
+    pub(crate) fn op_result_with_kind(
+        storage: BackendStorage,
+        device: Device,
+        parents: Vec<Tensor>,
+        op: OpKind,
+    ) -> Self {
+        let requires_grad = parents.iter().any(|parent| {
+            parent
+                .data
+                .read()
+                .map(|data| data.requires_grad)
+                .unwrap_or(false)
+        });
+        Self::from_backend_storage(storage, device, requires_grad, parents, op)
+    }
+
     /// Create a shallow copy of the tensor.
     ///
     /// This method only clones the `Arc` reference to the underlying data,
@@ -132,7 +162,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a tensor with gradient tracking enabled
     /// let data = [1.0f32, 2.0, 3.0, 4.0];
@@ -178,7 +208,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create a tensor with gradient tracking enabled
     /// let data = [1.0f32, 2.0, 3.0, 4.0];
@@ -213,23 +243,18 @@ impl Tensor {
     /// * [`copy`](crate::tensor::Tensor::copy) - Shallow copy that shares underlying data.
     pub fn try_clone(&self) -> Result<Self, TensorError> {
         let data = self.data.read()?;
-        Ok(Tensor {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: match &data.inner {
-                    TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.copy()?.detach()),
-                    TensorInner::Var(var) => {
-                        TensorInner::Var(candle_core::Var::from_tensor(&var.copy()?.detach())?)
-                    }
-                },
-                device: data.device.clone(),
-                grad: match &data.grad {
-                    Some(grad) => Some(grad.try_clone()?),
-                    None => None,
-                },
-                parents: vec![],
-                name: data.name.clone(),
-            })),
-        })
+        Ok(Tensor::from_backend_parts(
+            data.storage.copy_detached()?,
+            data.device.clone(),
+            data.requires_grad,
+            vec![],
+            OpKind::Clone,
+            match &data.grad {
+                Some(grad) => Some(grad.try_clone()?),
+                None => None,
+            },
+            data.name.clone(),
+        ))
     }
 }
 
@@ -242,49 +267,37 @@ impl AsRef<Tensor> for Tensor {
 impl Display for Tensor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let data = self.data.read().map_err(|_| std::fmt::Error)?;
-        let inner_tensor = match &data.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var.as_tensor(),
-        };
-        inner_tensor.fmt(f)?;
-        Ok(())
+        data.storage.fmt_backend(f)
     }
 }
 
 impl Tensor {
-    /// Update the tensor's inner data from another tensor.
+    /// Update the tensor's backend storage from another tensor.
     ///
     /// # Notes
-    /// * If the tensor has enabled gradients, the method will update the tensor's inner data
+    /// * If the tensor has enabled gradients, the method will update the tensor's backend storage
     ///   without disconnecting it from the computational graph.
-    /// * If the tensor does not have enabled gradients, the method will update the tensor's inner data
+    /// * If the tensor does not have enabled gradients, the method will update the tensor's backend storage
     ///   and disconnect it from the computational graph.
     /// * Always used with [`Tensor::detach`].
     ///
     /// # Arguments
-    /// * `other` - The tensor to update the inner data from.
+    /// * `other` - The tensor to update the backend storage from.
     ///
     /// # Returns
-    /// * `Ok(())` - The tensor's inner data is successfully updated.
-    /// * `Err(TensorError)` - The error when updating the tensor's inner data.
+    /// * `Ok(())` - The tensor's backend storage is successfully updated.
+    /// * `Err(TensorError)` - The error when updating the tensor's backend storage.
     pub fn update_from_tensor(&self, other: &Tensor) -> Result<(), TensorError> {
-        let other_data = other.data.read()?;
-        let other_inner_tensor = match &other_data.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
+        let other_storage = other.backend_storage()?;
         let mut self_data = self.data.write()?;
-        match &mut self_data.inner {
-            TensorInner::Tensor(_) => {
-                self_data.inner = TensorInner::Tensor(other_inner_tensor.copy()?);
-                self_data.grad = None;
-                self_data.parents.clear();
-            }
-            TensorInner::Var(var) => {
-                var.set(other_inner_tensor)?;
-            }
+        let requires_grad = self_data.requires_grad;
+        self_data
+            .storage
+            .assign_from(&other_storage, requires_grad)?;
+        if !requires_grad {
+            self_data.grad = None;
+            self_data.graph.clear_parents();
         }
-
         Ok(())
     }
 }

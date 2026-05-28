@@ -1,6 +1,7 @@
+use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::EmbeddingBuilder;
-use nove::tensor::{DType, Device, Shape, Tensor};
+use nove::tensor::{DType, Shape, Tensor};
 
 #[test]
 fn test_embedding_builder_creation() {
@@ -33,7 +34,7 @@ fn test_embedding_builder_with_padding_idx() {
 fn test_embedding_builder_configuration() {
     let embedding = EmbeddingBuilder::new(100, 50)
         .padding_idx(Some(0))
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .grad_enabled(true)
         .build()
@@ -55,7 +56,7 @@ fn test_embedding_builder_method_chaining() {
         .num_embeddings(200)
         .embedding_dim(100)
         .padding_idx(Some(0))
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .grad_enabled(true);
 
@@ -70,7 +71,7 @@ fn test_embedding_builder_method_chaining() {
 fn test_embedding_forward_1d() {
     let mut embedding = EmbeddingBuilder::new(100, 50).build().unwrap();
 
-    let input = Tensor::from_data(vec![1i64, 2, 3, 4], &Device::cpu(), false).unwrap();
+    let input = Tensor::from_data(vec![1i64, 2, 3, 4], &candle::cpu().unwrap(), false).unwrap();
     let output = embedding.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[4, 50]));
@@ -80,7 +81,7 @@ fn test_embedding_forward_1d() {
 fn test_embedding_forward_2d() {
     let mut embedding = EmbeddingBuilder::new(100, 50).build().unwrap();
 
-    let input = Tensor::from_data(vec![1i64, 2, 3, 4], &Device::cpu(), false)
+    let input = Tensor::from_data(vec![1i64, 2, 3, 4], &candle::cpu().unwrap(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
@@ -93,10 +94,14 @@ fn test_embedding_forward_2d() {
 fn test_embedding_forward_3d() {
     let mut embedding = EmbeddingBuilder::new(100, 50).build().unwrap();
 
-    let input = Tensor::from_data(vec![1i64, 2, 3, 4, 5, 6, 7, 8], &Device::cpu(), false)
-        .unwrap()
-        .reshape(&Shape::from_dims(&[2, 2, 2]))
-        .unwrap();
+    let input = Tensor::from_data(
+        vec![1i64, 2, 3, 4, 5, 6, 7, 8],
+        &candle::cpu().unwrap(),
+        false,
+    )
+    .unwrap()
+    .reshape(&Shape::from_dims(&[2, 2, 2]))
+    .unwrap();
     let output = embedding.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[2, 2, 2, 50]));
@@ -109,7 +114,7 @@ fn test_embedding_forward_with_padding_idx() {
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(vec![0i64, 1, 2, 0], &Device::cpu(), false).unwrap();
+    let input = Tensor::from_data(vec![0i64, 1, 2, 0], &candle::cpu().unwrap(), false).unwrap();
     let output = embedding.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[4, 50]));
@@ -187,9 +192,9 @@ fn test_embedding_to_device() {
     let mut embedding = EmbeddingBuilder::new(100, 50).build().unwrap();
 
     let device = embedding.weight().device().unwrap();
-    assert_eq!(device, Device::cpu());
+    assert_eq!(device, candle::cpu().unwrap());
 
-    let target_device = Device::cpu();
+    let target_device = candle::cpu().unwrap();
     embedding.to_device(&target_device).unwrap();
 
     let new_device = embedding.weight().device().unwrap();
@@ -200,7 +205,7 @@ fn test_embedding_to_device() {
 fn test_embedding_error_wrong_dtype() {
     let mut embedding = EmbeddingBuilder::new(100, 50).build().unwrap();
 
-    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &Device::cpu(), false).unwrap();
+    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &candle::cpu().unwrap(), false).unwrap();
     let result = embedding.forward(input);
 
     assert!(result.is_err());
@@ -211,7 +216,7 @@ fn test_embedding_error_wrong_dtype() {
 fn test_embedding_error_out_of_range_indices() {
     let mut embedding = EmbeddingBuilder::new(10, 50).build().unwrap();
 
-    let input = Tensor::from_data(vec![5i64, 10, 15], &Device::cpu(), false).unwrap();
+    let input = Tensor::from_data(vec![5i64, 10, 15], &candle::cpu().unwrap(), false).unwrap();
     let result = embedding.forward(input);
 
     assert!(result.is_err());
@@ -243,7 +248,7 @@ fn test_embedding_display() {
 fn test_embedding_edge_case_single_index() {
     let mut embedding = EmbeddingBuilder::new(100, 50).build().unwrap();
 
-    let input = Tensor::from_scalar(5i64, &Device::cpu(), false).unwrap();
+    let input = Tensor::from_scalar(5i64, &candle::cpu().unwrap(), false).unwrap();
     let output = embedding.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[50]));
@@ -253,7 +258,7 @@ fn test_embedding_edge_case_single_index() {
 fn test_embedding_edge_case_empty_batch() {
     let mut embedding = EmbeddingBuilder::new(100, 50).build().unwrap();
 
-    let input = Tensor::from_data(Vec::<i64>::new(), &Device::cpu(), false)
+    let input = Tensor::from_data(Vec::<i64>::new(), &candle::cpu().unwrap(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[0]))
         .unwrap();
@@ -269,7 +274,7 @@ fn test_embedding_gradient_flow_without_padding() {
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(vec![1i64, 2, 3], &Device::cpu(), false).unwrap();
+    let input = Tensor::from_data(vec![1i64, 2, 3], &candle::cpu().unwrap(), false).unwrap();
     let output = embedding.forward(input).unwrap();
     eprintln!(
         "weight grad before backward: {:?}",
@@ -292,7 +297,7 @@ fn test_embedding_gradient_flow_with_padding() {
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(vec![0i64, 1, 2, 0], &Device::cpu(), false).unwrap();
+    let input = Tensor::from_data(vec![0i64, 1, 2, 0], &candle::cpu().unwrap(), false).unwrap();
     let output = embedding.forward(input).unwrap();
     eprintln!(
         "weight grad before backward: {:?}",

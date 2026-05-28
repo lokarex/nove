@@ -1,13 +1,14 @@
+use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::LayerNormBuilder;
-use nove::tensor::{DType, Device, Shape, Tensor};
+use nove::tensor::{DType, Shape, Tensor};
 
 #[test]
 fn test_layernorm_builder_creation() {
     let layernorm = LayerNormBuilder::new(vec![768])
         .epsilon(1e-5)
         .affine(true)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .build()
         .unwrap();
@@ -141,7 +142,7 @@ fn test_layernorm_forward_basic() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3, 4]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -161,7 +162,7 @@ fn test_layernorm_forward_without_affine() {
         .unwrap();
 
     let input_data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
-    let input = Tensor::from_data(input_data, &Device::cpu(), false)
+    let input = Tensor::from_data(input_data, &candle::cpu().unwrap(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 3]))
         .unwrap();
@@ -177,7 +178,7 @@ fn test_layernorm_forward_invalid_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 4]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -198,7 +199,7 @@ fn test_layernorm_forward_complex_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[4, 16, 8, 8]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -295,14 +296,14 @@ fn test_layernorm_require_grad_without_affine() {
 #[test]
 fn test_layernorm_to_device() {
     let mut layernorm = LayerNormBuilder::new(vec![8])
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .build()
         .unwrap();
 
     let gamma_device = layernorm.gamma().device().unwrap();
     assert!(gamma_device.is_cpu());
 
-    assert!(layernorm.to_device(&Device::cpu()).is_ok());
+    assert!(layernorm.to_device(&candle::cpu().unwrap()).is_ok());
 
     let gamma_device = layernorm.gamma().device().unwrap();
     assert!(gamma_device.is_cpu());
@@ -331,7 +332,7 @@ fn test_layernorm_builder_method_chaining() {
         .normalized_shape(vec![128])
         .epsilon(1e-6)
         .affine(false)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32);
 
     let layernorm = builder.build().unwrap();

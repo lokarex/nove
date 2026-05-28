@@ -1,2 +1,2 @@
 mod grad;
-mod graph;
+pub mod graph;

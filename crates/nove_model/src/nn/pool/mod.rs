@@ -31,7 +31,7 @@ use std::collections::HashMap;
 /// let mut avg_pool = Pool1d::avg_pool1d(2, None).unwrap();
 /// println!("{}", avg_pool);
 ///
-/// let input = Tensor::randn(0.0, 1.0, &Shape::from(&[1, 1, 10]), &Device::cpu(), false).unwrap();
+/// let input = Tensor::randn(0.0, 1.0, &Shape::from(&[1, 1, 10]), &nove::device::candle::cpu().unwrap(), false).unwrap();
 /// let output = avg_pool.forward(input).unwrap();
 /// println!("{}", output);
 /// ```

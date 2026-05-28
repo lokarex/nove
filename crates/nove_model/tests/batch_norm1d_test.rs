@@ -1,6 +1,7 @@
+use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::BatchNorm1dBuilder;
-use nove::tensor::{DType, Device, Shape, Tensor};
+use nove::tensor::{DType, Shape, Tensor};
 
 #[test]
 fn test_batch_norm1d_basic_forward() {
@@ -8,15 +9,19 @@ fn test_batch_norm1d_basic_forward() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &Device::cpu(), false)
-        .unwrap()
-        .reshape(&Shape::from_dims(&[2, 3]))
-        .unwrap();
+    let input = Tensor::from_data(
+        vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0],
+        &candle::cpu().unwrap(),
+        false,
+    )
+    .unwrap()
+    .reshape(&Shape::from_dims(&[2, 3]))
+    .unwrap();
 
     let output = bn.forward(input).unwrap();
     let output_shape = output.shape().unwrap();
@@ -32,15 +37,19 @@ fn test_batch_norm1d_training_vs_inference() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], &Device::cpu(), false)
-        .unwrap()
-        .reshape(&Shape::from_dims(&[2, 3]))
-        .unwrap();
+    let input = Tensor::from_data(
+        vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0],
+        &candle::cpu().unwrap(),
+        false,
+    )
+    .unwrap()
+    .reshape(&Shape::from_dims(&[2, 3]))
+    .unwrap();
 
     let initial_running_mean = bn.running_mean().to_vec::<f32>().unwrap();
     let initial_running_var = bn.running_var().to_vec::<f32>().unwrap();
@@ -81,12 +90,12 @@ fn test_batch_norm1d_running_statistics_update() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .build()
         .unwrap();
 
-    let input1 = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &Device::cpu(), false)
+    let input1 = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &candle::cpu().unwrap(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
@@ -104,7 +113,7 @@ fn test_batch_norm1d_running_statistics_update() {
         assert_ne!(initial_running_var[i], after_first_running_var[i]);
     }
 
-    let input2 = Tensor::from_data(vec![5.0f32, 6.0, 7.0, 8.0], &Device::cpu(), false)
+    let input2 = Tensor::from_data(vec![5.0f32, 6.0, 7.0, 8.0], &candle::cpu().unwrap(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
@@ -141,7 +150,7 @@ fn test_batch_norm1d_epsilon_effect() {
         .epsilon(1e-8)
         .momentum(0.1)
         .affine(true)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .build()
         .unwrap();
@@ -150,12 +159,12 @@ fn test_batch_norm1d_epsilon_effect() {
         .epsilon(1e-2)
         .momentum(0.1)
         .affine(true)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &Device::cpu(), false)
+    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &candle::cpu().unwrap(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
@@ -183,7 +192,7 @@ fn test_batch_norm1d_3d_input() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .build()
         .unwrap();
@@ -192,7 +201,7 @@ fn test_batch_norm1d_3d_input() {
         vec![
             1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
         ],
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap()
@@ -213,12 +222,12 @@ fn test_batch_norm1d_affine_false() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(false)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &Device::cpu(), false)
+    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &candle::cpu().unwrap(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
@@ -237,7 +246,7 @@ fn test_batch_norm1d_parameters() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .build()
         .unwrap();
@@ -260,11 +269,11 @@ fn test_batch_norm1d_to_device_and_dtype() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .build()
         .unwrap();
 
-    bn.to_device(&Device::cpu()).unwrap();
+    bn.to_device(&candle::cpu().unwrap()).unwrap();
     bn.to_dtype(&DType::F32).unwrap();
 }

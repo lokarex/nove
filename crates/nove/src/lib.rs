@@ -7,7 +7,35 @@ pub mod dataset {
 }
 
 pub mod tensor {
-    pub use nove_tensor::*;
+    //! Tensor API re-exports.
+    //!
+    //! Device constructors are intentionally exposed through [`crate::device`]
+    //! at the umbrella crate level. Use `nove::device::candle::*` or
+    //! `nove::device::native::*` to construct devices.
+    //!
+    //! # Examples
+    //! ```
+    //! use nove::tensor::{DType, Shape, Tensor};
+    //!
+    //! let _shape = Shape::from_dims(&[2, 2]);
+    //! let _dtype = DType::F32;
+    //! let _ = core::mem::size_of::<Tensor>();
+    //! ```
+    //!
+    //! ```compile_fail
+    //! let _ = nove::tensor::
+    //!     device::candle::cpu();
+    //! ```
+
+    pub use nove_tensor::{
+        BackendError, BackendKind, DType, Device, DeviceError, DeviceKind, FloatTensorElement, Shape,
+        Tensor, TensorBuffer, IntoTensorPayload, TensorElement, TensorError, TensorPayload, backend,
+        safetensor,
+    };
+}
+
+pub mod device {
+    pub use nove_tensor::device::*;
 }
 
 pub mod model {

@@ -58,7 +58,7 @@ struct RmspropParam {
 /// use nove::optimizer::RmspropBuilder;
 /// use nove::tensor::{Device, Tensor};
 ///
-/// let device = Device::cpu();
+/// let device = nove::device::candle::cpu().unwrap();
 /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
 /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
 ///
@@ -103,7 +103,7 @@ pub struct Rmsprop {
 /// use nove::optimizer::RmspropBuilder;
 /// use nove::tensor::{Device, Tensor};
 ///
-/// let device = Device::cpu();
+/// let device = nove::device::candle::cpu().unwrap();
 /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
 /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
 ///
@@ -139,7 +139,7 @@ impl RmspropBuilder {
     /// use nove::optimizer::RmspropBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
     ///
@@ -175,7 +175,7 @@ impl RmspropBuilder {
     /// use nove::optimizer::RmspropBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = RmspropBuilder::new(vec![param], 0.001);
     /// builder.rho(0.99);
@@ -198,7 +198,7 @@ impl RmspropBuilder {
     /// use nove::optimizer::RmspropBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = RmspropBuilder::new(vec![param], 0.001);
     /// builder.momentum(0.9);
@@ -221,7 +221,7 @@ impl RmspropBuilder {
     /// use nove::optimizer::RmspropBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = RmspropBuilder::new(vec![param], 0.001);
     /// builder.epsilon(1e-8);
@@ -244,7 +244,7 @@ impl RmspropBuilder {
     /// use nove::optimizer::RmspropBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = RmspropBuilder::new(vec![param], 0.001);
     /// builder.weight_decay(0.0001);
@@ -268,7 +268,7 @@ impl RmspropBuilder {
     /// use nove::optimizer::RmspropBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     ///
     /// let rmsprop = RmspropBuilder::new(vec![param], 0.001)

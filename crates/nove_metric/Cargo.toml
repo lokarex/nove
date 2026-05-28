@@ -13,5 +13,14 @@ nove_lossfn = { path = "../nove_lossfn", version = "=0.1.2" }
 nove_tensor = { path = "../nove_tensor", version = "=0.1.2" }
 sysinfo = "0.32"
 
+[features]
+default = ["candle-cpu"]
+candle = ["nove_tensor/candle", "nove_lossfn/candle"]
+candle-cpu = ["candle", "nove_tensor/candle-cpu", "nove_lossfn/candle-cpu"]
+candle-cuda = ["candle", "nove_tensor/candle-cuda", "nove_lossfn/candle-cuda"]
+candle-metal = ["candle", "nove_tensor/candle-metal", "nove_lossfn/candle-metal"]
+native = ["nove_tensor/native", "nove_lossfn/native"]
+native-cpu = ["native", "nove_tensor/native-cpu", "nove_lossfn/native-cpu"]
+
 [dev-dependencies]
 nove = { path = "../nove" }

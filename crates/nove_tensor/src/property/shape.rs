@@ -1,9 +1,4 @@
-use std::sync::{Arc, RwLock};
-
-use crate::{
-    Shape, Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
-};
+use crate::{Shape, Tensor, TensorError, backpropagation::graph::OpKind};
 
 impl Tensor {
     /// Create a new tensor like the current tensor with the specified shape.
@@ -23,7 +18,7 @@ impl Tensor {
     /// * Reshape 1D tensor to 2D
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
     ///
     /// let result = tensor.reshape(&Shape::from(&[2, 2])).unwrap();
@@ -34,7 +29,7 @@ impl Tensor {
     /// * Reshape 1D tensor to column vector
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
     ///
     /// let result = tensor.reshape(&Shape::from(&[3, 1])).unwrap();
@@ -45,7 +40,7 @@ impl Tensor {
     /// * Backpropagate through reshape with gradient
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, true).unwrap();
     /// let result = tensor.reshape(&Shape::from(&[2, 2])).unwrap();
@@ -59,33 +54,38 @@ impl Tensor {
     /// tensor.backward().unwrap();
     /// assert!(tensor.grad().unwrap().is_none());
     ///
-    /// // If you need to reshape the tensor immediately using chained calls while preserving gradients, you can do so as follows
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, true).unwrap().reshape(&Shape::from(&[2, 2])).unwrap().require_grad(true).unwrap();
+    /// // Keep a handle to the source tensor when chaining operations that should receive gradients.
+    /// let source = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, true).unwrap();
+    /// let tensor = source.reshape(&Shape::from(&[2, 2])).unwrap();
     /// tensor.backward().unwrap();
-    /// let grad = tensor.grad().unwrap().unwrap();
-    /// assert_eq!(grad.shape().unwrap(), (&[2, 2]).into());
+    /// let grad = source.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), (&[4]).into());
     /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0, 1.0, 1.0, 1.0]);
     /// ```
     pub fn reshape(&self, shape: &Shape) -> Result<Tensor, TensorError> {
-        let new_inner = match &self.data.read()?.inner {
-            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.reshape(shape)?),
-            TensorInner::Var(var) => TensorInner::Tensor(var.reshape(shape)?),
-        };
-
-        let new_grad = match &self.data.read()?.grad {
+        let data = self.data.read()?;
+        let storage = data.storage.reshape(shape)?;
+        let grad = match &data.grad {
             Some(grad) => Some(grad.reshape(shape)?),
             None => None,
         };
+        let device = data.device.clone();
+        let name = data.name.clone();
+        let requires_grad = data.requires_grad;
+        drop(data);
 
-        Ok(Tensor {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                grad: new_grad,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                name: self.data.read()?.name.clone(),
-            })),
-        })
+        Ok(Tensor::from_backend_parts(
+            storage,
+            device,
+            requires_grad,
+            vec![self.copy()],
+            OpKind::Reshape {
+                from: self.shape()?,
+                to: shape.clone(),
+            },
+            grad,
+            name,
+        ))
     }
 
     /// Get the shape of the tensor.
@@ -97,19 +97,14 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
     ///
     /// let shape = tensor.shape().unwrap();
     /// assert_eq!(shape, (&[3]).into());
     /// ```
     pub fn shape(&self) -> Result<Shape, TensorError> {
-        let data = self.data.read()?;
-        let shape = match &data.inner {
-            TensorInner::Tensor(tensor) => tensor.shape(),
-            TensorInner::Var(var) => var.shape(),
-        };
-        Ok(Shape::from(shape))
+        Ok(self.data.read()?.storage.shape()?)
     }
 
     /// Get the number of dimensions of the tensor.
@@ -121,7 +116,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // 1-dimensional tensor (vector)
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
@@ -147,8 +142,7 @@ impl Tensor {
     /// assert_eq!(num_dim, 4);
     /// ```
     pub fn num_dim(&self) -> Result<usize, TensorError> {
-        let shape = self.shape()?;
-        Ok(shape.rank())
+        Ok(self.shape()?.rank())
     }
 
     /// Broadcast the tensor to the specified shape.
@@ -164,7 +158,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
     /// let shape = Shape::from_dims(&[2, 4]);
@@ -177,7 +171,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, true).unwrap();
     ///
@@ -189,19 +183,19 @@ impl Tensor {
     /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![2.0, 2.0, 2.0, 2.0]);
     /// ```
     pub fn broadcast(&self, shape: &Shape) -> Result<Self, TensorError> {
-        let inner = match &self.data.read()?.inner {
-            TensorInner::Var(var) => TensorInner::Tensor(var.broadcast_as(shape)?),
-            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.broadcast_as(shape)?),
-        };
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let data = self.data.read()?;
+        let storage = data.storage.broadcast_as(shape)?;
+        let device = data.device.clone();
+        drop(data);
+        Ok(Self::op_result_with_kind(
+            storage,
+            device,
+            vec![self.copy()],
+            OpKind::BroadcastAs {
+                from: self.shape()?,
+                to: shape.clone(),
+            },
+        ))
     }
 
     /// Flatten the tensor by merging multiple dimensions into one.
@@ -222,7 +216,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
@@ -234,7 +228,7 @@ impl Tensor {
     /// * Forward pass with start_dim
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
@@ -246,7 +240,7 @@ impl Tensor {
     /// * Forward pass with negative indices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
@@ -258,7 +252,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, true).unwrap();
     ///
@@ -275,46 +269,29 @@ impl Tensor {
         end_dim: Option<isize>,
     ) -> Result<Self, TensorError> {
         let num_dims = self.num_dim()?;
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
+        let input_shape = self.shape()?;
+        let storage = self.backend_storage()?;
+
+        let start = start_dim.map(|dim| normalize_dim(dim, num_dims));
+        let end = end_dim.map(|dim| normalize_dim(dim, num_dims));
+
+        let storage = match (start, end) {
+            (None, None) => storage.flatten_all()?,
+            (Some(start_dim), None) => storage.flatten_from(start_dim)?,
+            (None, Some(end_dim)) => storage.flatten_to(end_dim)?,
+            (Some(start_dim), Some(end_dim)) => storage.flatten(start_dim, end_dim)?,
         };
 
-        // Convert negative indices to positive
-        let start = start_dim.map(|d| {
-            if d < 0 {
-                (num_dims as isize + d) as usize
-            } else {
-                d as usize
-            }
-        });
-        let end = end_dim.map(|d| {
-            if d < 0 {
-                (num_dims as isize + d) as usize
-            } else {
-                d as usize
-            }
-        });
-
-        let new_inner = match (start, end) {
-            (None, None) => TensorInner::Tensor(inner_tensor.flatten_all()?),
-            (Some(start_dim), None) => TensorInner::Tensor(inner_tensor.flatten_from(start_dim)?),
-            (None, Some(end_dim)) => TensorInner::Tensor(inner_tensor.flatten_to(end_dim)?),
-            (Some(start_dim), Some(end_dim)) => {
-                TensorInner::Tensor(inner_tensor.flatten(start_dim, end_dim)?)
-            }
-        };
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let output_shape = storage.shape()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Reshape {
+                from: input_shape,
+                to: output_shape,
+            },
+        ))
     }
 
     /// Remove dimensions of size 1 from the tensor.
@@ -330,7 +307,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0], vec![2.0]], &device, false).unwrap();
     ///
@@ -342,7 +319,7 @@ impl Tensor {
     /// * Forward pass with specific dimension
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0]], &device, false).unwrap();
     ///
@@ -354,7 +331,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0], vec![2.0]], &device, true).unwrap();
     ///
@@ -366,38 +343,32 @@ impl Tensor {
     /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![1.0, 1.0]);
     /// ```
     pub fn squeeze(&self, dim: Option<usize>) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = match dim {
-            Some(dim) => TensorInner::Tensor(inner_tensor.squeeze(dim)?),
+        let input_shape = self.shape()?;
+        let storage = self.backend_storage()?;
+        let storage = match dim {
+            Some(dim) => storage.squeeze(dim)?,
             None => {
-                // Squeeze all dimensions of size 1
-                let shape = inner_tensor.shape();
-                let dims = shape.dims();
-                // Iterate dimensions in reverse order to avoid index shifting
-                let mut result = inner_tensor.clone();
-                for (i, &dim_size) in dims.iter().enumerate().rev() {
-                    if dim_size == 1 {
-                        result = result.squeeze(i)?;
+                let mut result = storage;
+                let dims = result.shape()?.dims().to_vec();
+                for (index, dim_size) in dims.iter().enumerate().rev() {
+                    if *dim_size == 1 {
+                        result = result.squeeze(index)?;
                     }
                 }
-                TensorInner::Tensor(result)
+                result
             }
         };
 
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let output_shape = storage.shape()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Reshape {
+                from: input_shape,
+                to: output_shape,
+            },
+        ))
     }
 
     /// Add a dimension of size 1 at the specified position.
@@ -413,7 +384,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
     ///
@@ -425,7 +396,7 @@ impl Tensor {
     /// * Forward pass at different dimension
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
     ///
@@ -437,7 +408,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, true).unwrap();
     ///
@@ -449,23 +420,18 @@ impl Tensor {
     /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![1.0, 1.0, 1.0, 1.0]);
     /// ```
     pub fn unsqueeze(&self, dim: usize) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.unsqueeze(dim)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let input_shape = self.shape()?;
+        let storage = self.backend_storage()?.unsqueeze(dim)?;
+        let output_shape = storage.shape()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Reshape {
+                from: input_shape,
+                to: output_shape,
+            },
+        ))
     }
 
     /// Transpose the tensor by swapping the two specified dimensions.
@@ -482,7 +448,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
@@ -494,7 +460,7 @@ impl Tensor {
     /// * Forward pass with negative indices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
@@ -506,7 +472,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, true).unwrap();
     ///
@@ -519,36 +485,15 @@ impl Tensor {
     /// ```
     pub fn transpose(&self, dim0: isize, dim1: isize) -> Result<Self, TensorError> {
         let num_dims = self.num_dim()?;
-
-        let dim0 = if dim0 < 0 {
-            (num_dims as isize + dim0) as usize
-        } else {
-            dim0 as usize
-        };
-
-        let dim1 = if dim1 < 0 {
-            (num_dims as isize + dim1) as usize
-        } else {
-            dim1 as usize
-        };
-
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.transpose(dim0, dim1)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let dim0 = normalize_dim(dim0, num_dims);
+        let dim1 = normalize_dim(dim1, num_dims);
+        let storage = self.backend_storage()?.transpose(dim0, dim1)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Transpose { dim0, dim1 },
+        ))
     }
 
     /// Permute the dimensions of the tensor according to the given order.
@@ -564,7 +509,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0]], vec![vec![3.0, 4.0]]], &device, false).unwrap();
     ///
@@ -576,7 +521,7 @@ impl Tensor {
     /// * Forward pass with negative indices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Shape [2, 1, 2] permuted with [-1, 0, 1] (same as [2, 0, 1])
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0]], vec![vec![3.0, 4.0]]], &device, false).unwrap();
@@ -589,7 +534,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0]], vec![vec![3.0, 4.0]]], &device, true).unwrap();
     ///
@@ -602,35 +547,21 @@ impl Tensor {
     /// ```
     pub fn permute(&self, dims: &[isize]) -> Result<Self, TensorError> {
         let num_dims = self.num_dim()?;
-
-        let dims: Vec<usize> = dims
+        let dims = dims
             .iter()
-            .map(|&d| {
-                if d < 0 {
-                    (num_dims as isize + d) as usize
-                } else {
-                    d as usize
-                }
-            })
-            .collect();
-
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.permute(dims.as_slice())?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+            .map(|dim| normalize_dim(*dim, num_dims))
+            .collect::<Vec<_>>();
+        let mut inverse_dims = vec![0; dims.len()];
+        for (new_axis, old_axis) in dims.iter().copied().enumerate() {
+            inverse_dims[old_axis] = new_axis;
+        }
+        let storage = self.backend_storage()?.permute(&dims)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Permute { dims, inverse_dims },
+        ))
     }
 
     /// Narrow the tensor along a dimension by selecting a range of indices.
@@ -648,7 +579,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     ///
@@ -660,7 +591,7 @@ impl Tensor {
     /// * Forward pass with negative indices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     ///
@@ -672,7 +603,7 @@ impl Tensor {
     /// * Forward pass along first dimension
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     ///
@@ -684,7 +615,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///
@@ -698,14 +629,7 @@ impl Tensor {
     pub fn narrow(&self, dim: isize, start: isize, length: usize) -> Result<Self, TensorError> {
         let shape = self.shape()?;
         let dims = shape.dims();
-        let num_dims = dims.len();
-
-        let dim = if dim < 0 {
-            (num_dims as isize + dim) as usize
-        } else {
-            dim as usize
-        };
-
+        let dim = normalize_dim(dim, dims.len());
         let dim_size = dims[dim] as isize;
         let start = if start < 0 {
             (dim_size + start) as usize
@@ -713,22 +637,25 @@ impl Tensor {
             start as usize
         };
 
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
+        let storage = self.backend_storage()?.narrow(dim, start, length)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Narrow {
+                input_shape: shape,
+                dim,
+                start,
+                length,
+            },
+        ))
+    }
+}
 
-        let new_inner = TensorInner::Tensor(inner_tensor.narrow(dim, start, length)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+fn normalize_dim(dim: isize, rank: usize) -> usize {
+    if dim < 0 {
+        (rank as isize + dim) as usize
+    } else {
+        dim as usize
     }
 }

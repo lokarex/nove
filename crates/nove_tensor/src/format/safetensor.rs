@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Device, Tensor, TensorError};
+use crate::{Device, Tensor, TensorError, backend};
 
 /// Save the tensors to a safetensors file.
 ///
@@ -12,11 +12,11 @@ use crate::{Device, Tensor, TensorError};
 /// * `Ok(())` - If the tensors are saved successfully.
 /// * `Err(TensorError)` - If there is an error while saving the tensors.
 pub fn save(file_path: &str, tensors: HashMap<String, Tensor>) -> Result<(), TensorError> {
-    let candle_tensor = tensors
-        .iter()
-        .map(|(name, t)| Ok((name, t.to_candle_tensor()?)))
+    let storages = tensors
+        .into_iter()
+        .map(|(name, tensor)| Ok((name, tensor.backend_storage()?)))
         .collect::<Result<HashMap<_, _>, TensorError>>()?;
-    candle_core::safetensors::save(&candle_tensor, file_path)?;
+    backend::save_safetensors(file_path, storages)?;
     Ok(())
 }
 
@@ -30,14 +30,20 @@ pub fn save(file_path: &str, tensors: HashMap<String, Tensor>) -> Result<(), Ten
 /// * `Ok(HashMap<String, Tensor>)` - If the tensors are loaded successfully.
 /// * `Err(TensorError)` - If there is an error while loading the tensors.
 pub fn load(file_path: &str, device: &Device) -> Result<HashMap<String, Tensor>, TensorError> {
-    let candle_tensor = candle_core::safetensors::load(file_path, device)?;
-    let tensors = candle_tensor
-        .iter()
-        .map(|(name, tensor)| {
-            let name = name.to_string();
-            let tensor = Tensor::from_candle_tensor(tensor.clone(), device, false)?;
-            Ok((name, tensor))
+    let storages = backend::load_safetensors(file_path, device)?;
+    Ok(storages
+        .into_iter()
+        .map(|(name, storage)| {
+            (
+                name,
+                Tensor::from_backend_storage(
+                    storage,
+                    device.clone(),
+                    false,
+                    vec![],
+                    crate::backpropagation::graph::OpKind::Leaf,
+                ),
+            )
         })
-        .collect::<Result<HashMap<_, _>, TensorError>>()?;
-    Ok(tensors)
+        .collect())
 }

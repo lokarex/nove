@@ -1,9 +1,4 @@
-use std::sync::{Arc, RwLock};
-
-use crate::{
-    Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
-};
+use crate::{Tensor, TensorError, backpropagation::graph::OpKind};
 
 impl Tensor {
     /// Apply the 1D convolutional operation.
@@ -27,7 +22,7 @@ impl Tensor {
     /// * Forward computation with standard parameters
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with shape [batch=1, channels=1, length=4]
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0, 3.0, 4.0]]], &device, false).unwrap();
@@ -47,7 +42,7 @@ impl Tensor {
     /// * Backpropagation with requires_grad=true
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with requires_grad=true
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0, 3.0, 4.0]]], &device, true).unwrap();
@@ -72,35 +67,28 @@ impl Tensor {
         dilation: usize,
         groups: usize,
     ) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let kernel_inner = kernel.data.read()?;
-        let kernel_inner_tensor = match &kernel_inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.conv1d(
-            kernel_inner_tensor,
+        let input_shape = self.shape()?;
+        let kernel_shape = kernel.shape()?;
+        let storage = self.backend_storage()?.conv1d(
+            &kernel.backend_storage()?,
             padding,
             stride,
             dilation,
             groups,
-        )?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy(), kernel.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        )?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy(), kernel.copy()],
+            OpKind::Conv1d {
+                padding,
+                stride,
+                dilation,
+                groups,
+                input_shape,
+                kernel_shape,
+            },
+        ))
     }
 
     /// Apply the 2D convolutional operation.
@@ -124,7 +112,7 @@ impl Tensor {
     /// * Forward computation with standard parameters
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with shape [batch=1, channels=1, height=2, width=2]
     /// let t = Tensor::from_data(vec![vec![vec![vec![1.0, 2.0], vec![3.0, 4.0]]]], &device, false).unwrap();
@@ -145,7 +133,7 @@ impl Tensor {
     /// * Backpropagation with requires_grad=true
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create input tensor with requires_grad=true
     /// let t = Tensor::from_data(vec![vec![vec![vec![1.0, 2.0], vec![3.0, 4.0]]]], &device, true).unwrap();
@@ -170,34 +158,27 @@ impl Tensor {
         dilation: usize,
         groups: usize,
     ) -> Result<Self, TensorError> {
-        let inner = self.data.read()?;
-        let inner_tensor = match &inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let kernel_inner = kernel.data.read()?;
-        let kernel_inner_tensor = match &kernel_inner.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner_tensor.conv2d(
-            kernel_inner_tensor,
+        let input_shape = self.shape()?;
+        let kernel_shape = kernel.shape()?;
+        let storage = self.backend_storage()?.conv2d(
+            &kernel.backend_storage()?,
             padding,
             stride,
             dilation,
             groups,
-        )?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy(), kernel.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        )?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy(), kernel.copy()],
+            OpKind::Conv2d {
+                padding,
+                stride,
+                dilation,
+                groups,
+                input_shape,
+                kernel_shape,
+            },
+        ))
     }
 }

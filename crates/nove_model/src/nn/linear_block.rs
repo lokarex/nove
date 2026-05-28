@@ -28,7 +28,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// * `use_batch_norm1d` - Whether 1D batch normalization is enabled after the linear layer. Default is `false`. (configured via `with_batch_norm1d()`)
 /// * `bias_enabled` - Whether the bias term is enabled. Default is `true`.
 /// * `dropout_probability` - The dropout probability (0.0 means no dropout). Default is `0.0`. (configured via `with_dropout()`)
-/// * `device` - The device to use for the layer. Default is `Device::cpu()`.
+/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
 ///
@@ -52,7 +52,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 ///     .with_activation(Activation::gelu())
 ///     .with_batch_norm1d()
 ///     .bias_enabled(true)
-///     .device(Device::cpu())
+///     .device(nove::device::candle::cpu().unwrap())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true);
 /// ```
@@ -93,7 +93,7 @@ impl LinearBlockBuilder {
             use_batch_norm1d: false,
             bias_enabled: true,
             dropout_probability: 0.0,
-            device: Device::cpu(),
+            device: nove_tensor::device::candle::cpu().unwrap(),
             dtype: DType::F32,
             grad_enabled: true,
             training: true,
@@ -280,7 +280,7 @@ impl LinearBlockBuilder {
     /// ```no_run
     /// use nove::model::nn::LinearBlockBuilder;
     /// use nove::tensor::Device;
-    /// let builder = LinearBlockBuilder::new(800, 10).device(Device::cpu());
+    /// let builder = LinearBlockBuilder::new(800, 10).device(nove::device::candle::cpu().unwrap());
     /// ```
     pub fn device(mut self, device: Device) -> Self {
         self.device = device;

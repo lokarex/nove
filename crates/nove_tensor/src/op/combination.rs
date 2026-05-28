@@ -1,9 +1,4 @@
-use std::sync::{Arc, RwLock};
-
-use crate::{
-    Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
-};
+use crate::{Tensor, TensorError, backend::BackendStorage, backpropagation::graph::OpKind};
 
 impl Tensor {
     /// Stack a list of tensors along a new dimension.
@@ -22,7 +17,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![3.0, 4.0], &device, false).unwrap();
     /// let t3 = Tensor::from_data(vec![5.0, 6.0], &device, false).unwrap();
@@ -38,7 +33,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![3.0, 4.0], &device, false).unwrap();
     /// let t3 = Tensor::from_data(vec![5.0, 6.0], &device, false).unwrap();
@@ -54,7 +49,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(vec![1.0, 2.0], &device, true).unwrap();
     /// let t2 = Tensor::from_data(vec![3.0, 4.0], &device, true).unwrap();
     /// let t3 = Tensor::from_data(vec![5.0, 6.0], &device, true).unwrap();
@@ -76,57 +71,39 @@ impl Tensor {
     /// ```
     pub fn stack<A>(tensors: &[A], dim: isize) -> Result<Self, TensorError>
     where
-        A: AsRef<Tensor> + std::clone::Clone,
+        A: AsRef<Tensor> + Clone,
     {
-        let num_dims = tensors[0].as_ref().shape()?.dims().len();
+        let first = tensors
+            .first()
+            .ok_or_else(|| TensorError::InvalidOperation("empty tensor slice".to_string()))?
+            .as_ref();
+        let num_dims = first.shape()?.rank();
         let dim = if dim < 0 {
             (num_dims as isize + dim + 1) as usize
         } else {
             dim as usize
         };
 
-        let inner_tensors = tensors
+        let storages = tensors
             .iter()
-            .map(|tensor| {
-                let data = tensor.as_ref().data.read()?;
-                match &data.inner {
-                    TensorInner::Tensor(tensor) => Ok(tensor.clone()),
-                    TensorInner::Var(var) => Ok(var.as_tensor().clone()),
-                }
-            })
+            .map(|tensor| tensor.as_ref().backend_storage())
             .collect::<Result<Vec<_>, TensorError>>()?;
-        // Stack the tensors
-        let new_inner_tensor = candle_core::Tensor::stack(&inner_tensors, dim)?;
-
-        // Get the device from the first tensor
-        let device = tensors
-            .first()
-            .ok_or(TensorError::CandleError(candle_core::Error::Msg(
-                "empty tensor slice".to_string(),
-            )))?
-            .as_ref()
-            .data
-            .read()?
-            .device
-            .clone();
-
-        let new_inner = TensorInner::Tensor(new_inner_tensor);
-
-        //  Set the parents
+        let storage = BackendStorage::stack(&storages, dim)?;
+        let input_shapes = tensors
+            .iter()
+            .map(|tensor| tensor.as_ref().shape())
+            .collect::<Result<Vec<_>, TensorError>>()?;
         let parents = tensors
             .iter()
             .map(|tensor| tensor.as_ref().copy())
             .collect::<Vec<_>>();
 
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device,
-                parents,
-                grad: None,
-                name: None,
-            })),
-        })
+        Ok(Self::op_result_with_kind(
+            storage,
+            first.device()?,
+            parents,
+            OpKind::Stack { dim, input_shapes },
+        ))
     }
 
     /// Concatenate a sequence of tensors along the specified dimension.
@@ -145,7 +122,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(&[[1.0, 2.0], [5.0, 6.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(&[[3.0, 4.0], [7.0, 8.0]], &device, false).unwrap();
     ///
@@ -160,7 +137,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(&[[1.0, 2.0], [5.0, 6.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(&[[3.0, 4.0], [7.0, 8.0]], &device, false).unwrap();
     ///
@@ -175,7 +152,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(&[[1.0, 2.0], [5.0, 6.0]], &device, true).unwrap();
     /// let t2 = Tensor::from_data(&[[3.0, 4.0], [7.0, 8.0]], &device, true).unwrap();
     ///
@@ -192,55 +169,39 @@ impl Tensor {
     /// ```
     pub fn concat<A>(tensors: &[A], dim: isize) -> Result<Self, TensorError>
     where
-        A: AsRef<Tensor> + std::clone::Clone,
+        A: AsRef<Tensor> + Clone,
     {
-        let num_dims = tensors[0].as_ref().shape()?.dims().len();
+        let first = tensors
+            .first()
+            .ok_or_else(|| TensorError::InvalidOperation("empty tensor slice".to_string()))?
+            .as_ref();
+        let num_dims = first.shape()?.rank();
         let dim = if dim < 0 {
             (num_dims as isize + dim) as usize
         } else {
             dim as usize
         };
 
-        let inner_tensors = tensors
+        let storages = tensors
             .iter()
-            .map(|tensor| {
-                let data = tensor.as_ref().data.read()?;
-                match &data.inner {
-                    TensorInner::Tensor(tensor) => Ok(tensor.clone()),
-                    TensorInner::Var(var) => Ok(var.as_tensor().clone()),
-                }
-            })
+            .map(|tensor| tensor.as_ref().backend_storage())
             .collect::<Result<Vec<_>, TensorError>>()?;
-
-        let new_inner_tensor = candle_core::Tensor::cat(&inner_tensors, dim)?;
-
-        let device = tensors
-            .first()
-            .ok_or(TensorError::CandleError(candle_core::Error::Msg(
-                "empty tensor slice".to_string(),
-            )))?
-            .as_ref()
-            .data
-            .read()?
-            .device
-            .clone();
-
-        let new_inner = TensorInner::Tensor(new_inner_tensor);
-
+        let storage = BackendStorage::cat(&storages, dim)?;
+        let input_shapes = tensors
+            .iter()
+            .map(|tensor| tensor.as_ref().shape())
+            .collect::<Result<Vec<_>, TensorError>>()?;
         let parents = tensors
             .iter()
             .map(|tensor| tensor.as_ref().copy())
             .collect::<Vec<_>>();
 
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device,
-                parents,
-                grad: None,
-                name: None,
-            })),
-        })
+        Ok(Self::op_result_with_kind(
+            storage,
+            first.device()?,
+            parents,
+            OpKind::Cat { dim, input_shapes },
+        ))
     }
 
     /// Concatenate a sequence of tensors along the specified dimension.
@@ -261,7 +222,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(&[[1.0, 2.0], [5.0, 6.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(&[[3.0, 4.0], [7.0, 8.0]], &device, false).unwrap();
     ///
@@ -276,7 +237,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(&[[1.0, 2.0], [5.0, 6.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(&[[3.0, 4.0], [7.0, 8.0]], &device, false).unwrap();
     ///
@@ -291,7 +252,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let t1 = Tensor::from_data(&[[1.0, 2.0], [5.0, 6.0]], &device, true).unwrap();
     /// let t2 = Tensor::from_data(&[[3.0, 4.0], [7.0, 8.0]], &device, true).unwrap();
     ///
@@ -308,7 +269,7 @@ impl Tensor {
     /// ```
     pub fn cat<A>(tensors: &[A], dim: isize) -> Result<Self, TensorError>
     where
-        A: AsRef<Tensor> + std::clone::Clone,
+        A: AsRef<Tensor> + Clone,
     {
         Self::concat(tensors, dim)
     }

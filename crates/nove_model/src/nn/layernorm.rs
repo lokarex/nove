@@ -34,7 +34,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// let ln = LayerNormBuilder::new(vec![768])       // Required
 ///     .epsilon(1e-5)                     // Optional, default is 1e-5
 ///     .affine(true)                      // Optional, default is true
-///     .device(Device::cpu())             // Optional, default is cpu
+///     .device(nove::device::candle::cpu().unwrap())             // Optional, default is cpu
 ///     .dtype(DType::F32)                 // Optional, default is F32
 ///     .build();
 /// ```
@@ -82,7 +82,7 @@ impl LayerNorm {
 /// # Optional Arguments
 /// * `epsilon` - A small value added to the variance for numerical stability. Default is `1e-5`.
 /// * `affine` - Whether to use learnable affine parameters (gamma and beta). Default is `true`.
-/// * `device` - The device to use for the layer. Default is `Device::cpu()`.
+/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 ///
 /// # Fields
@@ -100,7 +100,7 @@ impl LayerNorm {
 /// let ln = LayerNormBuilder::new(vec![768])       // Required
 ///     .epsilon(1e-5)                     // Optional, default is 1e-5
 ///     .affine(true)                      // Optional, default is true
-///     .device(Device::cpu())             // Optional, default is cpu
+///     .device(nove::device::candle::cpu().unwrap())             // Optional, default is cpu
 ///     .dtype(DType::F32)                 // Optional, default is F32
 ///     .build();
 /// ```
@@ -131,7 +131,7 @@ impl LayerNormBuilder {
             normalized_shape,
             epsilon: 1e-5,
             affine: true,
-            device: Device::cpu(),
+            device: nove_tensor::device::candle::cpu().unwrap(),
             dtype: DType::F32,
         }
     }
@@ -206,7 +206,7 @@ impl LayerNormBuilder {
     /// use nove::model::nn::LayerNormBuilder;
     /// use nove::tensor::Device;
     /// let mut ln_builder = LayerNormBuilder::new(vec![768]);
-    /// ln_builder.device(Device::cpu());
+    /// ln_builder.device(nove::device::candle::cpu().unwrap());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
         self.device = device;

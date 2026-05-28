@@ -1,6 +1,7 @@
+use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::{AvgPool2d, MaxPool2d, Pool2d};
-use nove::tensor::{DType, Device, Shape, Tensor};
+use nove::tensor::{DType, Shape, Tensor};
 
 #[test]
 fn test_avg_pool2d_creation() {
@@ -57,7 +58,7 @@ fn test_avg_pool2d_forward_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3, 8, 8]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -73,7 +74,7 @@ fn test_avg_pool2d_forward_with_asymmetric_kernel_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 6, 9]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -89,7 +90,7 @@ fn test_avg_pool2d_forward_with_asymmetric_stride_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 6, 8]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -105,7 +106,7 @@ fn test_max_pool2d_forward_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3, 8, 8]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -121,7 +122,7 @@ fn test_max_pool2d_forward_with_asymmetric_kernel_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 9, 6]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -137,7 +138,7 @@ fn test_max_pool2d_forward_with_asymmetric_stride_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 8, 6]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -156,7 +157,7 @@ fn test_avg_pool2d_forward_values() {
     let input = Tensor::from_slice(
         &data,
         &Shape::from_dims(&[1, 1, 4, 4]),
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -176,7 +177,7 @@ fn test_max_pool2d_forward_values() {
     let input = Tensor::from_slice(
         &data,
         &Shape::from_dims(&[1, 1, 4, 4]),
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -214,7 +215,7 @@ fn test_pool2d_enum_forward() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 1, 6, 6]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -226,7 +227,7 @@ fn test_pool2d_enum_forward() {
     let input2 = Tensor::ones(
         &Shape::from_dims(&[1, 1, 9, 8]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -258,10 +259,10 @@ fn test_pool2d_require_grad_noop() {
 #[test]
 fn test_pool2d_to_device_noop() {
     let mut avg_pool2d = AvgPool2d::new((2, 2), None).unwrap();
-    avg_pool2d.to_device(&Device::cpu()).unwrap();
+    avg_pool2d.to_device(&candle::cpu().unwrap()).unwrap();
 
     let mut max_pool2d = MaxPool2d::new((2, 2), None).unwrap();
-    max_pool2d.to_device(&Device::cpu()).unwrap();
+    max_pool2d.to_device(&candle::cpu().unwrap()).unwrap();
 }
 
 #[test]

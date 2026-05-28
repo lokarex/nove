@@ -91,7 +91,7 @@ struct AdamWParam {
 /// use nove::optimizer::AdamWBuilder;
 /// use nove::tensor::{Device, Tensor};
 ///
-/// let device = Device::cpu();
+/// let device = nove::device::candle::cpu().unwrap();
 /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
 /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
 ///
@@ -137,7 +137,7 @@ pub struct AdamW {
 /// use nove::optimizer::AdamWBuilder;
 /// use nove::tensor::{Device, Tensor};
 ///
-/// let device = Device::cpu();
+/// let device = nove::device::candle::cpu().unwrap();
 /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
 /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
 ///
@@ -173,7 +173,7 @@ impl AdamWBuilder {
     /// use nove::optimizer::AdamWBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
     ///
@@ -209,7 +209,7 @@ impl AdamWBuilder {
     /// use nove::optimizer::AdamWBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = AdamWBuilder::new(vec![param], 0.001);
     /// builder.beta1(0.9);
@@ -232,7 +232,7 @@ impl AdamWBuilder {
     /// use nove::optimizer::AdamWBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = AdamWBuilder::new(vec![param], 0.001);
     /// builder.beta2(0.999);
@@ -255,7 +255,7 @@ impl AdamWBuilder {
     /// use nove::optimizer::AdamWBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = AdamWBuilder::new(vec![param], 0.001);
     /// builder.epsilon(1e-8);
@@ -281,7 +281,7 @@ impl AdamWBuilder {
     /// use nove::optimizer::AdamWBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = AdamWBuilder::new(vec![param], 0.001);
     /// builder.weight_decay(0.01);
@@ -305,7 +305,7 @@ impl AdamWBuilder {
     /// use nove::optimizer::AdamWBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = Device::cpu();
+    /// let device = nove::device::candle::cpu().unwrap();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     ///
     /// let adamw = AdamWBuilder::new(vec![param], 0.001)

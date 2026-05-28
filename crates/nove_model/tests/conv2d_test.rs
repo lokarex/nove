@@ -1,6 +1,7 @@
+use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::Conv2dBuilder;
-use nove::tensor::{DType, Device, Shape, Tensor};
+use nove::tensor::{DType, Shape, Tensor};
 
 #[test]
 fn test_conv2d_builder_creation() {
@@ -45,7 +46,7 @@ fn test_conv2d_forward_basic() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10, 10]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -61,7 +62,7 @@ fn test_conv2d_forward_with_padding() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3, 8, 8]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -77,7 +78,7 @@ fn test_conv2d_forward_with_stride() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10, 10]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -96,7 +97,7 @@ fn test_conv2d_forward_with_dilation() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10, 10]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -117,7 +118,7 @@ fn test_conv2d_forward_with_padding_stride_dilation() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3, 14, 14]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -133,7 +134,7 @@ fn test_conv2d_forward_with_asymmetric_kernel() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10, 12]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -149,7 +150,7 @@ fn test_conv2d_forward_with_asymmetric_padding() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3, 8, 8]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -211,14 +212,14 @@ fn test_conv2d_require_grad() {
 #[test]
 fn test_conv2d_to_device() {
     let mut conv = Conv2dBuilder::new(3, 5, (3, 3))
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .build()
         .unwrap();
 
     let weight_device = conv.weight().device().unwrap();
     assert!(weight_device.is_cpu());
 
-    conv.to_device(&Device::cpu()).unwrap();
+    conv.to_device(&candle::cpu().unwrap()).unwrap();
 
     let weight_device = conv.weight().device().unwrap();
     assert!(weight_device.is_cpu());
@@ -249,7 +250,7 @@ fn test_conv2d_builder_method_chaining() {
         .dilation(2)
         .groups(1)
         .bias_enabled(false)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .grad_enabled(true);
 

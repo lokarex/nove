@@ -53,7 +53,7 @@ type DataloaderInner<D> = crate::common::BatchDataloader<
 ///         .dataset(dataset)
 ///         .batch_size(32)
 ///         .resize(28, 28)
-///         .device(Device::cpu())
+///         .device(nove::device::candle::cpu().unwrap())
 ///         .shuffle_seed(Some(42))
 ///         .build()?;
 ///
@@ -129,7 +129,7 @@ where
 ///         .dataset(dataset)        // Required configuration
 ///         .batch_size(32)          // Required configuration
 ///         .resize(28, 28)          // Required configuration
-///         .device(Device::cpu())   // Required configuration
+///         .device(nove::device::candle::cpu().unwrap())   // Required configuration
 ///         .grad_enabled(false)     // Optional configuration
 ///         .shuffle_seed(Some(42))  // Optional configuration
 ///         .build()?;

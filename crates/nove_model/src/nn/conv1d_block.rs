@@ -32,7 +32,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// * `use_batch_norm1d` - Whether 1D batch normalization is enabled after convolution. Default is `false`. (configured via `with_batch_norm1d()`)
 /// * `activation` - The activation function to use after convolution. Default is `None`. (configured via `with_activation()`)
 /// * `pool1d` - The pooling layer to use after activation/BatchNorm1d. Default is `None`. (configured via `with_pool1d()`)
-/// * `device` - The device to use for the layer. Default is `Device::cpu()`.
+/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
 ///
@@ -58,7 +58,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 ///     .with_activation(Activation::relu())
 ///     .with_batch_norm1d()
 ///     .with_pool1d(Pool1d::max_pool1d(2, None).unwrap())
-///     .device(Device::cpu())
+///     .device(nove::device::candle::cpu().unwrap())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true);
 /// ```
@@ -112,7 +112,7 @@ impl Conv1dBlockBuilder {
             use_batch_norm1d: false,
             activation: None,
             pool1d: None,
-            device: Device::cpu(),
+            device: nove_tensor::device::candle::cpu().unwrap(),
             dtype: DType::F32,
             grad_enabled: true,
             training: true,
@@ -343,7 +343,7 @@ impl Conv1dBlockBuilder {
     /// ```no_run
     /// use nove::model::nn::Conv1dBlockBuilder;
     /// use nove::tensor::Device;
-    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).device(Device::cpu());
+    /// let builder = Conv1dBlockBuilder::new(1, 16, 3, 1, 1).device(nove::device::candle::cpu().unwrap());
     /// ```
     pub fn device(mut self, device: Device) -> Self {
         self.device = device;
@@ -422,17 +422,13 @@ impl Conv1dBlockBuilder {
 
         let id = ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-        let conv = Conv1dBuilder::new(
-            self.in_channels,
-            self.out_channels,
-            self.kernel_size,
-        )
-        .stride(self.stride)
-        .padding(self.padding)
-        .device(self.device.clone())
-        .dtype(self.dtype)
-        .grad_enabled(self.grad_enabled)
-        .build()?;
+        let conv = Conv1dBuilder::new(self.in_channels, self.out_channels, self.kernel_size)
+            .stride(self.stride)
+            .padding(self.padding)
+            .device(self.device.clone())
+            .dtype(self.dtype)
+            .grad_enabled(self.grad_enabled)
+            .build()?;
 
         let batch_norm1d = if self.use_batch_norm1d {
             Some(

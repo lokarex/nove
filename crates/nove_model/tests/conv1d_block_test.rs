@@ -1,11 +1,12 @@
+use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::{Activation, Conv1dBlockBuilder, Pool1d};
-use nove::tensor::{DType, Device, Shape, Tensor};
+use nove::tensor::{DType, Shape, Tensor};
 
 #[test]
 fn test_conv1d_block_builder_creation() {
     let block = Conv1dBlockBuilder::new(3, 16, 5, 1, 1)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .grad_enabled(true)
         .with_batch_norm1d()
@@ -30,7 +31,7 @@ fn test_conv1d_block_forward_sequential() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -46,7 +47,7 @@ fn test_conv1d_block_forward_without_components() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -65,7 +66,7 @@ fn test_conv1d_block_forward_with_batch_norm_only() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -84,7 +85,7 @@ fn test_conv1d_block_forward_with_activation_only() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -103,7 +104,7 @@ fn test_conv1d_block_forward_with_pool_only() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -170,7 +171,7 @@ fn test_conv1d_block_require_grad() {
 #[test]
 fn test_conv1d_block_to_device() {
     let mut block = Conv1dBlockBuilder::new(3, 5, 3, 1, 1)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .build()
         .unwrap();
 
@@ -179,7 +180,7 @@ fn test_conv1d_block_to_device() {
         assert!(param.device().unwrap().is_cpu());
     }
 
-    block.to_device(&Device::cpu()).unwrap();
+    block.to_device(&candle::cpu().unwrap()).unwrap();
 
     let params = block.parameters().unwrap();
     for param in params {

@@ -13,5 +13,5 @@ nove = { path = "../../crates/nove" }
 
 [features]
 default = []
-cuda = ["nove/cuda"]
-metal = ["nove/metal"]
+candle-cuda = ["nove/candle-cuda"]
+candle-metal = ["nove/candle-metal"]

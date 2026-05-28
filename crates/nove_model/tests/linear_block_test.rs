@@ -1,6 +1,7 @@
+use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::{Activation, LinearBlockBuilder};
-use nove::tensor::{DType, Device, Shape, Tensor};
+use nove::tensor::{DType, Shape, Tensor};
 
 #[test]
 fn test_linear_block_builder_default() {
@@ -52,7 +53,7 @@ fn test_linear_block_builder_with_all_components() {
         .with_batch_norm1d()
         .with_dropout(0.3)
         .bias_enabled(true)
-        .device(Device::cpu())
+        .device(candle::cpu().unwrap())
         .dtype(DType::F32)
         .grad_enabled(true)
         .build()
@@ -69,7 +70,7 @@ fn test_linear_block_forward_default() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -86,7 +87,7 @@ fn test_linear_block_forward_with_activation() {
         .unwrap();
 
     let input_data = vec![-1.0f32, 0.0, 1.0, 2.0, -2.0, 0.5];
-    let input = Tensor::from_data(input_data, &Device::cpu(), false)
+    let input = Tensor::from_data(input_data, &candle::cpu().unwrap(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 3]))
         .unwrap();
@@ -110,7 +111,7 @@ fn test_linear_block_forward_with_batch_norm_training() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -132,7 +133,7 @@ fn test_linear_block_forward_with_dropout_training_vs_inference() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3]),
         &DType::F32,
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -162,7 +163,7 @@ fn test_linear_block_forward_complete_chain() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[4, 5]),
-        &Device::cpu(),
+        &candle::cpu().unwrap(),
         false,
     )
     .unwrap();
@@ -251,7 +252,7 @@ fn test_linear_block_to_device() {
         .build()
         .unwrap();
 
-    block.to_device(&Device::cpu()).unwrap();
+    block.to_device(&candle::cpu().unwrap()).unwrap();
 
     let params = block.parameters().unwrap();
     for param in params {

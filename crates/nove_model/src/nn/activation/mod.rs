@@ -38,7 +38,7 @@ use std::{collections::HashMap, fmt::Display};
 /// let mut relu = Activation::relu();
 /// println!("{}", relu);
 ///
-/// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &Device::cpu(), false).unwrap();
+/// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &nove::device::candle::cpu().unwrap(), false).unwrap();
 /// let output = relu.forward(input).unwrap();
 /// println!("{}", output);
 /// ```

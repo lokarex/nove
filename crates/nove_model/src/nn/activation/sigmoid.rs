@@ -42,7 +42,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// let mut sigmoid = Sigmoid::new();
 /// println!("{}", sigmoid);
 ///
-/// let input = Tensor::from_data(&[-1.0f32, 0.0f32, 1.0f32], &Device::cpu(), false).unwrap();
+/// let input = Tensor::from_data(&[-1.0f32, 0.0f32, 1.0f32], &nove::device::candle::cpu().unwrap(), false).unwrap();
 /// let output = sigmoid.forward(input).unwrap();
 /// println!("{}", output);
 /// ```
@@ -90,7 +90,7 @@ impl Model for Sigmoid {
     /// use nove::model::Model;
     ///
     /// let mut sigmoid = Sigmoid::new();
-    /// let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::cpu(), false).unwrap();
+    /// let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &nove::device::candle::cpu().unwrap(), false).unwrap();
     /// let output = sigmoid.forward(input).unwrap();
     /// assert_eq!(output.to_vec::<f64>().unwrap(), vec![0.2689414213699951, 0.5, 0.7310585786300049]);
     /// ```

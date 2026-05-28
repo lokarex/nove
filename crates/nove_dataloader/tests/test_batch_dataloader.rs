@@ -1,7 +1,7 @@
 use nove::{
     dataloader::{Dataloader, common::BatchDataloader},
     dataset::Dataset,
-    tensor::{Device, Tensor},
+    tensor::Tensor,
 };
 
 mod util;
@@ -16,7 +16,7 @@ fn test_batched_dataloader() {
     let dataset_len = dataset.len().unwrap();
 
     // Prepare the batch size, device, shuffle seed, process function and collate function.
-    let device = Device::cpu();
+    let device = nove_tensor::device::candle::cpu().unwrap();
     let batch_size = 12;
     let shuffle_seed = 42;
     let process_fn = move |x: usize| -> Result<Tensor, DataloaderError> {

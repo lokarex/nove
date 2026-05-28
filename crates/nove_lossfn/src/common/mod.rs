@@ -35,7 +35,7 @@ use nove_tensor::{Tensor, TensorError};
 /// ```
 /// use nove::tensor::{Device, Tensor};
 /// use nove::lossfn::common::log_softmax;
-/// let device = Device::cpu();
+/// let device = nove::device::candle::cpu().unwrap();
 /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, false).unwrap();
 ///
 /// let result = log_softmax(&t, 0).unwrap();

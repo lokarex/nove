@@ -1784,6 +1784,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "nove_backend"
+version = "0.1.2"
+dependencies = [
+ "nove_candle",
+ "nove_native",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nove_candle"
+version = "0.1.2"
+dependencies = [
+ "candle-core",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nove_cpu"
+version = "0.1.2"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nove_dataloader"
 version = "0.1.2"
 dependencies = [
@@ -1871,6 +1895,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "nove_native"
+version = "0.1.2"
+dependencies = [
+ "nove_cpu",
+]
+
+[[package]]
 name = "nove_optimizer"
 version = "0.1.2"
 dependencies = [
@@ -1887,6 +1918,7 @@ dependencies = [
  "crossbeam",
  "dashmap",
  "nove",
+ "nove_backend",
  "proptest",
  "rand",
  "rayon",

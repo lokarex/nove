@@ -1,6 +1,7 @@
+use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::Dropout;
-use nove::tensor::{DType, Device, Shape, Tensor};
+use nove::tensor::{DType, Shape, Tensor};
 
 #[test]
 fn test_dropout_creation() {
@@ -18,7 +19,7 @@ fn test_dropout_creation_invalid_probability() {
 #[test]
 fn test_dropout_training_vs_inference_mode() {
     let mut dropout = Dropout::new(0.5).unwrap();
-    let device = Device::cpu();
+    let device = candle::cpu().unwrap();
 
     let input = Tensor::ones(&Shape::from_dims(&[4, 3]), &DType::F32, &device, false).unwrap();
 
@@ -40,7 +41,7 @@ fn test_dropout_training_vs_inference_mode() {
 #[test]
 fn test_dropout_probability_zero() {
     let mut dropout = Dropout::new(0.0).unwrap();
-    let device = Device::cpu();
+    let device = candle::cpu().unwrap();
 
     let input = Tensor::ones(&Shape::from_dims(&[2, 2]), &DType::F32, &device, false).unwrap();
     let training_output = dropout.forward(input.copy()).unwrap();
@@ -54,7 +55,7 @@ fn test_dropout_probability_zero() {
 #[test]
 fn test_dropout_probability_high() {
     let mut dropout = Dropout::new(0.9).unwrap();
-    let device = Device::cpu();
+    let device = candle::cpu().unwrap();
 
     let input = Tensor::ones(&Shape::from_dims(&[10]), &DType::F32, &device, false).unwrap();
     let training_output = dropout.forward(input).unwrap();
@@ -67,7 +68,7 @@ fn test_dropout_probability_high() {
 #[test]
 fn test_dropout_scaling() {
     let mut dropout = Dropout::new(0.5).unwrap();
-    let device = Device::cpu();
+    let device = candle::cpu().unwrap();
 
     let input_data = [1.0f32, 2.0, 3.0, 4.0];
     let input = Tensor::from_data(&input_data, &device, false).unwrap();
@@ -93,7 +94,7 @@ fn test_dropout_require_grad() {
 #[test]
 fn test_dropout_to_device() {
     let mut dropout = Dropout::new(0.4).unwrap();
-    assert!(dropout.to_device(&Device::cpu()).is_ok());
+    assert!(dropout.to_device(&candle::cpu().unwrap()).is_ok());
 }
 
 #[test]

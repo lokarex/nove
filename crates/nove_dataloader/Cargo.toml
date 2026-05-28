@@ -9,10 +9,19 @@ repository.workspace = true
 
 [dependencies]
 nove_dataset = { path = "../nove_dataset", version = "=0.1.2" }
-nove_tensor = { path = "../nove_tensor", version = "=0.1.2" }
+nove_tensor = { path = "../nove_tensor", version = "=0.1.2", default-features = false }
 thiserror = { workspace = true }
 rand = { workspace = true }
 image = { workspace = true }
 
 [dev-dependencies]
 nove = { path = "../nove" }
+
+[features]
+default = ["candle-cpu"]
+candle = ["nove_tensor/candle"]
+candle-cpu = ["candle", "nove_tensor/candle-cpu"]
+candle-cuda = ["candle", "nove_tensor/candle-cuda"]
+candle-metal = ["candle", "nove_tensor/candle-metal"]
+native = ["nove_tensor/native"]
+native-cpu = ["native", "nove_tensor/native-cpu"]

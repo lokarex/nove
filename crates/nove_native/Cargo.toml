@@ -1,0 +1,15 @@
+[package]
+name = "nove_native"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+nove_cpu = { path = "../nove_cpu", optional = true }
+
+[features]
+default = []
+cpu = ["dep:nove_cpu"]

@@ -1,9 +1,4 @@
-use std::sync::{Arc, RwLock};
-
-use crate::{
-    Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
-};
+use crate::{Tensor, TensorError, backpropagation::graph::OpKind};
 
 impl Tensor {
     /// Matrix multiplication between two tensors with broadcasting.
@@ -19,7 +14,7 @@ impl Tensor {
     /// * Matrix multiplication of 2x3 and 3x4 matrices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Directly create 2x3 matrix without reshape
     /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -36,7 +31,7 @@ impl Tensor {
     /// * Backpropagation for matrix multiplication
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create tensors with gradient tracking enabled
     /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -59,23 +54,23 @@ impl Tensor {
     /// // dL/dA = ones(2x4) @ B^T(4x3) = [sum of each column of B] repeated for each row
     /// // B columns sums: [7+11+15=33, 8+12+16=36, 9+13+17=39, 10+14+18=42]
     /// // dL/dA row 0: [33+36+39+42 = 150] repeated 3 times? Actually matrix multiplication:
-    /// // Let's compute properly: dL/dA_ij = Σ_k dL/dC_ik * B_jk^T = Σ_k 1 * B_jk
-    /// // Since dL/dC is all ones, dL/dA_ij = Σ_k B_jk (sum over columns of B for each j)
-    /// // For j=0: Σ_k B_0k = 7+8+9+10 = 34
-    /// // j=1: Σ_k B_1k = 11+12+13+14 = 50
-    /// // j=2: Σ_k B_2k = 15+16+17+18 = 66
+    /// // Let's compute properly: dL/dA_ij = sum_k dL/dC_ik * B_jk^T = sum_k 1 * B_jk
+    /// // Since dL/dC is all ones, dL/dA_ij = sum_k B_jk (sum over columns of B for each j)
+    /// // For j=0: sum_k B_0k = 7+8+9+10 = 34
+    /// // j=1: sum_k B_1k = 11+12+13+14 = 50
+    /// // j=2: sum_k B_2k = 15+16+17+18 = 66
     /// // So dL/dA = [[34, 50, 66], [34, 50, 66]] (2x3)
     /// let expected_t1_grad = vec![34.0, 50.0, 66.0, 34.0, 50.0, 66.0];
     /// assert_eq!(t1_grad.to_vec::<f64>().unwrap(), expected_t1_grad);
     ///
     /// // dL/dB = A^T @ dL/dC
-    /// // A^T is 3x2, dL/dC is 2x4 all ones, so dL/dB_ij = Σ_k A^T_ik * dL/dC_kj = Σ_k A_ki * 1
-    /// // For i=0: Σ_k A_k0 = 1+4 = 5
-    /// // i=1: Σ_k A_k1 = 2+5 = 7  
-    /// // i=2: Σ_k A_k2 = 3+6 = 9
+    /// // A^T is 3x2, dL/dC is 2x4 all ones, so dL/dB_ij = sum_k A^T_ik * dL/dC_kj = sum_k A_ki * 1
+    /// // For i=0: sum_k A_k0 = 1+4 = 5
+    /// // i=1: sum_k A_k1 = 2+5 = 7
+    /// // i=2: sum_k A_k2 = 3+6 = 9
     /// // So each row of dL/dB is [5, 7, 9] repeated 4 times? Actually matrix multiplication:
-    /// // dL/dB_ij = Σ_k A_ki * dL/dC_kj = Σ_k A_ki * 1 = Σ_k A_ki (sum over rows of A for each column i)
-    /// // So dL/dB has shape 3x4, each row i is constant with value Σ_k A_ki
+    /// // dL/dB_ij = sum_k A_ki * dL/dC_kj = sum_k A_ki * 1 = sum_k A_ki (sum over rows of A for each column i)
+    /// // So dL/dB has shape 3x4, each row i is constant with value sum_k A_ki
     /// // Row 0: 5, 5, 5, 5
     /// // Row 1: 7, 7, 7, 7
     /// // Row 2: 9, 9, 9, 9
@@ -83,28 +78,15 @@ impl Tensor {
     /// assert_eq!(t2_grad.to_vec::<f64>().unwrap(), expected_t2_grad);
     /// ```
     pub fn matmul(&self, rhs: &Self) -> Result<Self, TensorError> {
-        let inner1 = self.data.read()?;
-        let inner1_tensor = match &inner1.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-        let inner2 = rhs.data.read()?;
-        let inner2_tensor = match &inner2.inner {
-            TensorInner::Tensor(tensor) => tensor,
-            TensorInner::Var(var) => var,
-        };
-
-        let new_inner = TensorInner::Tensor(inner1_tensor.broadcast_matmul(inner2_tensor)?);
-
-        Ok(Self {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                parents: vec![self.copy(), rhs.copy()],
-                grad: None,
-                name: None,
-            })),
-        })
+        let storage = self
+            .backend_storage()?
+            .broadcast_matmul(&rhs.backend_storage()?)?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy(), rhs.copy()],
+            OpKind::Matmul,
+        ))
     }
 
     /// Apply batch normalization to the tensor.
@@ -124,7 +106,7 @@ impl Tensor {
     /// * Batch normalization with 4D input tensor
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create 4D input tensor with shape [2, 2, 2, 2] directly without reshape
     /// // Using nested Vec to represent 4D structure: [batch, channels, height, width]
@@ -161,7 +143,7 @@ impl Tensor {
     /// assert_eq!(result.shape().unwrap(), Shape::from(&[2, 2, 2, 2]));
     ///
     /// // Compute expected values: (x - mean) / sqrt(var + epsilon)
-    /// // Since gamma=1, beta=0, var=1, epsilon=1e-5, result ≈ x - mean
+    /// // Since gamma=1, beta=0, var=1, epsilon=1e-5, result ~=x - mean
     /// let expected = vec![
     ///     1.0 - 0.5, 2.0 - 0.5, 3.0 - 0.5, 4.0 - 0.5,  // batch 0, channel 0
     ///     5.0 - 1.5, 6.0 - 1.5, 7.0 - 1.5, 8.0 - 1.5,  // batch 0, channel 1
@@ -182,7 +164,7 @@ impl Tensor {
     /// * Backpropagation for batch normalization
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = Device::cpu();
+    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     ///
     /// // Create tensors with gradient tracking enabled
     /// let x = Tensor::from_data(vec![
@@ -228,13 +210,8 @@ impl Tensor {
         gamma: &Self,
         beta: &Self,
     ) -> Result<Self, TensorError> {
-        let normalized = Tensor::div(
-            &self.sub(mean)?,
-            &Tensor::sqrt(&var.affine(1f64, epsilon)?)?,
-        )?;
+        let normalized = Tensor::div(&self.sub(mean)?, &Tensor::sqrt(&var.affine(1.0, epsilon)?)?)?;
 
-        let affined = normalized.mul(gamma)?.add(beta)?;
-
-        Ok(affined)
+        normalized.mul(gamma)?.add(beta)
     }
 }

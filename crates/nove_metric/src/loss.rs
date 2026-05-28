@@ -20,12 +20,12 @@ use crate::{EvaluationMetric, Metric, MetricError, MetricValue};
 /// ```
 /// use nove::metric::{Metric, MetricValue, LossMetric, EvaluationMetric};
 /// use nove_lossfn::CrossEntropyLoss;
-/// use nove_tensor::{Device, Tensor};
+/// use nove::tensor::{Device, Tensor};
 ///
 /// let lossfn = CrossEntropyLoss::new();
 /// let mut metric = LossMetric::new(lossfn);
 ///
-/// let device = Device::cpu();
+/// let device = nove::device::candle::cpu().unwrap();
 /// let output = Tensor::from_data(vec![
 ///     vec![0.1f64, 0.2f64, 0.7f64],
 ///     vec![0.3f64, 0.4f64, 0.3f64],

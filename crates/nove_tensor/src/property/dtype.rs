@@ -1,8 +1,4 @@
-use crate::{
-    DType, Tensor, TensorError,
-    tensor::{TensorData, TensorInner},
-};
-use std::sync::{Arc, RwLock};
+use crate::{DType, Tensor, TensorError, backpropagation::graph::OpKind};
 
 impl Tensor {
     /// Create a new tensor like the current tensor but with the specified dtype.
@@ -20,7 +16,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, DType, Tensor};
     ///
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
     /// assert_eq!(tensor.dtype().unwrap(), DType::F32);
     ///
@@ -34,7 +30,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, DType, Tensor};
     ///
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
     /// assert_eq!(tensor.dtype().unwrap(), DType::F32);
     ///
@@ -48,41 +44,34 @@ impl Tensor {
     /// assert!((data[3] - 4.0).abs() < 1e-6);
     /// ```
     pub fn to_dtype(&self, dtype: &DType) -> Result<Tensor, TensorError> {
-        // Check current dtype first to avoid unnecessary conversion
-        let current_dtype = {
-            let data = self.data.read()?;
-            match &data.inner {
-                TensorInner::Tensor(tensor) => tensor.dtype(),
-                TensorInner::Var(var) => var.dtype(),
-            }
-        };
-
-        // If already the target dtype, return the tensor itself
+        let data = self.data.read()?;
+        let current_dtype = data.storage.dtype()?;
         if current_dtype == *dtype {
             return Ok(self.copy());
         }
 
-        let new_inner = match &self.data.read()?.inner {
-            TensorInner::Tensor(tensor) => TensorInner::Tensor(tensor.to_dtype(*dtype)?),
-            TensorInner::Var(var) => {
-                TensorInner::Var(candle_core::Var::from_tensor(&var.to_dtype(*dtype)?)?)
-            }
-        };
-
-        let new_grad = match &self.data.read()?.grad {
+        let storage = data.storage.to_dtype(*dtype)?;
+        let grad = match &data.grad {
             Some(grad) => Some(grad.to_dtype(dtype)?),
             None => None,
         };
+        let device = data.device.clone();
+        let requires_grad = data.requires_grad;
+        let name = data.name.clone();
+        drop(data);
 
-        Ok(Tensor {
-            data: Arc::new(RwLock::new(TensorData {
-                inner: new_inner,
-                device: self.data.read()?.device.clone(),
-                grad: new_grad,
-                parents: vec![self.copy()],
-                name: self.data.read()?.name.clone(),
-            })),
-        })
+        Ok(Tensor::from_backend_parts(
+            storage,
+            device,
+            requires_grad,
+            vec![self.copy()],
+            OpKind::ToDType {
+                from: current_dtype,
+                to: *dtype,
+            },
+            grad,
+            name,
+        ))
     }
 
     /// Get the dtype of the tensor.
@@ -94,18 +83,13 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, DType, Tensor};
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// let dtype = tensor.dtype().unwrap();
     /// assert_eq!(dtype, DType::F32);
     /// ```
     pub fn dtype(&self) -> Result<DType, TensorError> {
-        let data = self.data.read()?;
-        let dtype = match &data.inner {
-            TensorInner::Tensor(tensor) => tensor.dtype(),
-            TensorInner::Var(var) => var.dtype(),
-        };
-        Ok(dtype)
+        Ok(self.data.read()?.storage.dtype()?)
     }
 }

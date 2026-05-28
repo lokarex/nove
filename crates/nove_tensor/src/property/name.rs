@@ -11,7 +11,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// let name = tensor.name().unwrap();
@@ -38,7 +38,7 @@ impl Tensor {
     /// * Set name on tensor
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
     /// let result = tensor.require_name("my_tensor").unwrap();
@@ -48,7 +48,7 @@ impl Tensor {
     /// * Verify name, data and shape preserved after naming
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = Device::cpu();
+    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
     /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
     ///
     /// let result = tensor.require_name("test").unwrap();

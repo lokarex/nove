@@ -1,9 +1,9 @@
+use nove::tensor::Tensor;
 use nove_lossfn::{CrossEntropyLoss, LossFn};
-use nove_tensor::{Device, Tensor};
 
 #[test]
 fn test_cross_entropy_lossfn() {
-    let device = Device::cpu();
+    let device = nove_tensor::device::candle::cpu().unwrap();
 
     let input = Tensor::from_data(
         &[

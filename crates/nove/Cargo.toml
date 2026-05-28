@@ -8,17 +8,73 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-nove_dataloader = { path = "../nove_dataloader", version = "=0.1.2" }
+nove_dataloader = { path = "../nove_dataloader", version = "=0.1.2", default-features = false }
 nove_dataset = { path = "../nove_dataset", version = "=0.1.2" }
-nove_tensor = { path = "../nove_tensor", version = "=0.1.2" }
-nove_model = { path = "../nove_model", version = "=0.1.2" }
-nove_lossfn = { path = "../nove_lossfn", version = "=0.1.2" }
-nove_optimizer = { path = "../nove_optimizer", version = "=0.1.2" }
+nove_tensor = { path = "../nove_tensor", version = "=0.1.2", default-features = false }
+nove_model = { path = "../nove_model", version = "=0.1.2", default-features = false }
+nove_lossfn = { path = "../nove_lossfn", version = "=0.1.2", default-features = false }
+nove_optimizer = { path = "../nove_optimizer", version = "=0.1.2", default-features = false }
 nove_macro = { path = "../nove_macro", version = "=0.1.2" }
-nove_learner = { path = "../nove_learner", version = "=0.1.2" }
-nove_metric = { path = "../nove_metric", version = "=0.1.2" }
+nove_learner = { path = "../nove_learner", version = "=0.1.2", default-features = false }
+nove_metric = { path = "../nove_metric", version = "=0.1.2", default-features = false }
 
 [features]
-default = []
-cuda = ["nove_tensor/cuda"]
-metal = ["nove_tensor/metal"]
+default = ["candle-cpu"]
+candle = [
+    "nove_dataloader/candle",
+    "nove_tensor/candle",
+    "nove_model/candle",
+    "nove_lossfn/candle",
+    "nove_optimizer/candle",
+    "nove_learner/candle",
+    "nove_metric/candle",
+]
+candle-cpu = [
+    "candle",
+    "nove_dataloader/candle-cpu",
+    "nove_tensor/candle-cpu",
+    "nove_model/candle-cpu",
+    "nove_lossfn/candle-cpu",
+    "nove_optimizer/candle-cpu",
+    "nove_learner/candle-cpu",
+    "nove_metric/candle-cpu",
+]
+candle-cuda = [
+    "candle",
+    "nove_dataloader/candle-cuda",
+    "nove_tensor/candle-cuda",
+    "nove_model/candle-cuda",
+    "nove_lossfn/candle-cuda",
+    "nove_optimizer/candle-cuda",
+    "nove_learner/candle-cuda",
+    "nove_metric/candle-cuda",
+]
+candle-metal = [
+    "candle",
+    "nove_dataloader/candle-metal",
+    "nove_tensor/candle-metal",
+    "nove_model/candle-metal",
+    "nove_lossfn/candle-metal",
+    "nove_optimizer/candle-metal",
+    "nove_learner/candle-metal",
+    "nove_metric/candle-metal",
+]
+native = [
+    "nove_dataloader/native",
+    "nove_tensor/native",
+    "nove_model/native",
+    "nove_lossfn/native",
+    "nove_optimizer/native",
+    "nove_learner/native",
+    "nove_metric/native",
+]
+native-cpu = [
+    "native",
+    "nove_dataloader/native-cpu",
+    "nove_tensor/native-cpu",
+    "nove_model/native-cpu",
+    "nove_lossfn/native-cpu",
+    "nove_optimizer/native-cpu",
+    "nove_learner/native-cpu",
+    "nove_metric/native-cpu",
+]
