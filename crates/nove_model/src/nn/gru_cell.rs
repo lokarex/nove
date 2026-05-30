@@ -230,8 +230,8 @@ impl Model for GruCell {
         // gates shape: [batch_size, 3 * hidden_size]
         let chunk_size = self.hidden_size;
         let (reset_gate, update_gate, candidate) = (
-            gates.narrow(1, 0 * chunk_size as isize, chunk_size)?,
-            gates.narrow(1, 1 * chunk_size as isize, chunk_size)?,
+            gates.narrow(1, 0, chunk_size)?,
+            gates.narrow(1, chunk_size as isize, chunk_size)?,
             gates.narrow(1, 2 * chunk_size as isize, chunk_size)?,
         );
 

@@ -18,16 +18,21 @@ struct RmspropParam {
 /// The update rules, with optional momentum, are as follows:
 ///
 /// 1. **Update squared gradient average**:
+///
 /// $$ E[g_t^2] = \rho \cdot E[g_{t-1}^2] + (1 - \rho) \cdot g_t^2 $$
 ///
 /// 2. **Compute the adaptive learning rate term**:
+///
 /// $$ \text{adaptive\_term} = \frac{g_t}{\sqrt{E[g_t^2]} + \epsilon} $$
 ///
 /// 3. **With momentum** (if momentum > 0):
+///
 /// $$ v_t = \mu \cdot v_{t-1} + \text{adaptive\_term} $$
+///
 /// $$ \theta_t = \theta_{t-1} - \alpha \cdot v_t $$
 ///
 /// 4. **Without momentum** (if momentum = 0):
+///
 /// $$ \theta_t = \theta_{t-1} - \alpha \cdot \text{adaptive\_term} $$
 ///
 /// Where:

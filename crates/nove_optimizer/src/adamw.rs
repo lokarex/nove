@@ -23,12 +23,15 @@ struct AdamWParam {
 /// The update rules are as follows:
 ///
 /// 1. **First moment update** (exponential moving average of gradients):
+///
 /// $$ m_t = \beta_1 \cdot m_{t-1} + (1 - \beta_1) \cdot g_t $$
 ///
 /// 2. **Second moment update** (exponential moving average of squared gradients):
+///
 /// $$ v_t = \beta_2 \cdot v_{t-1} + (1 - \beta_2) \cdot g_t^2 $$
 ///
 /// 3. **Bias correction**:
+///
 /// $$ \hat{m}_t = \frac{m_t}{1 - \beta_1^t} $$
 ///
 /// $$ \hat{v}_t = \frac{v_t}{1 - \beta_2^t} $$

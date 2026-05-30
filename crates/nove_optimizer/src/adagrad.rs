@@ -17,9 +17,11 @@ struct AdagradParam {
 /// The update rules are as follows:
 ///
 /// 1. **Accumulate squared gradients**:
+///
 /// $$ G_t = G_{t-1} + g_t^2 $$
 ///
 /// 2. **Compute parameter update**:
+///
 /// $$ \theta_t = \theta_{t-1} - \alpha \cdot \frac{g_t}{\sqrt{G_t} + \epsilon} $$
 ///
 /// Where:

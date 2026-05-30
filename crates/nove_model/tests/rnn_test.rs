@@ -22,10 +22,10 @@ fn test_rnn_builder_creation() {
     assert_eq!(rnn.hidden_size(), 20);
     assert_eq!(rnn.num_layers(), 2);
     assert!(rnn.nonlinearity().to_string().starts_with("tanh"));
-    assert_eq!(rnn.bias(), true);
-    assert_eq!(rnn.batch_first(), false);
+    assert!(rnn.bias());
+    assert!(!rnn.batch_first());
     assert_eq!(rnn.dropout_rate(), 0.0);
-    assert_eq!(rnn.bidirectional(), false);
+    assert!(!rnn.bidirectional());
     assert_eq!(rnn.num_directions(), 1);
 }
 
@@ -35,7 +35,7 @@ fn test_rnn_builder_without_bias() {
 
     assert_eq!(rnn.input_size(), 5);
     assert_eq!(rnn.hidden_size(), 8);
-    assert_eq!(rnn.bias(), false);
+    assert!(!rnn.bias());
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn test_rnn_builder_batch_first() {
 
     assert_eq!(rnn.input_size(), 10);
     assert_eq!(rnn.hidden_size(), 20);
-    assert_eq!(rnn.batch_first(), true);
+    assert!(rnn.batch_first());
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn test_rnn_builder_multilayer_bidirectional_dropout() {
     assert_eq!(rnn.input_size(), 16);
     assert_eq!(rnn.hidden_size(), 32);
     assert_eq!(rnn.num_layers(), 3);
-    assert_eq!(rnn.bidirectional(), true);
+    assert!(rnn.bidirectional());
     assert_eq!(rnn.num_directions(), 2);
     assert_eq!(rnn.dropout_rate(), 0.5);
     assert!(rnn.nonlinearity().to_string().starts_with("relu"));

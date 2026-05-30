@@ -28,9 +28,9 @@ pub mod tensor {
     //! ```
 
     pub use nove_tensor::{
-        BackendError, BackendKind, DType, Device, DeviceError, DeviceKind, FloatTensorElement, Shape,
-        Tensor, TensorBuffer, IntoTensorPayload, TensorElement, TensorError, TensorPayload, backend,
-        safetensor,
+        BackendError, BackendKind, DType, Device, DeviceError, DeviceKind, FloatTensorElement,
+        IntoTensorPayload, Shape, Tensor, TensorBuffer, TensorElement, TensorError, TensorPayload,
+        backend, safetensor,
     };
 }
 

@@ -5,7 +5,7 @@ use nove::tensor::{DType, Device, Shape, Tensor};
 #[test]
 fn test_dropout_creation() {
     let dropout = Dropout::new(0.5).unwrap();
-    assert_eq!(dropout.to_string().contains("probability=0.5"), true);
+    assert!(dropout.to_string().contains("probability=0.5"));
 }
 
 #[test]

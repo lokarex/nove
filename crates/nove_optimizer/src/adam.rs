@@ -18,6 +18,7 @@ struct AdamParam {
 /// The update rules, with or without weight decay, are as follows:
 ///
 /// 1. **No weight decay** (λ = 0):
+///
 /// $$ m_t = \beta_1 \cdot m_{t-1} + (1 - \beta_1) \cdot g_t $$
 ///
 /// $$ v_t = \beta_2 \cdot v_{t-1} + (1 - \beta_2) \cdot g_t^2 $$
@@ -29,6 +30,7 @@ struct AdamParam {
 /// $$ \theta_t = \theta_{t-1} - \alpha \cdot \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} $$
 ///
 /// 2. **With weight decay** (λ > 0):
+///
 /// $$ g_t' = g_t + \lambda \cdot \theta_{t-1} $$
 ///
 /// $$ m_t = \beta_1 \cdot m_{t-1} + (1 - \beta_1) \cdot g_t' $$

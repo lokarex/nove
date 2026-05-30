@@ -337,11 +337,11 @@ impl Cifar100 {
         let mut fine_label_counts: HashMap<usize, usize> = HashMap::new();
         let mut coarse_label_counts: HashMap<usize, usize> = HashMap::new();
 
-        for fine_label in 0..100 {
+        for (fine_label, fine_label_name) in CIFAR100_FINE_LABELS.iter().enumerate() {
             let coarse_label = Self::fine_to_coarse(fine_label);
             let label_dir = split_dir
                 .join(CIFAR100_COARSE_LABELS[coarse_label])
-                .join(CIFAR100_FINE_LABELS[fine_label]);
+                .join(fine_label_name);
             if !label_dir.exists() {
                 return Err(DatasetError::InvalidLabelDir(label_dir));
             }
@@ -384,21 +384,15 @@ impl Cifar100 {
             }
         );
         println!("Fine labels (sample per class):");
-        for label in 0usize..100 {
+        for (label, label_name) in CIFAR100_FINE_LABELS.iter().enumerate() {
             if let Some(count) = fine_label_counts.get(&label) {
-                println!(
-                    "  {} ({}): {} samples",
-                    label, CIFAR100_FINE_LABELS[label], count
-                );
+                println!("  {} ({}): {} samples", label, label_name, count);
             }
         }
         println!("Coarse labels (superclasses):");
-        for label in 0usize..20 {
+        for (label, label_name) in CIFAR100_COARSE_LABELS.iter().enumerate() {
             if let Some(count) = coarse_label_counts.get(&label) {
-                println!(
-                    "  {} ({}): {} samples",
-                    label, CIFAR100_COARSE_LABELS[label], count
-                );
+                println!("  {} ({}): {} samples", label, label_name, count);
             }
         }
 

@@ -255,12 +255,9 @@ impl Cifar10 {
                 Cifar10Split::Test => "test",
             }
         );
-        for label in 0usize..=9 {
+        for (label, label_name) in CIFAR10_LABELS.iter().enumerate() {
             if let Some(count) = label_counts.get(&label) {
-                println!(
-                    "  Label {} ({}): {} samples",
-                    label, CIFAR10_LABELS[label], count
-                );
+                println!("  Label {} ({}): {} samples", label, label_name, count);
             }
         }
 

@@ -1156,9 +1156,9 @@ impl CpuStorage {
         let input_strides = strides(&self.shape);
         let output_count = elem_count(&output_shape);
         let mut source_positions = Vec::with_capacity(output_count);
-        for output_index in 0..output_count {
+        for (output_index, &index_value) in index_values.iter().enumerate().take(output_count) {
             let mut coords = unravel_index(output_index, &output_shape);
-            let selected = checked_index(index_values[output_index], self.shape[dim], "gather")?;
+            let selected = checked_index(index_value, self.shape[dim], "gather")?;
             coords[dim] = selected;
             source_positions.push(ravel_index_with_strides(&coords, &input_strides));
         }
@@ -1482,14 +1482,14 @@ impl CpuStorage {
         }
         let output_count = elem_count(&output_shape);
         let mut buckets = vec![Vec::with_capacity(reduced); output_count];
-        for input_index in 0..self.elem_count() {
+        for (input_index, &value) in input.iter().enumerate().take(self.elem_count()) {
             let mut coords = unravel_index(input_index, &self.shape);
             coords.remove(dim);
             if keepdim {
                 coords.insert(dim, 0);
             }
             let output_index = ravel_index(&coords, &output_shape);
-            buckets[output_index].push(input[input_index]);
+            buckets[output_index].push(value);
         }
         let output = buckets.iter().map(|values| op(values)).collect::<Vec<_>>();
         Self::from_f64_values(output, &output_shape, self.float_result_dtype())
@@ -1515,7 +1515,7 @@ impl CpuStorage {
         }
         let output_count = elem_count(&output_shape);
         let mut best = vec![(0usize, 0.0f64, false); output_count];
-        for input_index in 0..self.elem_count() {
+        for (input_index, &value) in input.iter().enumerate().take(self.elem_count()) {
             let mut coords = unravel_index(input_index, &self.shape);
             let reduced_index = coords[dim];
             coords.remove(dim);
@@ -1524,8 +1524,8 @@ impl CpuStorage {
             }
             let output_index = ravel_index(&coords, &output_shape);
             let entry = &mut best[output_index];
-            if !entry.2 || better(input[input_index], entry.1) {
-                *entry = (reduced_index, input[input_index], true);
+            if !entry.2 || better(value, entry.1) {
+                *entry = (reduced_index, value, true);
             }
         }
         let values = best

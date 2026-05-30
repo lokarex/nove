@@ -19,10 +19,10 @@ fn test_gru_builder_creation() {
     assert_eq!(gru.input_size(), 10);
     assert_eq!(gru.hidden_size(), 20);
     assert_eq!(gru.num_layers(), 2);
-    assert_eq!(gru.bias(), true);
-    assert_eq!(gru.batch_first(), false);
+    assert!(gru.bias());
+    assert!(!gru.batch_first());
     assert_eq!(gru.dropout_rate(), 0.0);
-    assert_eq!(gru.bidirectional(), false);
+    assert!(!gru.bidirectional());
     assert_eq!(gru.num_directions(), 1);
 }
 
@@ -32,7 +32,7 @@ fn test_gru_builder_without_bias() {
 
     assert_eq!(gru.input_size(), 5);
     assert_eq!(gru.hidden_size(), 8);
-    assert_eq!(gru.bias(), false);
+    assert!(!gru.bias());
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn test_gru_builder_batch_first() {
 
     assert_eq!(gru.input_size(), 10);
     assert_eq!(gru.hidden_size(), 20);
-    assert_eq!(gru.batch_first(), true);
+    assert!(gru.batch_first());
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn test_gru_builder_multilayer_bidirectional_dropout() {
     assert_eq!(gru.input_size(), 16);
     assert_eq!(gru.hidden_size(), 32);
     assert_eq!(gru.num_layers(), 3);
-    assert_eq!(gru.bidirectional(), true);
+    assert!(gru.bidirectional());
     assert_eq!(gru.num_directions(), 2);
     assert_eq!(gru.dropout_rate(), 0.5);
 }

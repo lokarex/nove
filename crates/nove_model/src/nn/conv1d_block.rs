@@ -400,24 +400,24 @@ impl Conv1dBlockBuilder {
     /// ```
     pub fn build(self) -> Result<Conv1dBlock, ModelError> {
         if self.in_channels == 0 {
-            return Err(ModelError::InvalidArgument(format!(
-                "in_channels in Conv1dBlock must be greater than 0"
-            )));
+            return Err(ModelError::InvalidArgument(
+                "in_channels in Conv1dBlock must be greater than 0".to_string(),
+            ));
         }
         if self.out_channels == 0 {
-            return Err(ModelError::InvalidArgument(format!(
-                "out_channels in Conv1dBlock must be greater than 0"
-            )));
+            return Err(ModelError::InvalidArgument(
+                "out_channels in Conv1dBlock must be greater than 0".to_string(),
+            ));
         }
         if self.kernel_size == 0 {
-            return Err(ModelError::InvalidArgument(format!(
-                "kernel_size in Conv1dBlock must be greater than 0"
-            )));
+            return Err(ModelError::InvalidArgument(
+                "kernel_size in Conv1dBlock must be greater than 0".to_string(),
+            ));
         }
         if self.stride == 0 {
-            return Err(ModelError::InvalidArgument(format!(
-                "stride in Conv1dBlock must be greater than 0"
-            )));
+            return Err(ModelError::InvalidArgument(
+                "stride in Conv1dBlock must be greater than 0".to_string(),
+            ));
         }
 
         let id = ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -616,16 +616,16 @@ impl Model for Conv1dBlock {
 
 impl Display for Conv1dBlock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "conv1d_block.{}(\n", self.id)?;
-        write!(f, "  {},\n", self.conv)?;
+        writeln!(f, "conv1d_block.{}(", self.id)?;
+        writeln!(f, "  {},", self.conv)?;
         if let Some(ref bn) = self.batch_norm1d {
-            write!(f, "  {},\n", bn)?;
+            writeln!(f, "  {},", bn)?;
         }
         if let Some(ref activation) = self.activation {
-            write!(f, "  {},\n", activation)?;
+            writeln!(f, "  {},", activation)?;
         }
         if let Some(ref pool) = self.pool1d {
-            write!(f, "  {},\n", pool)?;
+            writeln!(f, "  {},", pool)?;
         }
         write!(f, ")")
     }

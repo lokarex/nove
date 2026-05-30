@@ -234,7 +234,7 @@ fn test_linear_block_require_grad() {
     let params = block.parameters().unwrap();
     assert_eq!(params.len(), 6);
 
-    let linear_weight = params.get(0).unwrap();
+    let linear_weight = params.first().unwrap();
     assert!(!linear_weight.grad_enabled().unwrap());
 
     block.require_grad(true).unwrap();
@@ -242,7 +242,7 @@ fn test_linear_block_require_grad() {
     let params = block.parameters().unwrap();
     assert_eq!(params.len(), 6);
 
-    let linear_weight = params.get(0).unwrap();
+    let linear_weight = params.first().unwrap();
     assert!(linear_weight.grad_enabled().unwrap());
 }
 

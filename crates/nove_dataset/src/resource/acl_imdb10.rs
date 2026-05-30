@@ -250,16 +250,14 @@ impl AclImdb10 {
                 let entry = entry?;
                 let path = entry.path();
 
-                if path.extension().is_some_and(|ext| ext == "txt") {
-                    if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                        if let Some(rating) = Self::parse_rating_from_filename(filename) {
-                            let rating = rating as usize;
-                            if Self::is_valid_rating(rating) {
-                                samples.push((path, rating));
-                                *rating_counts.entry(rating).or_insert(0) += 1;
-                            }
-                        }
-                    }
+                if path.extension().is_some_and(|ext| ext == "txt")
+                    && let Some(filename) = path.file_name().and_then(|n| n.to_str())
+                    && let Some(rating) = Self::parse_rating_from_filename(filename)
+                    && Self::is_valid_rating(rating as usize)
+                {
+                    let rating = rating as usize;
+                    samples.push((path, rating));
+                    *rating_counts.entry(rating).or_insert(0) += 1;
                 }
             }
         }

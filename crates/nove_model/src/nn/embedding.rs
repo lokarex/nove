@@ -339,13 +339,13 @@ impl EmbeddingBuilder {
             ));
         }
 
-        if let Some(padding_idx) = padding_idx {
-            if padding_idx >= num_embeddings {
-                return Err(ModelError::InvalidArgument(format!(
-                    "padding_idx {} is out of range [0, {})",
-                    padding_idx, num_embeddings
-                )));
-            }
+        if let Some(padding_idx) = padding_idx
+            && padding_idx >= num_embeddings
+        {
+            return Err(ModelError::InvalidArgument(format!(
+                "padding_idx {} is out of range [0, {})",
+                padding_idx, num_embeddings
+            )));
         }
 
         // Generate a unique ID for the embedding layer.

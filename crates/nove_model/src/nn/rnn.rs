@@ -424,7 +424,7 @@ impl RnnBuilder {
                     .activation(self.nonlinearity.clone())
                     .bias_enabled(self.bias)
                     .device(self.device.clone())
-                    .dtype(self.dtype.clone())
+                    .dtype(self.dtype)
                     .grad_enabled(self.grad_enabled);
 
                 let cell = cell_builder.build()?;

@@ -542,16 +542,16 @@ impl Model for LinearBlock {
 
 impl Display for LinearBlock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "linear_block.{}(\n", self.id)?;
-        write!(f, "  {},\n", self.linear)?;
+        writeln!(f, "linear_block.{}(", self.id)?;
+        writeln!(f, "  {},", self.linear)?;
         if let Some(ref bn) = self.batch_norm1d {
-            write!(f, "  {},\n", bn)?;
+            writeln!(f, "  {},", bn)?;
         }
         if let Some(ref activation) = self.activation {
-            write!(f, "  {},\n", activation)?;
+            writeln!(f, "  {},", activation)?;
         }
         if let Some(ref dropout) = self.dropout {
-            write!(f, "  {},\n", dropout)?;
+            writeln!(f, "  {},", dropout)?;
         }
         write!(f, "  training={}", self.training)?;
         write!(f, ")")

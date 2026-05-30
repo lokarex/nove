@@ -93,14 +93,10 @@ fn test_embedding_forward_2d() {
 fn test_embedding_forward_3d() {
     let mut embedding = EmbeddingBuilder::new(100, 50).build().unwrap();
 
-    let input = Tensor::from_data(
-        vec![1i64, 2, 3, 4, 5, 6, 7, 8],
-        &Device::default(),
-        false,
-    )
-    .unwrap()
-    .reshape(&Shape::from_dims(&[2, 2, 2]))
-    .unwrap();
+    let input = Tensor::from_data(vec![1i64, 2, 3, 4, 5, 6, 7, 8], &Device::default(), false)
+        .unwrap()
+        .reshape(&Shape::from_dims(&[2, 2, 2]))
+        .unwrap();
     let output = embedding.forward(input).unwrap();
 
     assert_eq!(output.shape().unwrap(), Shape::from_dims(&[2, 2, 2, 50]));

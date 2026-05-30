@@ -38,6 +38,6 @@ pub use shape::Shape;
 
 pub mod backend;
 pub use backend::{
-    BackendError, BackendKind, FloatTensorElement, TensorBuffer,
-    IntoTensorPayload, TensorElement, TensorPayload,
+    BackendError, BackendKind, FloatTensorElement, IntoTensorPayload, TensorBuffer, TensorElement,
+    TensorPayload,
 };

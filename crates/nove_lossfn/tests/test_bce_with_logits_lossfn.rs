@@ -12,7 +12,7 @@ fn test_bce_with_logits_lossfn() {
     let lossfn = BCEWithLogitsLoss::new();
     let loss = lossfn.loss((input, target)).unwrap();
     let actual = loss.to_scalar::<f64>().unwrap();
-    let expected = 0.693147; // -ln(0.5)
+    let expected = std::f64::consts::LN_2; // -ln(0.5)
     assert!(
         (actual - expected).abs() < 1e-6,
         "Expected {}, got {}",

@@ -608,16 +608,16 @@ impl Model for Conv2dBlock {
 
 impl Display for Conv2dBlock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "conv2d_block.{}(\n", self.id)?;
-        write!(f, "  {},\n", self.conv)?;
+        writeln!(f, "conv2d_block.{}(", self.id)?;
+        writeln!(f, "  {},", self.conv)?;
         if let Some(ref bn) = self.batch_norm2d {
-            write!(f, "  {},\n", bn)?;
+            writeln!(f, "  {},", bn)?;
         }
         if let Some(ref activation) = self.activation {
-            write!(f, "  {},\n", activation)?;
+            writeln!(f, "  {},", activation)?;
         }
         if let Some(ref pool) = self.pool2d {
-            write!(f, "  {},\n", pool)?;
+            writeln!(f, "  {},", pool)?;
         }
         write!(f, ")")
     }

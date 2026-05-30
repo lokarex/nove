@@ -37,12 +37,11 @@ pub fn derive_model(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                                 syn::parse_str(&type_str).expect("Failed to parse input type"),
                             );
                         }
-                    } else if item.path.is_ident("output") {
-                        if let Some(type_str) = type_str {
-                            output_type = Some(
-                                syn::parse_str(&type_str).expect("Failed to parse output type"),
-                            );
-                        }
+                    } else if item.path.is_ident("output")
+                        && let Some(type_str) = type_str
+                    {
+                        output_type =
+                            Some(syn::parse_str(&type_str).expect("Failed to parse output type"));
                     }
                 }
             }

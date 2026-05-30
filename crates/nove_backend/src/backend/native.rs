@@ -1,5 +1,5 @@
 use super::{BackendError, BackendKind, TensorBuffer, TensorPayload};
-use crate::{Device, DType, Shape};
+use crate::{DType, Device, Shape};
 use std::fmt::Display;
 
 fn backend_error(error: nove_native::cpu::CpuBackendError) -> BackendError {

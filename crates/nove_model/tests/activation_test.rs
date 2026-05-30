@@ -5,8 +5,7 @@ use nove::tensor::{DType, Device, Shape, Tensor};
 #[test]
 fn test_activation_relu_forward() {
     let mut relu = Activation::relu();
-    let input =
-        Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &Device::default(), false).unwrap();
+    let input = Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &Device::default(), false).unwrap();
     let output = relu.forward(input).unwrap();
     let output_vec = output.to_vec::<f64>().unwrap();
     assert_eq!(output_vec, vec![0.0, 2.0, 0.0, 4.0]);
@@ -99,8 +98,7 @@ fn test_activation_tanh_require_grad() {
 fn test_activation_relu_different_shapes() {
     let mut relu = Activation::relu();
 
-    let input_1d =
-        Tensor::from_data(vec![-1.0, 2.0, -3.0], &Device::default(), false).unwrap();
+    let input_1d = Tensor::from_data(vec![-1.0, 2.0, -3.0], &Device::default(), false).unwrap();
     let output_1d = relu.forward(input_1d).unwrap();
     assert_eq!(output_1d.shape().unwrap(), Shape::from_dims(&[3]));
 

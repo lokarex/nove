@@ -17,17 +17,23 @@ struct SgdParam {
 /// The update rules for different combinations of momentum and weight decay are:
 ///
 /// 1. **No momentum, no weight decay** (β = 0, λ = 0):
+///
 /// $$ \theta_t = \theta_{t-1} - \alpha \cdot g_t $$
 ///
 /// 2. **With momentum, no weight decay** (β > 0, λ = 0):
+///
 /// $$ v_t = \beta \cdot v_{t-1} + g_t $$
+///
 /// $$ \theta_t = \theta_{t-1} - \alpha \cdot v_t $$
 ///
 /// 3. **No momentum, with weight decay** (β = 0, λ > 0):
+///
 /// $$ \theta_t = \theta_{t-1} - \alpha \cdot (g_t + \lambda \cdot \theta_{t-1}) $$
 ///
 /// 4. **With momentum and weight decay** (β > 0, λ > 0):
+///
 /// $$ v_t = \beta \cdot v_{t-1} + (g_t + \lambda \cdot \theta_{t-1}) $$
+///
 /// $$ \theta_t = \theta_{t-1} - \alpha \cdot v_t $$
 ///
 /// Where:

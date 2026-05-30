@@ -26,8 +26,8 @@ fn test_shufflable_dataset_with_simple_dataset() {
     dataset.shuffle(&mut StdRng::seed_from_u64(42));
 
     // Check the shufflable dataset is the same as the simulated dataset.
-    assert_eq!(shufflable_dataset.len().unwrap(), dataset.len() as usize);
-    for i in 0..shufflable_dataset.len().unwrap() {
-        assert_eq!(shufflable_dataset.get(i).unwrap(), dataset[i as usize]);
+    assert_eq!(shufflable_dataset.len().unwrap(), dataset.len());
+    for (i, &item) in dataset.iter().enumerate() {
+        assert_eq!(shufflable_dataset.get(i).unwrap(), item);
     }
 }

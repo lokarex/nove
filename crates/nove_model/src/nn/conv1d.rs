@@ -527,12 +527,12 @@ impl Conv1dBuilder {
                 "groups in Conv1dBuilder must be greater than 0".to_string(),
             ));
         }
-        if in_channels % self.groups != 0 {
+        if !in_channels.is_multiple_of(self.groups) {
             return Err(ModelError::InvalidArgument(
                 "in_channels must be divisible by groups".to_string(),
             ));
         }
-        if out_channels % self.groups != 0 {
+        if !out_channels.is_multiple_of(self.groups) {
             return Err(ModelError::InvalidArgument(
                 "out_channels must be divisible by groups".to_string(),
             ));

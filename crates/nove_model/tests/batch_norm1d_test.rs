@@ -256,7 +256,7 @@ fn test_batch_norm1d_parameters() {
     let named_params = bn.named_parameters().unwrap();
     assert_eq!(named_params.len(), 4);
 
-    for (key, _) in &named_params {
+    for key in named_params.keys() {
         println!("Key: {}", key);
     }
     assert!(named_params.len() == 4);

@@ -42,6 +42,7 @@ use crate::{Learner, LearnerError};
 /// * `is_best_model` - Function to determine if current model is the best.
 /// * `best_model_metrics` - Best validation metrics achieved during training.
 /// * `is_best_model_current_epoch` - Whether the best model is from the current epoch.
+#[allow(clippy::type_complexity)]
 pub struct EpochLearner<D, M, L, O>
 where
     D: Dataloader,
@@ -525,7 +526,7 @@ where
                     batch_count += 1;
 
                     // Log output
-                    if batch_count % log_interval == 0 {
+                    if batch_count.is_multiple_of(log_interval) {
                         self.print_metrics("Train", epoch, batch_count);
                         // Clear metrics for next interval
                         for metric in self.metrics.iter_mut() {
@@ -698,6 +699,7 @@ where
 /// * `result_dir` - Directory to save checkpoints.
 /// * `save_every_epoch` - Whether to save checkpoint every epoch.
 /// * `is_best_model` - Function to determine best model.
+#[allow(clippy::type_complexity)]
 pub struct EpochLearnerBuilder<D, M, L, O>
 where
     D: Dataloader,

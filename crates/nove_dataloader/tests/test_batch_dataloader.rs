@@ -23,7 +23,7 @@ fn test_batched_dataloader() {
         Ok(Tensor::from_data(&[x as i64], &device, false).unwrap())
     };
     let collate_fn = |x: Vec<Tensor>| -> Result<Tensor, DataloaderError> {
-        Ok(Tensor::stack(&x.as_slice(), 0).unwrap())
+        Ok(Tensor::stack(x.as_slice(), 0).unwrap())
     };
 
     // Create a batch_dataloader.

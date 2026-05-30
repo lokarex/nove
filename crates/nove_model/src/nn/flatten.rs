@@ -108,6 +108,7 @@ impl FlattenBuilder {
     ///
     /// # Arguments
     /// * `end_dim` - The 0-based dimension index to stop flattening (inclusive).
+    ///
     /// Use -1 for the last dimension.
     ///
     /// # Returns

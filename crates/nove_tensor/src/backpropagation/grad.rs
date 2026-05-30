@@ -368,7 +368,7 @@ impl Tensor {
             }),
             OpKind::Powf(exponent) => unary_parent_grad(parents, grad_output, |input, grad| {
                 if exponent == 0.0 {
-                    return Ok(grad.affine(0.0, 0.0)?);
+                    return grad.affine(0.0, 0.0);
                 }
                 grad.mul(&input.powf(exponent - 1.0)?.affine(exponent, 0.0)?)
             }),
@@ -991,7 +991,7 @@ fn scatter_narrow_values<T: Copy + Default>(
         let mut target_index = 0;
         for axis in 0..source_shape.len() {
             let stride = source_strides[axis];
-            let coord = if stride == 0 { 0 } else { remaining / stride };
+            let coord = remaining.checked_div(stride).unwrap_or(0);
             if stride != 0 {
                 remaining %= stride;
             }
@@ -1127,6 +1127,7 @@ fn checked_tensor_index(
     Ok(index as usize)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn conv1d_parent_grads(
     parents: &[Tensor],
     grad_output: &Tensor,
@@ -1172,6 +1173,7 @@ fn conv1d_parent_grads(
     ])
 }
 
+#[allow(clippy::too_many_arguments)]
 fn conv2d_parent_grads(
     parents: &[Tensor],
     grad_output: &Tensor,
@@ -1217,6 +1219,7 @@ fn conv2d_parent_grads(
     ])
 }
 
+#[allow(clippy::too_many_arguments)]
 fn conv1d_backward_grads(
     input: &Tensor,
     kernel: &Tensor,
@@ -1312,6 +1315,7 @@ fn conv1d_backward_grads(
     ))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn conv2d_backward_grads(
     input: &Tensor,
     kernel: &Tensor,
@@ -1802,7 +1806,7 @@ fn reduce_to_shape(grad: &Tensor, target: &Shape) -> Result<Tensor, TensorError>
         result = result.reshape(target)?;
     }
 
-    Ok(result.detach()?)
+    result.detach()
 }
 
 fn expand_reduction_grad(
@@ -1819,7 +1823,7 @@ fn expand_reduction_grad(
     if result.shape()? != *input_shape {
         result = result.broadcast(input_shape)?;
     }
-    Ok(result.detach()?)
+    result.detach()
 }
 
 fn reduction_factor(axis: Option<(usize, bool)>, input_shape: &Shape) -> usize {

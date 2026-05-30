@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_metric_value_display_with_precision() {
-        let value = MetricValue::Scalar(3.141592653589793);
+        let value = MetricValue::Scalar(std::f64::consts::PI);
 
         assert_eq!(format!("{:.4}", value), "3.1416");
         assert_eq!(format!("{:.2}", value), "3.14");
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn test_metric_value_display_without_precision() {
-        let value = MetricValue::Scalar(3.141592653589793);
+        let value = MetricValue::Scalar(std::f64::consts::PI);
 
         assert_eq!(format!("{}", value), "3.141592653589793");
     }
