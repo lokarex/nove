@@ -386,7 +386,7 @@ where
             let shape = Shape::from(&[height as usize, width as usize, 3]);
             let image_tensor = Tensor::from_vec(data, &shape, &device, grad_enabled)?;
 
-            let label_tensor = Tensor::from_scalar(label as u32, &device, false)?;
+            let label_tensor = Tensor::from_scalar(label as i64, &device, false)?;
 
             Ok((image_tensor, label_tensor))
         });

@@ -86,7 +86,7 @@ impl EvaluationMetric for AccuracyMetric {
     fn evaluate(&mut self, output: &Tensor, target: &Tensor) -> Result<(), MetricError> {
         let correct = output
             .argmax((1, false))?
-            .eq(target)?
+            .eq(&target.to_dtype(&DType::U32)?)?
             .to_dtype(&DType::F64)?;
 
         let batch_size = output.shape()?.dims()[0];

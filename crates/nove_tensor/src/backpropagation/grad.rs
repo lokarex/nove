@@ -865,6 +865,11 @@ fn gather_backward_grad(
     dim: usize,
 ) -> Result<Tensor, TensorError> {
     let index_shape = indexes.shape()?;
+    let indexes = if indexes.dtype()? != DType::I64 {
+        indexes.to_dtype(&DType::I64)?
+    } else {
+        indexes.copy()
+    };
     let index_values = indexes.to_vec::<i64>()?;
     let input_strides = contiguous_strides(input_shape.dims());
     match grad.dtype()? {
@@ -900,6 +905,11 @@ fn index_select_backward_grad(
     input_shape: &Shape,
     dim: usize,
 ) -> Result<Tensor, TensorError> {
+    let indexes = if indexes.dtype()? != DType::I64 {
+        indexes.to_dtype(&DType::I64)?
+    } else {
+        indexes.copy()
+    };
     let index_values = indexes.to_vec::<i64>()?;
     let grad_shape = grad.shape()?;
     let input_strides = contiguous_strides(input_shape.dims());
@@ -935,6 +945,11 @@ fn embedding_backward_grad(
     indexes: &Tensor,
     table_shape: &Shape,
 ) -> Result<Tensor, TensorError> {
+    let indexes = if indexes.dtype()? != DType::I64 {
+        indexes.to_dtype(&DType::I64)?
+    } else {
+        indexes.copy()
+    };
     let index_values = indexes.to_vec::<i64>()?;
     let row_size = table_shape.dims()[1..].iter().product::<usize>();
     match grad.dtype()? {
