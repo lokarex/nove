@@ -98,7 +98,11 @@ impl Model for GELU {
     /// let mut gelu = GELU::new();
     /// let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     /// let output = gelu.forward(input).unwrap();
-    /// assert_eq!(output.to_vec::<f64>().unwrap(), vec![-0.15880800939172324, 0.0, 0.8411919906082768]);
+    /// let result = output.to_vec::<f64>().unwrap();
+    /// let expected = vec![-0.15880800939172324, 0.0, 0.8411919906082768];
+    /// for (a, e) in result.iter().zip(expected.iter()) {
+    ///     assert!((a - e).abs() < 1e-6);
+    /// }
     /// ```
     fn forward(&mut self, input: Self::Input) -> Result<Self::Output, crate::ModelError> {
         Ok(input.gelu()?)

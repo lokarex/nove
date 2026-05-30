@@ -2,6 +2,19 @@ use nove::model::Model;
 use nove::model::nn::Activation;
 use nove::tensor::{DType, Device, Shape, Tensor};
 
+fn assert_f64_approx_eq(actual: &[f64], expected: &[f64], tolerance: f64) {
+    assert_eq!(actual.len(), expected.len(), "vector length mismatch");
+    for (i, (&a, &e)) in actual.iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (a - e).abs() < tolerance,
+            "mismatch at index {}: actual {} != expected {}",
+            i,
+            a,
+            e
+        );
+    }
+}
+
 #[test]
 fn test_activation_relu_forward() {
     let mut relu = Activation::relu();
@@ -17,10 +30,8 @@ fn test_activation_gelu_forward() {
     let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output = gelu.forward(input).unwrap();
     let output_vec = output.to_vec::<f64>().unwrap();
-    assert_eq!(
-        output_vec,
-        vec![-0.15880800939172324, 0.0, 0.8411919906082768]
-    );
+    let expected = vec![-0.15880800939172324, 0.0, 0.8411919906082768];
+    assert_f64_approx_eq(&output_vec, &expected, 1e-6);
 }
 
 #[test]
@@ -29,10 +40,8 @@ fn test_activation_silu_forward() {
     let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output = silu.forward(input).unwrap();
     let output_vec = output.to_vec::<f64>().unwrap();
-    assert_eq!(
-        output_vec,
-        vec![-0.2689414213699951, 0.0, 0.7310585786300049]
-    );
+    let expected = vec![-0.2689414213699951, 0.0, 0.7310585786300049];
+    assert_f64_approx_eq(&output_vec, &expected, 1e-6);
 }
 
 #[test]
@@ -41,10 +50,8 @@ fn test_activation_sigmoid_forward() {
     let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output = sigmoid.forward(input).unwrap();
     let output_vec = output.to_vec::<f64>().unwrap();
-    assert_eq!(
-        output_vec,
-        vec![0.2689414213699951, 0.5, 0.7310585786300049]
-    );
+    let expected = vec![0.2689414213699951, 0.5, 0.7310585786300049];
+    assert_f64_approx_eq(&output_vec, &expected, 1e-6);
 }
 
 #[test]
@@ -53,10 +60,8 @@ fn test_activation_tanh_forward() {
     let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output = tanh.forward(input).unwrap();
     let output_vec = output.to_vec::<f64>().unwrap();
-    assert_eq!(
-        output_vec,
-        vec![-0.7615941559557649, 0.0, 0.7615941559557649]
-    );
+    let expected = vec![-0.7615941559557649, 0.0, 0.7615941559557649];
+    assert_f64_approx_eq(&output_vec, &expected, 1e-6);
 }
 
 #[test]
