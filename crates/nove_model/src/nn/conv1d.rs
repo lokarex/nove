@@ -38,7 +38,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///     .dilation(1)              // Optional, default is 1
 ///     .groups(1)                // Optional, default is 1
 ///     .bias_enabled(true)       // Optional, default is true
-///     .device(nove::device::candle::cpu().unwrap())    // Optional, default is cpu
+///     .device(Device::default())    // Optional, default is `Device::default()`.
 ///     .dtype(DType::F32)        // Optional, default is F32
 ///     .build();
 /// ```
@@ -223,7 +223,7 @@ impl Display for Conv1d {
 /// * `dilation` - The dilation of the convolution. Default is `1`.
 /// * `groups` - The number of groups for grouped convolution. Default is `1`.
 /// * `bias_enabled` - Whether to enable the bias term. Default is `true`.
-/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
+/// * `device` - The device to use for the layer. Default is `Device::default()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
 ///
@@ -251,7 +251,7 @@ impl Display for Conv1d {
 ///     .dilation(1)              // Optional, default is 1
 ///     .groups(1)                // Optional, default is 1
 ///     .bias_enabled(true)       // Optional, default is true
-///     .device(nove::device::candle::cpu().unwrap())    // Optional, default is cpu
+///     .device(Device::default())    // Optional, default is `Device::default()`.
 ///     .dtype(DType::F32)        // Optional, default is F32
 ///     .grad_enabled(true)       // Optional, default is true
 ///     .build();
@@ -281,7 +281,7 @@ impl Conv1dBuilder {
             dilation: 1,
             groups: 1,
             bias_enabled: true,
-            device: nove_tensor::device::candle::cpu().unwrap(),
+            device: Device::default(),
             dtype: DType::F32,
             grad_enabled: true,
         }
@@ -454,7 +454,7 @@ impl Conv1dBuilder {
     /// use nove::model::nn::Conv1dBuilder;
     /// use nove::tensor::Device;
     /// let mut conv_builder = Conv1dBuilder::new(3, 64, 3);
-    /// conv_builder.device(nove::device::candle::cpu().unwrap());
+    /// conv_builder.device(Device::default());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
         self.device = device;

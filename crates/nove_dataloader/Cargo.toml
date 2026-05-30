@@ -15,7 +15,7 @@ rand = { workspace = true }
 image = { workspace = true }
 
 [dev-dependencies]
-nove = { path = "../nove" }
+nove = { path = "../nove", default-features = false }
 
 [features]
 default = ["candle-cpu"]

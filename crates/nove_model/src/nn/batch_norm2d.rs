@@ -41,12 +41,12 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///     .epsilon(1e-5)          // Optional, default is 1e-5
 ///     .momentum(0.1)          // Optional, default is 0.1
 ///     .affine(true)           // Optional, default is true
-///     .device(nove::device::candle::cpu().unwrap())  // Optional, default is cpu
+///     .device(Device::default())  // Optional, default is cpu
 ///     .dtype(DType::F32)      // Optional, default is F32
 ///     .build()
 ///     .unwrap();
 ///
-/// let input = Tensor::randn(0.0, 1.0, &Shape::from(&[32, 64, 28, 28]), &nove::device::candle::cpu().unwrap(), false).unwrap();
+/// let input = Tensor::randn(0.0, 1.0, &Shape::from(&[32, 64, 28, 28]), &Device::default(), false).unwrap();
 ///
 /// // Training mode
 /// bn.train(true).unwrap();
@@ -278,7 +278,7 @@ impl Display for BatchNorm2d {
 /// * `epsilon` - A small value added to the variance for numerical stability. Default is `1e-5`.
 /// * `momentum` - The momentum for updating running statistics. Default is `0.1`.
 /// * `affine` - Whether to use learnable affine parameters (gamma and beta). Default is `true`.
-/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
+/// * `device` - The device to use for the layer. Default is `Device::default()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 ///
 /// # Fields
@@ -298,7 +298,7 @@ impl Display for BatchNorm2d {
 ///     .epsilon(1e-5)          // Optional, default is 1e-5
 ///     .momentum(0.1)          // Optional, default is 0.1
 ///     .affine(true)           // Optional, default is true
-///     .device(nove::device::candle::cpu().unwrap())  // Optional, default is cpu
+///     .device(Device::default())  // Optional
 ///     .dtype(DType::F32)      // Optional, default is F32
 ///     .build();
 /// ```
@@ -319,7 +319,7 @@ impl BatchNorm2dBuilder {
             epsilon: 1e-5,
             momentum: 0.1,
             affine: true,
-            device: nove_tensor::device::candle::cpu().unwrap(),
+            device: Device::default(),
             dtype: DType::F32,
             training: true,
         }
@@ -425,7 +425,7 @@ impl BatchNorm2dBuilder {
     /// use nove::model::nn::BatchNorm2dBuilder;
     /// use nove::tensor::Device;
     /// let mut bn_builder = BatchNorm2dBuilder::new(64);
-    /// bn_builder.device(nove::device::candle::cpu().unwrap());
+    /// bn_builder.device(Device::default());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
         self.device = device;

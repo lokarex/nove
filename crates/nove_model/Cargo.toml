@@ -9,7 +9,7 @@ repository.workspace = true
 
 [dependencies]
 indexmap = { workspace = true }
-nove_tensor = { path = "../nove_tensor", version = "=0.1.2" }
+nove_tensor = { path = "../nove_tensor", version = "=0.1.2", default-features = false }
 rand = { workspace = true }
 thiserror = { workspace = true }
 nove_macro = { path = "../nove_macro", version = "=0.1.2" }
@@ -24,5 +24,5 @@ native = ["nove_tensor/native"]
 native-cpu = ["native", "nove_tensor/native-cpu"]
 
 [dev-dependencies]
-nove = { path = "../nove" }
+nove = { path = "../nove", default-features = false }
 tempfile = { workspace = true }

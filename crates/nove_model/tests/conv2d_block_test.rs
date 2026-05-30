@@ -1,12 +1,11 @@
-use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::{Activation, Conv2dBlockBuilder, Pool2d};
-use nove::tensor::{DType, Shape, Tensor};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_conv2d_block_builder_creation() {
     let block = Conv2dBlockBuilder::new(3, 16, (3, 3), 1, 1)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .grad_enabled(true)
         .with_batch_norm2d()
@@ -31,7 +30,7 @@ fn test_conv2d_block_forward_sequential() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 8, 8]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -47,7 +46,7 @@ fn test_conv2d_block_forward_without_components() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 8, 8]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -66,7 +65,7 @@ fn test_conv2d_block_forward_with_batch_norm_only() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 8, 8]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -85,7 +84,7 @@ fn test_conv2d_block_forward_with_activation_only() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 8, 8]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -104,7 +103,7 @@ fn test_conv2d_block_forward_with_pool_only() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 8, 8]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -171,20 +170,51 @@ fn test_conv2d_block_require_grad() {
 #[test]
 fn test_conv2d_block_to_device() {
     let mut block = Conv2dBlockBuilder::new(3, 5, (3, 3), 1, 1)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .build()
         .unwrap();
 
-    let params = block.parameters().unwrap();
-    for param in params {
-        assert!(param.device().unwrap().is_cpu());
+    // Round-trip: move to each backend device and verify
+    #[cfg(feature = "candle-cpu")]
+    {
+        let target = nove::device::candle::cpu().unwrap();
+        block.to_device(&target).unwrap();
+        let params = block.parameters().unwrap();
+        for param in params {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "native-cpu")]
+    {
+        let target = nove::device::native::cpu().unwrap();
+        block.to_device(&target).unwrap();
+        let params = block.parameters().unwrap();
+        for param in params {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "candle-cuda")]
+    if let Ok(target) = nove::device::candle::cuda(0) {
+        block.to_device(&target).unwrap();
+        let params = block.parameters().unwrap();
+        for param in params {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "candle-metal")]
+    if let Ok(target) = nove::device::candle::metal(0) {
+        block.to_device(&target).unwrap();
+        let params = block.parameters().unwrap();
+        for param in params {
+            assert_eq!(param.device().unwrap(), target);
+        }
     }
 
-    block.to_device(&candle::cpu().unwrap()).unwrap();
-
+    // Move back to the default device
+    block.to_device(&Device::default()).unwrap();
     let params = block.parameters().unwrap();
     for param in params {
-        assert!(param.device().unwrap().is_cpu());
+        assert_eq!(param.device().unwrap(), Device::default());
     }
 }
 

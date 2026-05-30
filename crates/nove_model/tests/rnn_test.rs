@@ -1,8 +1,7 @@
-use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::Activation;
 use nove::model::nn::RnnBuilder;
-use nove::tensor::{DType, Shape, Tensor};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_rnn_builder_creation() {
@@ -13,7 +12,7 @@ fn test_rnn_builder_creation() {
         .batch_first(false)
         .dropout(0.0)
         .bidirectional(false)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .grad_enabled(true)
         .build()
@@ -111,7 +110,7 @@ fn test_rnn_forward_batch_last() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[seq_len, batch_size, 8]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -141,7 +140,7 @@ fn test_rnn_forward_batch_first() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[batch_size, seq_len, 12]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -171,7 +170,7 @@ fn test_rnn_forward_bidirectional() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[seq_len, batch_size, 10]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -201,7 +200,7 @@ fn test_rnn_forward_multilayer_bidirectional_dropout() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[seq_len, batch_size, 16]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -235,7 +234,7 @@ fn test_rnn_forward_with_different_activations() {
             0.0f32,
             1.0f32,
             &Shape::from_dims(&[seq_len, batch_size, 8]),
-            &candle::cpu().unwrap(),
+            &Device::default(),
             false,
         )
         .unwrap();
@@ -294,14 +293,47 @@ fn test_rnn_require_grad() {
 
 #[test]
 fn test_rnn_to_device() {
-    let rnn = RnnBuilder::new(10, 20)
-        .device(candle::cpu().unwrap())
+    let mut rnn = RnnBuilder::new(10, 20)
+        .device(Device::default())
         .build()
         .unwrap();
 
-    let params = rnn.parameters().unwrap();
-    for param in params {
-        assert_eq!(param.device().unwrap(), candle::cpu().unwrap());
+    // Round-trip: move to each backend device and verify
+    #[cfg(feature = "candle-cpu")]
+    {
+        let target = nove::device::candle::cpu().unwrap();
+        rnn.to_device(&target).unwrap();
+        for param in rnn.parameters().unwrap() {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "native-cpu")]
+    {
+        let target = nove::device::native::cpu().unwrap();
+        rnn.to_device(&target).unwrap();
+        for param in rnn.parameters().unwrap() {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "candle-cuda")]
+    if let Ok(target) = nove::device::candle::cuda(0) {
+        rnn.to_device(&target).unwrap();
+        for param in rnn.parameters().unwrap() {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "candle-metal")]
+    if let Ok(target) = nove::device::candle::metal(0) {
+        rnn.to_device(&target).unwrap();
+        for param in rnn.parameters().unwrap() {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+
+    // Move back to the default device
+    rnn.to_device(&Device::default()).unwrap();
+    for param in rnn.parameters().unwrap() {
+        assert_eq!(param.device().unwrap(), Device::default());
     }
 }
 
@@ -323,7 +355,7 @@ fn test_rnn_forward_invalid_input_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[5, 10]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -341,7 +373,7 @@ fn test_rnn_forward_invalid_input_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[5, 3, 8]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();

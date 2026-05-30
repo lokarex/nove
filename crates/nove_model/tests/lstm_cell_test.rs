@@ -1,13 +1,12 @@
-use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::LstmCellBuilder;
-use nove::tensor::{DType, Shape, Tensor};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_lstm_cell_builder_creation() {
     let lstm_cell = LstmCellBuilder::new(10, 20)
         .bias_enabled(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .grad_enabled(true)
         .build()
@@ -44,7 +43,7 @@ fn test_lstm_cell_builder_method_chaining() {
         .input_size(15)
         .hidden_size(25)
         .bias_enabled(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .grad_enabled(true);
 
@@ -80,7 +79,7 @@ fn test_lstm_cell_single_time_step_forward() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[batch_size, 3]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -88,7 +87,7 @@ fn test_lstm_cell_single_time_step_forward() {
     let hidden_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 5]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -96,7 +95,7 @@ fn test_lstm_cell_single_time_step_forward() {
     let cell_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 5]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -125,7 +124,7 @@ fn test_lstm_cell_hidden_state_and_cell_state_update() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[batch_size, 8]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -133,7 +132,7 @@ fn test_lstm_cell_hidden_state_and_cell_state_update() {
     let initial_hidden_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 12]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -141,7 +140,7 @@ fn test_lstm_cell_hidden_state_and_cell_state_update() {
     let initial_cell_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 12]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -157,7 +156,7 @@ fn test_lstm_cell_hidden_state_and_cell_state_update() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[batch_size, 8]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -188,7 +187,7 @@ fn test_lstm_cell_gate_mechanisms() {
     let input = Tensor::ones(
         &Shape::from_dims(&[batch_size, 4]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -196,7 +195,7 @@ fn test_lstm_cell_gate_mechanisms() {
     let hidden_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 4]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -204,7 +203,7 @@ fn test_lstm_cell_gate_mechanisms() {
     let cell_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 4]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -277,16 +276,43 @@ fn test_lstm_cell_require_grad() {
 
 #[test]
 fn test_lstm_cell_to_device() {
-    let lstm_cell = LstmCellBuilder::new(10, 20)
-        .device(candle::cpu().unwrap())
+    let mut lstm_cell = LstmCellBuilder::new(10, 20)
+        .device(Device::default())
         .build()
         .unwrap();
 
-    let weight_ih_device = lstm_cell.weight_ih().device().unwrap();
-    assert!(weight_ih_device.is_cpu());
+    // Round-trip: move to each backend device and verify
+    #[cfg(feature = "candle-cpu")]
+    {
+        let target = nove::device::candle::cpu().unwrap();
+        lstm_cell.to_device(&target).unwrap();
+        assert_eq!(lstm_cell.weight_ih().device().unwrap(), target);
+        assert_eq!(lstm_cell.weight_hh().device().unwrap(), target);
+    }
+    #[cfg(feature = "native-cpu")]
+    {
+        let target = nove::device::native::cpu().unwrap();
+        lstm_cell.to_device(&target).unwrap();
+        assert_eq!(lstm_cell.weight_ih().device().unwrap(), target);
+        assert_eq!(lstm_cell.weight_hh().device().unwrap(), target);
+    }
+    #[cfg(feature = "candle-cuda")]
+    if let Ok(target) = nove::device::candle::cuda(0) {
+        lstm_cell.to_device(&target).unwrap();
+        assert_eq!(lstm_cell.weight_ih().device().unwrap(), target);
+        assert_eq!(lstm_cell.weight_hh().device().unwrap(), target);
+    }
+    #[cfg(feature = "candle-metal")]
+    if let Ok(target) = nove::device::candle::metal(0) {
+        lstm_cell.to_device(&target).unwrap();
+        assert_eq!(lstm_cell.weight_ih().device().unwrap(), target);
+        assert_eq!(lstm_cell.weight_hh().device().unwrap(), target);
+    }
 
-    let weight_hh_device = lstm_cell.weight_hh().device().unwrap();
-    assert!(weight_hh_device.is_cpu());
+    // Move back to the default device
+    lstm_cell.to_device(&Device::default()).unwrap();
+    assert_eq!(lstm_cell.weight_ih().device().unwrap(), Device::default());
+    assert_eq!(lstm_cell.weight_hh().device().unwrap(), Device::default());
 }
 
 #[test]
@@ -311,7 +337,7 @@ fn test_lstm_cell_forward_invalid_input_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[10]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -320,7 +346,7 @@ fn test_lstm_cell_forward_invalid_input_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -329,7 +355,7 @@ fn test_lstm_cell_forward_invalid_input_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -347,7 +373,7 @@ fn test_lstm_cell_forward_invalid_hidden_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 10]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -356,7 +382,7 @@ fn test_lstm_cell_forward_invalid_hidden_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -365,7 +391,7 @@ fn test_lstm_cell_forward_invalid_hidden_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -383,7 +409,7 @@ fn test_lstm_cell_forward_invalid_input_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 8]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -392,7 +418,7 @@ fn test_lstm_cell_forward_invalid_input_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -401,7 +427,7 @@ fn test_lstm_cell_forward_invalid_input_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -419,7 +445,7 @@ fn test_lstm_cell_forward_invalid_hidden_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 10]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -428,7 +454,7 @@ fn test_lstm_cell_forward_invalid_hidden_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 15]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -437,7 +463,7 @@ fn test_lstm_cell_forward_invalid_hidden_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 15]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -455,7 +481,7 @@ fn test_lstm_cell_forward_batch_size_mismatch() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 10]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -464,7 +490,7 @@ fn test_lstm_cell_forward_batch_size_mismatch() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[3, 20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -473,7 +499,7 @@ fn test_lstm_cell_forward_batch_size_mismatch() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[3, 20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();

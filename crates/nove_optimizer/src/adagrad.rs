@@ -53,7 +53,7 @@ struct AdagradParam {
 /// use nove::optimizer::AdagradBuilder;
 /// use nove::tensor::{Device, Tensor};
 ///
-/// let device = nove::device::candle::cpu().unwrap();
+/// let device = Device::default();
 /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
 /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
 ///
@@ -90,7 +90,7 @@ pub struct Adagrad {
 /// use nove::optimizer::AdagradBuilder;
 /// use nove::tensor::{Device, Tensor};
 ///
-/// let device = nove::device::candle::cpu().unwrap();
+/// let device = Device::default();
 /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
 /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
 ///
@@ -122,7 +122,7 @@ impl AdagradBuilder {
     /// use nove::optimizer::AdagradBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = nove::device::candle::cpu().unwrap();
+    /// let device = Device::default();
     /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
     ///
@@ -154,7 +154,7 @@ impl AdagradBuilder {
     /// use nove::optimizer::AdagradBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = nove::device::candle::cpu().unwrap();
+    /// let device = Device::default();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = AdagradBuilder::new(vec![param], 0.01);
     /// builder.epsilon(1e-8);
@@ -177,7 +177,7 @@ impl AdagradBuilder {
     /// use nove::optimizer::AdagradBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = nove::device::candle::cpu().unwrap();
+    /// let device = Device::default();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = AdagradBuilder::new(vec![param], 0.01);
     /// builder.weight_decay(0.0001);
@@ -201,7 +201,7 @@ impl AdagradBuilder {
     /// use nove::optimizer::AdagradBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = nove::device::candle::cpu().unwrap();
+    /// let device = Device::default();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     ///
     /// let adagrad = AdagradBuilder::new(vec![param], 0.01)

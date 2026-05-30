@@ -11,15 +11,7 @@ use nove::{
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(not(any(feature = "candle-cuda", feature = "candle-metal")))]
-    let device =
-        nove::device::candle::cpu().expect("candle-cpu feature is required for the default device");
-    #[cfg(feature = "candle-cuda")]
-    let device = nove::device::candle::cuda_if_available(0)
-        .expect("candle-cuda feature is required for Candle CUDA device");
-    #[cfg(feature = "candle-metal")]
-    let device = nove::device::candle::metal_if_available(0)
-        .expect("candle-metal feature is required for Candle Metal device");
+    let device = nove::tensor::Device::default();
     println!("Using device: {:?}", device);
 
     println!("Loading CIFAR-10 dataset and creating dataloaders...");

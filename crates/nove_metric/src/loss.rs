@@ -25,13 +25,13 @@ use crate::{EvaluationMetric, Metric, MetricError, MetricValue};
 /// let lossfn = CrossEntropyLoss::new();
 /// let mut metric = LossMetric::new(lossfn);
 ///
-/// let device = nove::device::candle::cpu().unwrap();
+/// let device = Device::default();
 /// let output = Tensor::from_data(vec![
 ///     vec![0.1f64, 0.2f64, 0.7f64],
 ///     vec![0.3f64, 0.4f64, 0.3f64],
 ///     vec![0.6f64, 0.1f64, 0.3f64],
 /// ], &device, false).unwrap();
-/// let target = Tensor::from_data(vec![2u32, 1u32, 1u32], &device, false).unwrap();
+/// let target = Tensor::from_data(vec![2i64, 1i64, 1i64], &device, false).unwrap();
 ///
 /// metric.evaluate(&output, &target).unwrap();
 /// let loss = metric.value().unwrap();

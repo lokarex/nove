@@ -1,13 +1,12 @@
-use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::Activation;
-use nove::tensor::{DType, Shape, Tensor};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_activation_relu_forward() {
     let mut relu = Activation::relu();
     let input =
-        Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &candle::cpu().unwrap(), false).unwrap();
+        Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &Device::default(), false).unwrap();
     let output = relu.forward(input).unwrap();
     let output_vec = output.to_vec::<f64>().unwrap();
     assert_eq!(output_vec, vec![0.0, 2.0, 0.0, 4.0]);
@@ -16,7 +15,7 @@ fn test_activation_relu_forward() {
 #[test]
 fn test_activation_gelu_forward() {
     let mut gelu = Activation::gelu();
-    let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &candle::cpu().unwrap(), false).unwrap();
+    let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output = gelu.forward(input).unwrap();
     let output_vec = output.to_vec::<f64>().unwrap();
     assert_eq!(
@@ -28,7 +27,7 @@ fn test_activation_gelu_forward() {
 #[test]
 fn test_activation_silu_forward() {
     let mut silu = Activation::silu();
-    let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &candle::cpu().unwrap(), false).unwrap();
+    let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output = silu.forward(input).unwrap();
     let output_vec = output.to_vec::<f64>().unwrap();
     assert_eq!(
@@ -40,7 +39,7 @@ fn test_activation_silu_forward() {
 #[test]
 fn test_activation_sigmoid_forward() {
     let mut sigmoid = Activation::sigmoid();
-    let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &candle::cpu().unwrap(), false).unwrap();
+    let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output = sigmoid.forward(input).unwrap();
     let output_vec = output.to_vec::<f64>().unwrap();
     assert_eq!(
@@ -52,7 +51,7 @@ fn test_activation_sigmoid_forward() {
 #[test]
 fn test_activation_tanh_forward() {
     let mut tanh = Activation::tanh();
-    let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &candle::cpu().unwrap(), false).unwrap();
+    let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output = tanh.forward(input).unwrap();
     let output_vec = output.to_vec::<f64>().unwrap();
     assert_eq!(
@@ -101,12 +100,12 @@ fn test_activation_relu_different_shapes() {
     let mut relu = Activation::relu();
 
     let input_1d =
-        Tensor::from_data(vec![-1.0, 2.0, -3.0], &candle::cpu().unwrap(), false).unwrap();
+        Tensor::from_data(vec![-1.0, 2.0, -3.0], &Device::default(), false).unwrap();
     let output_1d = relu.forward(input_1d).unwrap();
     assert_eq!(output_1d.shape().unwrap(), Shape::from_dims(&[3]));
 
     let mut relu2 = Activation::relu();
-    let input_2d = Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &candle::cpu().unwrap(), false)
+    let input_2d = Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &Device::default(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
@@ -117,7 +116,7 @@ fn test_activation_relu_different_shapes() {
     let input_3d = Tensor::ones(
         &Shape::from_dims(&[2, 3, 4]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -129,12 +128,12 @@ fn test_activation_relu_different_shapes() {
 fn test_activation_gelu_different_shapes() {
     let mut gelu = Activation::gelu();
 
-    let input_1d = Tensor::from_data(vec![-1.0, 0.0, 1.0], &candle::cpu().unwrap(), false).unwrap();
+    let input_1d = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output_1d = gelu.forward(input_1d).unwrap();
     assert_eq!(output_1d.shape().unwrap(), Shape::from_dims(&[3]));
 
     let mut gelu2 = Activation::gelu();
-    let input_2d = Tensor::from_data(vec![-1.0, 0.0, 1.0, 2.0], &candle::cpu().unwrap(), false)
+    let input_2d = Tensor::from_data(vec![-1.0, 0.0, 1.0, 2.0], &Device::default(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
@@ -146,12 +145,12 @@ fn test_activation_gelu_different_shapes() {
 fn test_activation_silu_different_shapes() {
     let mut silu = Activation::silu();
 
-    let input_1d = Tensor::from_data(vec![-1.0, 0.0, 1.0], &candle::cpu().unwrap(), false).unwrap();
+    let input_1d = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output_1d = silu.forward(input_1d).unwrap();
     assert_eq!(output_1d.shape().unwrap(), Shape::from_dims(&[3]));
 
     let mut silu2 = Activation::silu();
-    let input_2d = Tensor::from_data(vec![-1.0, 0.0, 1.0, 2.0], &candle::cpu().unwrap(), false)
+    let input_2d = Tensor::from_data(vec![-1.0, 0.0, 1.0, 2.0], &Device::default(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
@@ -163,12 +162,12 @@ fn test_activation_silu_different_shapes() {
 fn test_activation_sigmoid_different_shapes() {
     let mut sigmoid = Activation::sigmoid();
 
-    let input_1d = Tensor::from_data(vec![-1.0, 0.0, 1.0], &candle::cpu().unwrap(), false).unwrap();
+    let input_1d = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output_1d = sigmoid.forward(input_1d).unwrap();
     assert_eq!(output_1d.shape().unwrap(), Shape::from_dims(&[3]));
 
     let mut sigmoid2 = Activation::sigmoid();
-    let input_2d = Tensor::from_data(vec![-1.0, 0.0, 1.0, 2.0], &candle::cpu().unwrap(), false)
+    let input_2d = Tensor::from_data(vec![-1.0, 0.0, 1.0, 2.0], &Device::default(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
@@ -180,12 +179,12 @@ fn test_activation_sigmoid_different_shapes() {
 fn test_activation_tanh_different_shapes() {
     let mut tanh = Activation::tanh();
 
-    let input_1d = Tensor::from_data(vec![-1.0, 0.0, 1.0], &candle::cpu().unwrap(), false).unwrap();
+    let input_1d = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     let output_1d = tanh.forward(input_1d).unwrap();
     assert_eq!(output_1d.shape().unwrap(), Shape::from_dims(&[3]));
 
     let mut tanh2 = Activation::tanh();
-    let input_2d = Tensor::from_data(vec![-1.0, 0.0, 1.0, 2.0], &candle::cpu().unwrap(), false)
+    let input_2d = Tensor::from_data(vec![-1.0, 0.0, 1.0, 2.0], &Device::default(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 2]))
         .unwrap();
@@ -242,19 +241,53 @@ fn test_activation_named_parameters() {
 #[test]
 fn test_activation_to_device() {
     let mut relu = Activation::relu();
-    relu.to_device(&candle::cpu().unwrap()).unwrap();
-
     let mut gelu = Activation::gelu();
-    gelu.to_device(&candle::cpu().unwrap()).unwrap();
-
     let mut silu = Activation::silu();
-    silu.to_device(&candle::cpu().unwrap()).unwrap();
-
     let mut sigmoid = Activation::sigmoid();
-    sigmoid.to_device(&candle::cpu().unwrap()).unwrap();
-
     let mut tanh = Activation::tanh();
-    tanh.to_device(&candle::cpu().unwrap()).unwrap();
+
+    // Round-trip: move to each backend device and back
+    #[cfg(feature = "candle-cpu")]
+    {
+        let target = nove::device::candle::cpu().unwrap();
+        relu.to_device(&target).unwrap();
+        gelu.to_device(&target).unwrap();
+        silu.to_device(&target).unwrap();
+        sigmoid.to_device(&target).unwrap();
+        tanh.to_device(&target).unwrap();
+    }
+    #[cfg(feature = "native-cpu")]
+    {
+        let target = nove::device::native::cpu().unwrap();
+        relu.to_device(&target).unwrap();
+        gelu.to_device(&target).unwrap();
+        silu.to_device(&target).unwrap();
+        sigmoid.to_device(&target).unwrap();
+        tanh.to_device(&target).unwrap();
+    }
+    #[cfg(feature = "candle-cuda")]
+    if let Ok(target) = nove::device::candle::cuda(0) {
+        relu.to_device(&target).unwrap();
+        gelu.to_device(&target).unwrap();
+        silu.to_device(&target).unwrap();
+        sigmoid.to_device(&target).unwrap();
+        tanh.to_device(&target).unwrap();
+    }
+    #[cfg(feature = "candle-metal")]
+    if let Ok(target) = nove::device::candle::metal(0) {
+        relu.to_device(&target).unwrap();
+        gelu.to_device(&target).unwrap();
+        silu.to_device(&target).unwrap();
+        sigmoid.to_device(&target).unwrap();
+        tanh.to_device(&target).unwrap();
+    }
+
+    // Move back to the default device
+    relu.to_device(&Device::default()).unwrap();
+    gelu.to_device(&Device::default()).unwrap();
+    silu.to_device(&Device::default()).unwrap();
+    sigmoid.to_device(&Device::default()).unwrap();
+    tanh.to_device(&Device::default()).unwrap();
 }
 
 #[test]

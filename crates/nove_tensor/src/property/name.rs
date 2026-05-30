@@ -11,8 +11,8 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    /// let device = Device::default();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &device, false).unwrap();
     ///
     /// let name = tensor.name().unwrap();
     /// assert_eq!(name, None);
@@ -38,8 +38,8 @@ impl Tensor {
     /// * Set name on tensor
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    /// let device = Device::default();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &device, false).unwrap();
     ///
     /// let result = tensor.require_name("my_tensor").unwrap();
     /// assert_eq!(result.name().unwrap(), Some("my_tensor".to_string()));
@@ -48,8 +48,8 @@ impl Tensor {
     /// * Verify name, data and shape preserved after naming
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
+    /// let device = Device::default();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &device, false).unwrap();
     ///
     /// let result = tensor.require_name("test").unwrap();
     /// assert_eq!(result.name().unwrap(), Some("test".to_string()));

@@ -262,6 +262,7 @@ candle_unary_methods!(
     recip,
     abs,
     neg,
+    contiguous,
     sum_all,
     max_all,
     min_all,
@@ -280,7 +281,6 @@ candle_binary_methods!(
     broadcast_lt,
     broadcast_ge,
     broadcast_le,
-    broadcast_matmul,
     broadcast_pow,
     embedding,
 );
@@ -300,6 +300,21 @@ impl CandleStorage {
 
     pub fn broadcast_as(&self, shape: &[usize]) -> CandleResult<Self> {
         Ok(Self(self.as_tensor().broadcast_as(shape)?))
+    }
+
+    /// Broadcast-aware matrix multiplication with contiguity guarantee.
+    ///
+    /// Candle\'s underlying matmul requires contiguous tensors. When
+    /// a broadcasted view (e.g. a gradient expanded from a scalar via
+    /// broadcast_as) flows through matmul backward, its zero-stride
+    /// layout causes a non-contiguous error. We make both operands
+    /// contiguous before calling the candle routine.
+    pub fn broadcast_matmul(&self, rhs: &Self) -> CandleResult<Self> {
+        Ok(Self(
+            self.as_tensor()
+                .contiguous()?
+                .broadcast_matmul(&rhs.as_tensor().contiguous()?)?,
+        ))
     }
 
     pub fn flatten_from(&self, dim: usize) -> CandleResult<Self> {
@@ -470,6 +485,44 @@ impl CandleStorage {
     }
 
     pub fn index_select(&self, indexes: &Self, dim: usize) -> CandleResult<Self> {
+        // Candle CUDA does not support index_select with empty index tensors
+        // (returns CUDA_ERROR_INVALID_VALUE). Handle empty case by constructing
+        // a correctly-shaped empty tensor directly.
+        let idx_elem_count: usize = indexes.as_tensor().dims().iter().product();
+        if idx_elem_count == 0 {
+            let mut output_dims = self.as_tensor().dims().to_vec();
+            output_dims[dim] = 0;
+            let empty = candle_core::Tensor::zeros(
+                output_dims.as_slice(),
+                self.as_tensor().dtype(),
+                self.as_tensor().device(),
+            )?;
+            return Ok(Self(empty));
+        }
+
+        // Validate indices are within bounds to prevent device-side asserts on CUDA.
+        let dim_size = self.as_tensor().dims()[dim];
+        let idx_vec = indexes
+            .as_tensor()
+            .flatten_all()
+            .map_err(|e| CandleBackendError {
+                message: e.to_string(),
+            })?
+            .to_vec1::<i64>()
+            .map_err(|e| CandleBackendError {
+                message: e.to_string(),
+            })?;
+        for (i, &idx) in idx_vec.iter().enumerate() {
+            if idx < 0 || idx as usize >= dim_size {
+                return Err(CandleBackendError {
+                    message: format!(
+                        "index_select: index {} at position {} is out of range for dimension {} with size {}",
+                        idx, i, dim, dim_size
+                    ),
+                });
+            }
+        }
+
         Ok(Self(
             self.as_tensor().index_select(indexes.as_tensor(), dim)?,
         ))

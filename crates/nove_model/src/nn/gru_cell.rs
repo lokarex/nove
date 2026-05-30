@@ -61,7 +61,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// let gru_cell = GruCellBuilder::new(10, 20)
 ///     .bias_enabled(true)
-///     .device(nove::device::candle::cpu().unwrap())
+///     .device(Device::default())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true)
 ///     .build();
@@ -363,7 +363,7 @@ impl Model for GruCell {
 ///
 /// # Optional Arguments
 /// * `bias_enabled` - Whether to enable the bias terms. Default is `true`.
-/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
+/// * `device` - The device to use for the layer. Default is `Device::default()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
 ///
@@ -382,7 +382,7 @@ impl Model for GruCell {
 ///
 /// let gru_cell = GruCellBuilder::new(10, 20)
 ///     .bias_enabled(true)
-///     .device(nove::device::candle::cpu().unwrap())
+///     .device(Device::default())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true)
 ///     .build();
@@ -410,7 +410,7 @@ impl GruCellBuilder {
             input_size,
             hidden_size,
             bias_enabled: true,
-            device: nove_tensor::device::candle::cpu().unwrap(),
+            device: Device::default(),
             dtype: DType::F32,
             grad_enabled: true,
         }
@@ -486,7 +486,7 @@ impl GruCellBuilder {
     /// use nove::model::nn::GruCellBuilder;
     /// use nove::tensor::Device;
     /// let mut builder = GruCellBuilder::new(10, 20);
-    /// builder.device(nove::device::candle::cpu().unwrap());
+    /// builder.device(Device::default());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
         self.device = device;

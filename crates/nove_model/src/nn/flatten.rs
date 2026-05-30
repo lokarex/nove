@@ -33,7 +33,7 @@ static ID: AtomicUsize = AtomicUsize::new(1);
 /// println!("{}", flatten);
 ///
 /// // Input: [batch, channels, height, width] e.g. [2, 3, 4, 5]
-/// let input = Tensor::ones(&Shape::from_dims(&[2, 3, 4, 5]), &DType::F32, &nove::device::candle::cpu().unwrap(), false).unwrap();
+/// let input = Tensor::ones(&Shape::from_dims(&[2, 3, 4, 5]), &DType::F32, &Device::default(), false).unwrap();
 /// let output = flatten.forward(input.copy()).unwrap();
 /// // Output: [batch, channels * height * width] e.g. [2, 60]
 ///

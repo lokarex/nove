@@ -48,7 +48,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// let mut gelu = GELU::new();
 /// println!("{}", gelu);
 ///
-/// let input = Tensor::from_data(&[-1.0f32, 0.0f32, 1.0f32], &nove::device::candle::cpu().unwrap(), false).unwrap();
+/// let input = Tensor::from_data(&[-1.0f32, 0.0f32, 1.0f32], &Device::default(), false).unwrap();
 /// let output = gelu.forward(input).unwrap();
 /// println!("{}", output);
 /// ```
@@ -96,7 +96,7 @@ impl Model for GELU {
     /// use nove::model::Model;
     ///
     /// let mut gelu = GELU::new();
-    /// let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &nove::device::candle::cpu().unwrap(), false).unwrap();
+    /// let input = Tensor::from_data(vec![-1.0, 0.0, 1.0], &Device::default(), false).unwrap();
     /// let output = gelu.forward(input).unwrap();
     /// assert_eq!(output.to_vec::<f64>().unwrap(), vec![-0.15880800939172324, 0.0, 0.8411919906082768]);
     /// ```

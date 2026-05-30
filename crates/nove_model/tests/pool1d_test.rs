@@ -1,7 +1,6 @@
-use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::{AvgPool1d, MaxPool1d, Pool1d};
-use nove::tensor::{DType, Shape, Tensor};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_avg_pool1d_creation() {
@@ -52,7 +51,7 @@ fn test_avg_pool1d_forward_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3, 10]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -68,7 +67,7 @@ fn test_avg_pool1d_forward_with_stride_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 8]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -84,7 +83,7 @@ fn test_max_pool1d_forward_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3, 10]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -100,7 +99,7 @@ fn test_max_pool1d_forward_with_stride_shape() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 9]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -117,7 +116,7 @@ fn test_avg_pool1d_forward_values() {
     let input = Tensor::from_slice(
         &data,
         &Shape::from_dims(&[1, 1, 6]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -135,7 +134,7 @@ fn test_max_pool1d_forward_values() {
     let input = Tensor::from_slice(
         &data,
         &Shape::from_dims(&[1, 1, 6]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -173,7 +172,7 @@ fn test_pool1d_enum_forward() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 1, 6]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -185,7 +184,7 @@ fn test_pool1d_enum_forward() {
     let input2 = Tensor::ones(
         &Shape::from_dims(&[1, 1, 8]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -217,10 +216,35 @@ fn test_pool1d_require_grad_noop() {
 #[test]
 fn test_pool1d_to_device_noop() {
     let mut avg_pool1d = AvgPool1d::new(2, None).unwrap();
-    avg_pool1d.to_device(&candle::cpu().unwrap()).unwrap();
-
     let mut max_pool1d = MaxPool1d::new(2, None).unwrap();
-    max_pool1d.to_device(&candle::cpu().unwrap()).unwrap();
+
+    // Round-trip: move to each backend device and back
+    #[cfg(feature = "candle-cpu")]
+    {
+        let target = nove::device::candle::cpu().unwrap();
+        avg_pool1d.to_device(&target).unwrap();
+        max_pool1d.to_device(&target).unwrap();
+    }
+    #[cfg(feature = "native-cpu")]
+    {
+        let target = nove::device::native::cpu().unwrap();
+        avg_pool1d.to_device(&target).unwrap();
+        max_pool1d.to_device(&target).unwrap();
+    }
+    #[cfg(feature = "candle-cuda")]
+    if let Ok(target) = nove::device::candle::cuda(0) {
+        avg_pool1d.to_device(&target).unwrap();
+        max_pool1d.to_device(&target).unwrap();
+    }
+    #[cfg(feature = "candle-metal")]
+    if let Ok(target) = nove::device::candle::metal(0) {
+        avg_pool1d.to_device(&target).unwrap();
+        max_pool1d.to_device(&target).unwrap();
+    }
+
+    // Move back to the default device
+    avg_pool1d.to_device(&Device::default()).unwrap();
+    max_pool1d.to_device(&Device::default()).unwrap();
 }
 
 #[test]

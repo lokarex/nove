@@ -22,7 +22,7 @@ impl Tensor {
     /// * Forward computation with standard parameters
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create input tensor with shape [batch=1, channels=1, length=4]
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0, 3.0, 4.0]]], &device, false).unwrap();
@@ -42,7 +42,7 @@ impl Tensor {
     /// * Backpropagation with requires_grad=true
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create input tensor with requires_grad=true
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0, 3.0, 4.0]]], &device, true).unwrap();
@@ -112,7 +112,7 @@ impl Tensor {
     /// * Forward computation with standard parameters
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create input tensor with shape [batch=1, channels=1, height=2, width=2]
     /// let t = Tensor::from_data(vec![vec![vec![vec![1.0, 2.0], vec![3.0, 4.0]]]], &device, false).unwrap();
@@ -133,7 +133,7 @@ impl Tensor {
     /// * Backpropagation with requires_grad=true
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create input tensor with requires_grad=true
     /// let t = Tensor::from_data(vec![vec![vec![vec![1.0, 2.0], vec![3.0, 4.0]]]], &device, true).unwrap();

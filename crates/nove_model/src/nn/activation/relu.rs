@@ -40,7 +40,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 /// let mut relu = ReLU::new();
 /// println!("{}", relu);
 ///
-/// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &nove::device::candle::cpu().unwrap(), false).unwrap();
+/// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &Device::default(), false).unwrap();
 /// let output = relu.forward(input).unwrap();
 /// println!("{}", output);
 /// ```
@@ -88,7 +88,7 @@ impl Model for ReLU {
     /// use nove::model::Model;
     ///
     /// let mut relu = ReLU::new();
-    /// let input = Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &nove::device::candle::cpu().unwrap(), false).unwrap();
+    /// let input = Tensor::from_data(vec![-1.0, 2.0, -3.0, 4.0], &Device::default(), false).unwrap();
     /// let output = relu.forward(input).unwrap();
     /// assert_eq!(output.to_vec::<f64>().unwrap(), vec![0.0, 2.0, 0.0, 4.0]);
     /// ```

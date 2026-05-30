@@ -17,7 +17,7 @@ nove_tensor = { path = "../nove_tensor", version = "=0.1.2", default-features = 
 nove_metric = { path = "../nove_metric", version = "=0.1.2", default-features = false }
 
 [dev-dependencies]
-nove = { path = "../nove" }
+nove = { path = "../nove", default-features = false }
 
 [features]
 default = ["candle-cpu"]

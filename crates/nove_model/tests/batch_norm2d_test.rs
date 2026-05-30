@@ -1,7 +1,6 @@
-use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::BatchNorm2dBuilder;
-use nove::tensor::{DType, Shape, Tensor};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_batch_norm2d_basic_forward() {
@@ -9,7 +8,7 @@ fn test_batch_norm2d_basic_forward() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .build()
         .unwrap();
@@ -19,7 +18,7 @@ fn test_batch_norm2d_basic_forward() {
             1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
             16.0,
         ],
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap()
@@ -40,7 +39,7 @@ fn test_batch_norm2d_training_vs_inference() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .build()
         .unwrap();
@@ -50,7 +49,7 @@ fn test_batch_norm2d_training_vs_inference() {
             1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
             16.0,
         ],
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap()
@@ -96,12 +95,12 @@ fn test_batch_norm2d_running_statistics_update() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .build()
         .unwrap();
 
-    let input1 = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &candle::cpu().unwrap(), false)
+    let input1 = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &Device::default(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[1, 1, 2, 2]))
         .unwrap();
@@ -117,7 +116,7 @@ fn test_batch_norm2d_running_statistics_update() {
     assert_ne!(initial_running_mean[0], after_first_running_mean[0]);
     assert_ne!(initial_running_var[0], after_first_running_var[0]);
 
-    let input2 = Tensor::from_data(vec![5.0f32, 6.0, 7.0, 8.0], &candle::cpu().unwrap(), false)
+    let input2 = Tensor::from_data(vec![5.0f32, 6.0, 7.0, 8.0], &Device::default(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[1, 1, 2, 2]))
         .unwrap();
@@ -150,7 +149,7 @@ fn test_batch_norm2d_epsilon_effect() {
         .epsilon(1e-8)
         .momentum(0.1)
         .affine(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .build()
         .unwrap();
@@ -159,12 +158,12 @@ fn test_batch_norm2d_epsilon_effect() {
         .epsilon(1e-2)
         .momentum(0.1)
         .affine(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &candle::cpu().unwrap(), false)
+    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &Device::default(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[1, 1, 2, 2]))
         .unwrap();
@@ -192,12 +191,12 @@ fn test_batch_norm2d_affine_false() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(false)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .build()
         .unwrap();
 
-    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &candle::cpu().unwrap(), false)
+    let input = Tensor::from_data(vec![1.0f32, 2.0, 3.0, 4.0], &Device::default(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[1, 1, 2, 2]))
         .unwrap();
@@ -216,7 +215,7 @@ fn test_batch_norm2d_parameters() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .build()
         .unwrap();
@@ -239,11 +238,48 @@ fn test_batch_norm2d_to_device_and_dtype() {
         .epsilon(1e-5)
         .momentum(0.1)
         .affine(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .build()
         .unwrap();
 
-    bn.to_device(&candle::cpu().unwrap()).unwrap();
+    // Round-trip: move to each backend device and verify
+    #[cfg(feature = "candle-cpu")]
+    {
+        let target = nove::device::candle::cpu().unwrap();
+        bn.to_device(&target).unwrap();
+        let params = bn.parameters().unwrap();
+        for param in params {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "native-cpu")]
+    {
+        let target = nove::device::native::cpu().unwrap();
+        bn.to_device(&target).unwrap();
+        let params = bn.parameters().unwrap();
+        for param in params {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "candle-cuda")]
+    if let Ok(target) = nove::device::candle::cuda(0) {
+        bn.to_device(&target).unwrap();
+        let params = bn.parameters().unwrap();
+        for param in params {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "candle-metal")]
+    if let Ok(target) = nove::device::candle::metal(0) {
+        bn.to_device(&target).unwrap();
+        let params = bn.parameters().unwrap();
+        for param in params {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+
+    // Move back to the default device and verify dtype conversion
+    bn.to_device(&Device::default()).unwrap();
     bn.to_dtype(&DType::F32).unwrap();
 }

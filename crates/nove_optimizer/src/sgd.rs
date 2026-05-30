@@ -53,7 +53,7 @@ struct SgdParam {
 /// use nove::optimizer::SgdBuilder;
 /// use nove::tensor::{Device, Tensor};
 ///
-/// let device = nove::device::candle::cpu().unwrap();
+/// let device = Device::default();
 /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
 /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
 ///
@@ -91,7 +91,7 @@ pub struct Sgd {
 /// use nove::optimizer::SgdBuilder;
 /// use nove::tensor::{Device, Tensor};
 ///
-/// let device = nove::device::candle::cpu().unwrap();
+/// let device = Device::default();
 /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
 /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
 ///
@@ -123,7 +123,7 @@ impl SgdBuilder {
     /// use nove::optimizer::SgdBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = nove::device::candle::cpu().unwrap();
+    /// let device = Device::default();
     /// let param1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let param2 = Tensor::from_data(vec![4.0, 5.0, 6.0], &device, true).unwrap();
     ///
@@ -155,7 +155,7 @@ impl SgdBuilder {
     /// use nove::optimizer::SgdBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = nove::device::candle::cpu().unwrap();
+    /// let device = Device::default();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = SgdBuilder::new(vec![param], 0.01);
     /// builder.momentum(0.9);
@@ -178,7 +178,7 @@ impl SgdBuilder {
     /// use nove::optimizer::SgdBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = nove::device::candle::cpu().unwrap();
+    /// let device = Device::default();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     /// let mut builder = SgdBuilder::new(vec![param], 0.01);
     /// builder.weight_decay(0.0001);
@@ -202,7 +202,7 @@ impl SgdBuilder {
     /// use nove::optimizer::SgdBuilder;
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = nove::device::candle::cpu().unwrap();
+    /// let device = Device::default();
     /// let param = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, true).unwrap();
     ///
     /// let sgd = SgdBuilder::new(vec![param], 0.01)

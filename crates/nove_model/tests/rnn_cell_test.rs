@@ -1,15 +1,14 @@
-use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::Activation;
 use nove::model::nn::RnnCellBuilder;
-use nove::tensor::{DType, Shape, Tensor};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_rnn_cell_builder_creation() {
     let rnn_cell = RnnCellBuilder::new(10, 20)
         .activation(Activation::tanh())
         .bias_enabled(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .grad_enabled(true)
         .build()
@@ -45,7 +44,7 @@ fn test_rnn_cell_builder_method_chaining() {
         .hidden_size(25)
         .activation(Activation::relu())
         .bias_enabled(false)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .grad_enabled(true);
 
@@ -82,7 +81,7 @@ fn test_rnn_cell_single_time_step_forward() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[batch_size, 3]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -90,7 +89,7 @@ fn test_rnn_cell_single_time_step_forward() {
     let hidden_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 5]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -117,7 +116,7 @@ fn test_rnn_cell_forward_with_different_activations() {
             0.0f32,
             1.0f32,
             &Shape::from_dims(&[batch_size, 4]),
-            &candle::cpu().unwrap(),
+            &Device::default(),
             false,
         )
         .unwrap();
@@ -125,7 +124,7 @@ fn test_rnn_cell_forward_with_different_activations() {
         let hidden_state = Tensor::zeros(
             &Shape::from_dims(&[batch_size, 6]),
             &DType::F32,
-            &candle::cpu().unwrap(),
+            &Device::default(),
             false,
         )
         .unwrap();
@@ -151,7 +150,7 @@ fn test_rnn_cell_hidden_state_update() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[batch_size, 8]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -159,7 +158,7 @@ fn test_rnn_cell_hidden_state_update() {
     let initial_hidden_state = Tensor::zeros(
         &Shape::from_dims(&[batch_size, 12]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -170,7 +169,7 @@ fn test_rnn_cell_hidden_state_update() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[batch_size, 8]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -192,7 +191,7 @@ fn test_rnn_cell_forward_invalid_input_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[10]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -201,7 +200,7 @@ fn test_rnn_cell_forward_invalid_input_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -219,7 +218,7 @@ fn test_rnn_cell_forward_invalid_hidden_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 10]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -228,7 +227,7 @@ fn test_rnn_cell_forward_invalid_hidden_dimensions() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -246,7 +245,7 @@ fn test_rnn_cell_forward_invalid_input_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 8]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -255,7 +254,7 @@ fn test_rnn_cell_forward_invalid_input_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -273,7 +272,7 @@ fn test_rnn_cell_forward_invalid_hidden_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 10]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -282,7 +281,7 @@ fn test_rnn_cell_forward_invalid_hidden_size() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 15]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -300,7 +299,7 @@ fn test_rnn_cell_forward_batch_size_mismatch() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[2, 10]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -309,7 +308,7 @@ fn test_rnn_cell_forward_batch_size_mismatch() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[3, 20]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -363,16 +362,43 @@ fn test_rnn_cell_require_grad() {
 
 #[test]
 fn test_rnn_cell_to_device() {
-    let rnn_cell = RnnCellBuilder::new(10, 20)
-        .device(candle::cpu().unwrap())
+    let mut rnn_cell = RnnCellBuilder::new(10, 20)
+        .device(Device::default())
         .build()
         .unwrap();
 
-    let weight_ih_device = rnn_cell.weight_ih().device().unwrap();
-    assert!(weight_ih_device.is_cpu());
+    // Round-trip: move to each backend device and verify
+    #[cfg(feature = "candle-cpu")]
+    {
+        let target = nove::device::candle::cpu().unwrap();
+        rnn_cell.to_device(&target).unwrap();
+        assert_eq!(rnn_cell.weight_ih().device().unwrap(), target);
+        assert_eq!(rnn_cell.weight_hh().device().unwrap(), target);
+    }
+    #[cfg(feature = "native-cpu")]
+    {
+        let target = nove::device::native::cpu().unwrap();
+        rnn_cell.to_device(&target).unwrap();
+        assert_eq!(rnn_cell.weight_ih().device().unwrap(), target);
+        assert_eq!(rnn_cell.weight_hh().device().unwrap(), target);
+    }
+    #[cfg(feature = "candle-cuda")]
+    if let Ok(target) = nove::device::candle::cuda(0) {
+        rnn_cell.to_device(&target).unwrap();
+        assert_eq!(rnn_cell.weight_ih().device().unwrap(), target);
+        assert_eq!(rnn_cell.weight_hh().device().unwrap(), target);
+    }
+    #[cfg(feature = "candle-metal")]
+    if let Ok(target) = nove::device::candle::metal(0) {
+        rnn_cell.to_device(&target).unwrap();
+        assert_eq!(rnn_cell.weight_ih().device().unwrap(), target);
+        assert_eq!(rnn_cell.weight_hh().device().unwrap(), target);
+    }
 
-    let weight_hh_device = rnn_cell.weight_hh().device().unwrap();
-    assert!(weight_hh_device.is_cpu());
+    // Move back to the default device
+    rnn_cell.to_device(&Device::default()).unwrap();
+    assert_eq!(rnn_cell.weight_ih().device().unwrap(), Device::default());
+    assert_eq!(rnn_cell.weight_hh().device().unwrap(), Device::default());
 }
 
 #[test]

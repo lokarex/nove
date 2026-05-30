@@ -303,6 +303,8 @@ pub enum OpKind {
         /// Target dtype.
         to: DType,
     },
+    /// Make tensor memory layout contiguous.
+    Contiguous,
 }
 
 /// Directed edge from an operation node to one parent tensor.
@@ -351,13 +353,9 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Shape, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") {
-    ///     nove::device::candle::cpu().unwrap()
-    /// } else {
-    ///     nove::device::native::cpu().unwrap()
-    /// };
+    /// let device = Device::default();
     /// let tensor = Tensor::from_slice(&[1.0f32, 2.0], &Shape::from_dims(&[2]), &device, false).unwrap();
     ///
     /// let first = tensor.graph_id().unwrap();
@@ -386,13 +384,9 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Shape, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") {
-    ///     nove::device::candle::cpu().unwrap()
-    /// } else {
-    ///     nove::device::native::cpu().unwrap()
-    /// };
+    /// let device = Device::default();
     /// let tensor = Tensor::from_slice(&[1.0f32, 2.0], &Shape::from_dims(&[2]), &device, true).unwrap();
     /// let detached = tensor.detach().unwrap();
     ///
@@ -433,13 +427,9 @@ impl Tensor {
     ///
     /// # Examples
     /// ```
-    /// use nove::tensor::{Shape, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") {
-    ///     nove::device::candle::cpu().unwrap()
-    /// } else {
-    ///     nove::device::native::cpu().unwrap()
-    /// };
+    /// let device = Device::default();
     /// let input = Tensor::from_slice(&[1.0f32, 2.0], &Shape::from_dims(&[2]), &device, true).unwrap();
     /// let output = input.add(&input).unwrap();
     ///

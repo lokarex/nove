@@ -12,7 +12,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![-1.0, 2.0, -3.0], vec![4.0, -5.0, 6.0]], &device, false).unwrap();
     /// let result = t.abs().unwrap();
@@ -26,7 +26,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![-1.0, 2.0, -3.0], vec![4.0, -5.0, 6.0]], &device, true).unwrap();
     /// let result = t.abs().unwrap();
@@ -62,7 +62,7 @@ impl Tensor {
     /// * Negate a 2x3 matrix
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix
     /// let t = Tensor::from_data(vec![vec![1.0, -2.0, 3.0], vec![-4.0, 5.0, -6.0]], &device, false).unwrap();
     ///
@@ -78,7 +78,7 @@ impl Tensor {
     /// * Backpropagate for negation
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with requires_grad=true
     /// let t = Tensor::from_data(vec![vec![1.0, -2.0, 3.0], vec![-4.0, 5.0, -6.0]], &device, true).unwrap();
     /// let result = t.neg().unwrap();

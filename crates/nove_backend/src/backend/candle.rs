@@ -445,6 +445,13 @@ impl CandleStorage {
             .map_err(backend_error)
     }
 
+    pub(crate) fn contiguous(&self) -> Result<Self, BackendError> {
+        self.inner()
+            .contiguous()
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+
     pub(crate) fn permute(&self, dims: &[usize]) -> Result<Self, BackendError> {
         self.inner()
             .permute(dims)
@@ -738,14 +745,16 @@ pub(crate) fn load_safetensors(
 /// use nove_backend::{backend::candle, device};
 /// use nove_candle::CandleTensor;
 ///
-/// let device = device::candle::cpu().unwrap();
-/// let candle_device = device.to_candle_device().unwrap();
-/// let tensor = CandleTensor::from_slice(&[1.0f32, 2.0], &[2], &candle_device).unwrap();
+/// #[cfg(feature = "candle-cpu")] {
+///     let device = device::candle::cpu().unwrap();
+///     let candle_device = device.to_candle_device().unwrap();
+///     let tensor = CandleTensor::from_slice(&[1.0f32, 2.0], &[2], &candle_device).unwrap();
 ///
-/// let storage = candle::storage_from_candle_tensor(tensor, &device, false).unwrap();
-/// let roundtrip = candle::storage_to_candle_tensor(&storage).unwrap();
+///     let storage = candle::storage_from_candle_tensor(tensor, &device, false).unwrap();
+///     let roundtrip = candle::storage_to_candle_tensor(&storage).unwrap();
 ///
-/// assert_eq!(roundtrip.dims(), &[2]);
+///     assert_eq!(roundtrip.dims(), &[2]);
+/// }
 /// ```
 pub fn storage_from_candle_tensor(
     tensor: nove_candle::CandleTensor,
@@ -777,11 +786,13 @@ pub fn storage_from_candle_tensor(
 /// ```
 /// use nove_backend::{DType, Shape, backend::BackendStorage, device};
 ///
-/// let device = device::candle::cpu().unwrap();
-/// let storage = BackendStorage::ones(&Shape::from_dims(&[2]), DType::F32, &device, false).unwrap();
-/// let candle_tensor = nove_backend::backend::candle::storage_to_candle_tensor(&storage).unwrap();
+/// #[cfg(feature = "candle-cpu")] {
+///     let device = device::candle::cpu().unwrap();
+///     let storage = BackendStorage::ones(&Shape::from_dims(&[2]), DType::F32, &device, false).unwrap();
+///     let candle_tensor = nove_backend::backend::candle::storage_to_candle_tensor(&storage).unwrap();
 ///
-/// assert_eq!(candle_tensor.dims(), &[2]);
+///     assert_eq!(candle_tensor.dims(), &[2]);
+/// }
 /// ```
 pub fn storage_to_candle_tensor(
     storage: &BackendStorage,
@@ -814,10 +825,11 @@ impl Device {
     /// use nove_backend::device;
     /// use nove_candle::CandleDevice;
     ///
-    /// let device = device::candle::cpu().unwrap();
-    /// let candle_device = device.to_candle_device().unwrap();
-    ///
-    /// assert!(matches!(candle_device, CandleDevice::Cpu));
+    /// #[cfg(feature = "candle-cpu")] {
+    ///     let device = device::candle::cpu().unwrap();
+    ///     let candle_device = device.to_candle_device().unwrap();
+    ///     assert!(matches!(candle_device, CandleDevice::Cpu));
+    /// }
     /// ```
     pub fn to_candle_device(&self) -> Result<nove_candle::CandleDevice, crate::DeviceError> {
         Ok(to_candle_device(self)?)

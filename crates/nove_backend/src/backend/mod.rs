@@ -12,7 +12,7 @@
 //! # Examples
 //! ```
 //! use nove_backend::{
-//!     BackendKind, BackendOps, DefaultBackend, DType, Shape, TensorBuffer, TensorPayload,
+//!     BackendKind, DType, Shape, TensorBuffer, TensorPayload,
 //! };
 //!
 //! let payload = TensorPayload::new(
@@ -23,9 +23,6 @@
 //!
 //! assert_eq!(payload.buffer().dtype(), DType::F32);
 //! assert_eq!(payload.shape().dims(), &[2, 2]);
-//!
-//! #[cfg(feature = "candle")]
-//! assert_eq!(DefaultBackend.kind(), BackendKind::Candle);
 //! ```
 
 #![allow(private_interfaces, dead_code, unreachable_patterns, unused_variables)]
@@ -111,47 +108,6 @@ pub enum BackendError {
     /// The operation request is invalid before reaching a backend kernel.
     #[error("Invalid backend operation: {0}")]
     InvalidOperation(String),
-}
-
-/// Marker trait for backend implementations.
-///
-/// # Examples
-/// ```
-/// use nove_backend::{BackendKind, BackendOps, DefaultBackend};
-///
-/// #[cfg(feature = "candle")]
-/// assert_eq!(DefaultBackend.kind(), BackendKind::Candle);
-/// ```
-pub trait BackendOps {
-    /// Returns the backend kind represented by this marker.
-    fn kind(&self) -> BackendKind;
-}
-
-/// Default backend marker.
-///
-/// # Notes
-/// Candle CPU remains the default backend while the native CPU backend is a
-/// feature-gated reference implementation.
-#[derive(Debug, Clone, Copy)]
-pub struct DefaultBackend;
-
-impl BackendOps for DefaultBackend {
-    fn kind(&self) -> BackendKind {
-        #[cfg(feature = "candle")]
-        {
-            return BackendKind::Candle;
-        }
-
-        #[cfg(all(not(feature = "candle"), feature = "native-cpu"))]
-        {
-            return BackendKind::Native;
-        }
-
-        #[cfg(all(not(feature = "candle"), not(feature = "native-cpu")))]
-        {
-            BackendKind::Candle
-        }
-    }
 }
 
 /// A flattened typed tensor buffer independent of any backend implementation.
@@ -962,8 +918,8 @@ impl BackendStorage {
             #[cfg(feature = "native-cpu")]
             (Self::Native(lhs), Self::Native(rhs)) => lhs.assign_from(rhs),
             (lhs, rhs) => Err(BackendError::BackendMismatch {
-                expected: lhs.backend_kind().unwrap_or(DefaultBackend.kind()),
-                found: rhs.backend_kind().unwrap_or(DefaultBackend.kind()),
+                expected: lhs.backend_kind().unwrap_or(BackendKind::Candle),
+                found: rhs.backend_kind().unwrap_or(BackendKind::Candle),
             }),
         }
     }
@@ -1205,6 +1161,16 @@ impl BackendStorage {
             Self::Candle(storage) => Ok(Self::Candle(storage.transpose(dim0, dim1)?)),
             #[cfg(feature = "native-cpu")]
             Self::Native(storage) => Ok(Self::Native(storage.transpose(dim0, dim1)?)),
+            Self::Unavailable => Err(BackendError::NoBackendEnabled),
+        }
+    }
+
+    pub fn contiguous(&self) -> Result<Self, BackendError> {
+        match self {
+            #[cfg(feature = "candle")]
+            Self::Candle(storage) => Ok(Self::Candle(storage.contiguous()?)),
+            #[cfg(feature = "native-cpu")]
+            Self::Native(storage) => Ok(Self::Native(storage.contiguous()?)),
             Self::Unavailable => Err(BackendError::NoBackendEnabled),
         }
     }
@@ -1548,14 +1514,16 @@ pub fn save_safetensors(
     file_path: &str,
     tensors: HashMap<String, BackendStorage>,
 ) -> Result<(), BackendError> {
-    match DefaultBackend.kind() {
-        #[cfg(feature = "candle")]
-        BackendKind::Candle => candle::save_safetensors(file_path, tensors),
-        BackendKind::Native => Err(BackendError::UnsupportedOperation {
-            backend: BackendKind::Native,
+    #[cfg(feature = "candle")]
+    {
+        candle::save_safetensors(file_path, tensors)
+    }
+    #[cfg(not(feature = "candle"))]
+    {
+        Err(BackendError::UnsupportedOperation {
+            backend: BackendKind::Candle,
             operation: "save_safetensors".to_string(),
-        }),
-        backend => Err(BackendError::UnsupportedBackend(backend)),
+        })
     }
 }
 

@@ -9,8 +9,8 @@ repository.workspace = true
 
 [dependencies]
 thiserror = { workspace = true }
-nove_lossfn = { path = "../nove_lossfn", version = "=0.1.2" }
-nove_tensor = { path = "../nove_tensor", version = "=0.1.2" }
+nove_lossfn = { path = "../nove_lossfn", version = "=0.1.2", default-features = false }
+nove_tensor = { path = "../nove_tensor", version = "=0.1.2", default-features = false }
 sysinfo = "0.32"
 
 [features]
@@ -23,4 +23,4 @@ native = ["nove_tensor/native", "nove_lossfn/native"]
 native-cpu = ["native", "nove_tensor/native-cpu", "nove_lossfn/native-cpu"]
 
 [dev-dependencies]
-nove = { path = "../nove" }
+nove = { path = "../nove", default-features = false }

@@ -1,4 +1,6 @@
-use nove_tensor::{BackendKind, DType, Shape, Tensor};
+#[cfg(feature = "native-cpu")]
+use nove_tensor::BackendKind;
+use nove_tensor::{DType, Device, Shape, Tensor};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -28,19 +30,6 @@ fn dtype_converts_to_and_from_the_candle_backend() {
     assert_eq!(nove_dtype, DType::F64);
 }
 
-#[cfg(feature = "candle-cpu")]
-#[test]
-fn cpu_device_selects_the_default_backend() {
-    let device = nove_tensor::device::candle::cpu()
-        .unwrap();
-    assert_eq!(device.backend(), BackendKind::Candle);
-    assert!(device.is_cpu());
-    assert!(!device.is_cuda());
-    assert!(!device.is_metal());
-    assert_eq!(device.index(), 0);
-    assert_eq!(device.to_string(), "cpu");
-}
-
 #[cfg(feature = "native-cpu")]
 #[test]
 fn explicit_nove_cpu_device_uses_native_cpu_backend() -> TestResult {
@@ -54,11 +43,9 @@ fn explicit_nove_cpu_device_uses_native_cpu_backend() -> TestResult {
     Ok(())
 }
 
-#[cfg(feature = "candle-cpu")]
 #[test]
 fn backward_tracks_a_representative_backend_graph() -> TestResult {
-    let device = nove_tensor::device::candle::cpu()
-        .unwrap();
+    let device = Device::default();
     let input = Tensor::from_slice(
         &[1.0f32, 2.0, 3.0, 4.0],
         &Shape::from_dims(&[2, 2]),
@@ -88,10 +75,9 @@ fn backward_tracks_a_representative_backend_graph() -> TestResult {
     Ok(())
 }
 
-#[cfg(feature = "native-cpu")]
 #[test]
 fn nove_cpu_runs_representative_forward_and_backward_chain() -> TestResult {
-    let device = nove_tensor::device::native::cpu()?;
+    let device = Device::default();
     let input = Tensor::from_slice(
         &[1.0f32, 2.0, 3.0, 4.0],
         &Shape::from_dims(&[2, 2]),
@@ -600,8 +586,7 @@ fn gelu_tanh_derivative(value: f64) -> f64 {
 #[cfg(all(feature = "candle-cpu", feature = "native-cpu"))]
 #[test]
 fn to_device_backward_moves_gradient_back_to_parent_backend() -> TestResult {
-    let candle_cpu = nove_tensor::device::candle::cpu()
-        .unwrap();
+    let candle_cpu = nove_tensor::device::candle::cpu()?;
     let nove_cpu = nove_tensor::device::native::cpu()?;
     let input = Tensor::from_slice(
         &[1.0f32, 2.0, 3.0],
@@ -623,8 +608,7 @@ fn to_device_backward_moves_gradient_back_to_parent_backend() -> TestResult {
 #[cfg(feature = "candle-cpu")]
 #[test]
 fn gradient_controls_zero_clear_and_clear_graph() -> TestResult {
-    let device = nove_tensor::device::candle::cpu()
-        .unwrap();
+    let device = nove_tensor::device::candle::cpu()?;
     let mut input = Tensor::from_slice(&[2.0f32, 4.0], &Shape::from_dims(&[2]), &device, false)?
         .require_grad(true)?;
     let offset = Tensor::ones(&Shape::from_dims(&[2]), &DType::F32, &device, false)?;

@@ -18,7 +18,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -42,7 +42,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor with requires_grad=true for gradient test
     /// let mut tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -106,7 +106,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -130,7 +130,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor with requires_grad=true for gradient test
     /// let mut tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -197,7 +197,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -221,7 +221,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor with requires_grad=true for gradient test
     /// let mut tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -288,7 +288,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -320,7 +320,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor with requires_grad=true for gradient test
     /// let mut tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -397,7 +397,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -446,7 +446,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor with requires_grad=true for gradient test
     /// let mut tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -513,7 +513,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -562,7 +562,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a 2x3 tensor for testing
     /// let tensor = Tensor::from_data(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();

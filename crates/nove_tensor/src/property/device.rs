@@ -15,28 +15,26 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// // CPU device (always available)
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
-    /// assert_eq!(tensor.device().unwrap(), cpu);
-    /// let result = tensor.to_device(&cpu).unwrap();
-    /// assert_eq!(result.device().unwrap(), cpu);
-    ///
-    /// // CUDA device (if feature enabled)
-    /// #[cfg(feature = "cuda")]
+    /// // CPU device (when CPU backend available)
+    /// #[cfg(feature = "candle-cpu")]
+    /// {
+    ///     let cpu = nove::device::candle::cpu().unwrap();
+    ///     let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
+    ///     let result = tensor.to_device(&cpu).unwrap();
+    ///     assert_eq!(result.device().unwrap(), cpu);
+    /// }
+    /// // CUDA device (if feature enabled and hardware available)
+    /// #[cfg(feature = "candle-cuda")]
     /// if let Ok(cuda) = nove::device::candle::cuda(0) {
     ///     let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cuda, false).unwrap();
-    ///     assert_eq!(tensor.device().unwrap(), cuda);
     ///     let result = tensor.to_device(&cuda).unwrap();
     ///     assert_eq!(result.device().unwrap(), cuda);
     /// }
-    ///
-    /// // Metal device (if feature enabled)
-    /// #[cfg(feature = "metal")]
+    /// // Metal device (if feature enabled and hardware available)
+    /// #[cfg(feature = "candle-metal")]
     /// if let Ok(metal) = nove::device::candle::metal(0) {
     ///     let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &metal, false).unwrap();
-    ///     assert_eq!(result.device().unwrap(), metal);
-    ///     let result = result.to_device(&metal).unwrap();
+    ///     let result = tensor.to_device(&metal).unwrap();
     ///     assert_eq!(result.device().unwrap(), metal);
     /// }
     /// ```
@@ -45,25 +43,28 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
+    /// #[cfg(feature = "candle-cpu")]
+    /// {
+    ///     let cpu = nove::device::candle::cpu().unwrap();
+    ///     let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
     ///
-    /// // CUDA device (if feature enabled)
-    /// #[cfg(feature = "cuda")]
-    /// if let Ok(cuda) = nove::device::candle::cuda(0) {
-    ///     let result = tensor.to_device(&cuda).unwrap();
-    ///     assert_eq!(result.device().unwrap(), cuda);
-    ///     let result_cpu = result.to_device(&cpu).unwrap();
-    ///     assert_eq!(result_cpu.device().unwrap(), cpu);
-    /// }
+    ///     // CUDA device (if feature enabled and hardware available)
+    ///     #[cfg(feature = "candle-cuda")]
+    ///     if let Ok(cuda) = nove::device::candle::cuda(0) {
+    ///         let result = tensor.to_device(&cuda).unwrap();
+    ///         assert_eq!(result.device().unwrap(), cuda);
+    ///         let result_cpu = result.to_device(&cpu).unwrap();
+    ///         assert_eq!(result_cpu.device().unwrap(), cpu);
+    ///     }
     ///
-    /// // Metal device (if feature enabled)
-    /// #[cfg(feature = "metal")]
-    /// if let Ok(metal) = nove::device::candle::metal(0) {
-    ///     let result = tensor.to_device(&metal).unwrap();
-    ///     assert_eq!(result.device().unwrap(), metal);
-    ///     let result_cpu = result.to_device(&cpu).unwrap();
-    ///     assert_eq!(result_cpu.device().unwrap(), cpu);
+    ///     // Metal device (if feature enabled and hardware available)
+    ///     #[cfg(feature = "candle-metal")]
+    ///     if let Ok(metal) = nove::device::candle::metal(0) {
+    ///         let result = tensor.to_device(&metal).unwrap();
+    ///         assert_eq!(result.device().unwrap(), metal);
+    ///         let result_cpu = result.to_device(&cpu).unwrap();
+    ///         assert_eq!(result_cpu.device().unwrap(), cpu);
+    ///     }
     /// }
     /// ```
     pub fn to_device(&self, device: &Device) -> Result<Tensor, TensorError> {
@@ -104,11 +105,13 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
     ///
-    /// let device = tensor.device().unwrap();
-    /// assert_eq!(device, cpu);
+    /// #[cfg(feature = "candle-cpu")]
+    /// {
+    ///     let cpu = nove::device::candle::cpu().unwrap();
+    ///     let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    ///     assert_eq!(tensor.device().unwrap(), cpu);
+    /// }
     /// ```
     pub fn device(&self) -> Result<Device, TensorError> {
         Ok(self.data.read()?.device.clone())

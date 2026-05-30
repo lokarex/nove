@@ -276,6 +276,10 @@ impl NativeStorage {
             .map_err(backend_error)
     }
 
+    pub(crate) fn contiguous(&self) -> Result<Self, BackendError> {
+        Ok(self.clone())
+    }
+
     pub(crate) fn permute(&self, dims: &[usize]) -> Result<Self, BackendError> {
         self.0.permute(dims).map(Self::new).map_err(backend_error)
     }

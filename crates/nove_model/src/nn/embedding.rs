@@ -29,7 +29,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// let embedding = EmbeddingBuilder::new(1000, 512)  // Required: num_embeddings, embedding_dim
 ///     .padding_idx(Some(0))     // Optional, default is None
-///     .device(nove::device::candle::cpu().unwrap())    // Optional, default is cpu
+///     .device(Device::default())    // Optional, default is `Device::default()`.
 ///     .dtype(DType::F32)        // Optional, default is F32
 ///     .build();
 /// ```
@@ -197,7 +197,7 @@ impl Display for Embedding {
 ///
 /// # Optional Arguments
 /// * `padding_idx` - Optional index to pad with zeros. Default is `None`.
-/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
+/// * `device` - The device to use for the layer. Default is `Device::default()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
 ///
@@ -216,7 +216,7 @@ impl Display for Embedding {
 ///
 /// let embedding = EmbeddingBuilder::new(1000, 512)  // Required: num_embeddings, embedding_dim
 ///     .padding_idx(Some(0))     // Optional, default is None
-///     .device(nove::device::candle::cpu().unwrap())    // Optional, default is cpu
+///     .device(Device::default())    // Optional, default is `Device::default()`.
 ///     .dtype(DType::F32)        // Optional, default is F32
 ///     .grad_enabled(true)       // Optional, default is true
 ///     .build();
@@ -236,7 +236,7 @@ impl EmbeddingBuilder {
             num_embeddings,
             embedding_dim,
             padding_idx: None,
-            device: nove_tensor::device::candle::cpu().unwrap(),
+            device: Device::default(),
             dtype: DType::F32,
             grad_enabled: true,
         }

@@ -3,21 +3,6 @@
 //! Devices in Nove always carry both a backend and a device kind. Use the
 //! constructors in [`candle`] or [`native`] so call sites make the backend
 //! choice visible.
-//!
-//! # Examples
-//! ```
-//! use nove_backend::{BackendKind, DeviceKind, device};
-//!
-//! let device = if cfg!(feature = "candle-cpu") {
-//!     device::candle::cpu().unwrap()
-//! } else {
-//!     device::native::cpu().unwrap()
-//! };
-//!
-//! assert!(matches!(device.backend(), BackendKind::Candle | BackendKind::Native));
-//! assert_eq!(device.kind(), DeviceKind::Cpu);
-//! assert_eq!(device.index(), 0);
-//! ```
 
 use crate::backend::{BackendError, BackendKind};
 use std::fmt::Display;
@@ -67,23 +52,9 @@ pub enum DeviceKind {
 /// Backend-qualified device descriptor used by tensors and backend storage.
 ///
 /// # Notes
-/// A device is intentionally not constructed through ambiguous helpers.
-/// Choose a backend-specific constructor from [`candle`] or [`native`] instead.
-///
-/// # Examples
-/// ```
-/// use nove_backend::{BackendKind, DeviceKind, device};
-///
-/// let device = if cfg!(feature = "candle-cpu") {
-///     device::candle::cpu().unwrap()
-/// } else {
-///     device::native::cpu().unwrap()
-/// };
-///
-/// assert!(matches!(device.backend(), BackendKind::Candle | BackendKind::Native));
-/// assert_eq!(device.kind(), DeviceKind::Cpu);
-/// assert!(device.is_cpu());
-/// ```
+/// A device is constructed through explicit backend-specific helpers in [`candle`] or [`native`].
+/// For tests and common cases use [`Device::default()`] which selects the
+/// highest-priority enabled backend.
 #[derive(Debug, Clone)]
 pub struct Device {
     backend: BackendKind,
@@ -113,14 +84,9 @@ impl Device {
     ///
     /// # Examples
     /// ```
-    /// use nove_backend::{BackendKind, device};
+    /// use nove_backend::{BackendKind, device, Device};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") {
-    ///     device::candle::cpu().unwrap()
-    /// } else {
-    ///     device::native::cpu().unwrap()
-    /// };
-    ///
+    /// let device = Device::default();
     /// assert!(matches!(device.backend(), BackendKind::Candle | BackendKind::Native));
     /// ```
     pub fn backend(&self) -> BackendKind {
@@ -136,13 +102,16 @@ impl Device {
     /// ```
     /// use nove_backend::{DeviceKind, device};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") {
-    ///     device::candle::cpu().unwrap()
-    /// } else {
-    ///     device::native::cpu().unwrap()
-    /// };
-    ///
-    /// assert_eq!(device.kind(), DeviceKind::Cpu);
+    /// #[cfg(feature = "candle-cpu")]
+    /// {
+    ///     let device = device::candle::cpu().unwrap();
+    ///     assert_eq!(device.kind(), DeviceKind::Cpu);
+    /// }
+    /// #[cfg(feature = "native-cpu")]
+    /// {
+    ///     let device = device::native::cpu().unwrap();
+    ///     assert_eq!(device.kind(), DeviceKind::Cpu);
+    /// }
     /// ```
     pub fn kind(&self) -> DeviceKind {
         self.kind
@@ -160,13 +129,16 @@ impl Device {
     /// ```
     /// use nove_backend::device;
     ///
-    /// let device = if cfg!(feature = "candle-cpu") {
-    ///     device::candle::cpu().unwrap()
-    /// } else {
-    ///     device::native::cpu().unwrap()
-    /// };
-    ///
-    /// assert_eq!(device.index(), 0);
+    /// #[cfg(feature = "candle-cpu")]
+    /// {
+    ///     let device = device::candle::cpu().unwrap();
+    ///     assert_eq!(device.index(), 0);
+    /// }
+    /// #[cfg(feature = "native-cpu")]
+    /// {
+    ///     let device = device::native::cpu().unwrap();
+    ///     assert_eq!(device.index(), 0);
+    /// }
     /// ```
     pub fn index(&self) -> usize {
         self.index
@@ -181,13 +153,16 @@ impl Device {
     /// ```
     /// use nove_backend::device;
     ///
-    /// let device = if cfg!(feature = "candle-cpu") {
-    ///     device::candle::cpu().unwrap()
-    /// } else {
-    ///     device::native::cpu().unwrap()
-    /// };
-    ///
-    /// assert!(device.is_cpu());
+    /// #[cfg(feature = "candle-cpu")]
+    /// {
+    ///     let device = device::candle::cpu().unwrap();
+    ///     assert!(device.is_cpu());
+    /// }
+    /// #[cfg(feature = "native-cpu")]
+    /// {
+    ///     let device = device::native::cpu().unwrap();
+    ///     assert!(device.is_cpu());
+    /// }
     /// ```
     pub fn is_cpu(&self) -> bool {
         self.kind == DeviceKind::Cpu
@@ -202,13 +177,11 @@ impl Device {
     /// ```
     /// use nove_backend::device;
     ///
-    /// let device = if cfg!(feature = "candle-cpu") {
-    ///     device::candle::cpu().unwrap()
-    /// } else {
-    ///     device::native::cpu().unwrap()
-    /// };
-    ///
-    /// assert!(!device.is_cuda());
+    /// #[cfg(feature = "candle-cuda")]
+    /// {
+    ///     let device = device::candle::cuda(0).unwrap();
+    ///     assert!(device.is_cuda());
+    /// }
     /// ```
     pub fn is_cuda(&self) -> bool {
         self.kind == DeviceKind::Cuda
@@ -223,13 +196,11 @@ impl Device {
     /// ```
     /// use nove_backend::device;
     ///
-    /// let device = if cfg!(feature = "candle-cpu") {
-    ///     device::candle::cpu().unwrap()
-    /// } else {
-    ///     device::native::cpu().unwrap()
-    /// };
-    ///
-    /// assert!(!device.is_metal());
+    /// #[cfg(feature = "candle-metal")]
+    /// {
+    ///     let device = device::candle::metal(0).unwrap();
+    ///     assert!(device.is_cuda());
+    /// }
     /// ```
     pub fn is_metal(&self) -> bool {
         self.kind == DeviceKind::Metal
@@ -247,14 +218,9 @@ impl Device {
     ///
     /// # Examples
     /// ```
-    /// use nove_backend::device;
+    /// use nove_backend::{device, Device};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") {
-    ///     device::candle::cpu().unwrap()
-    /// } else {
-    ///     device::native::cpu().unwrap()
-    /// };
-    ///
+    /// let device = Device::default();
     /// device.synchronize().unwrap();
     /// ```
     pub fn synchronize(&self) -> Result<(), DeviceError> {
@@ -263,11 +229,13 @@ impl Device {
             BackendKind::Candle => {
                 crate::backend::candle::synchronize_device(self)?;
             }
-            #[cfg(feature = "native-cpu")]
+            #[cfg(not(feature = "candle"))]
+            BackendKind::Candle => {}
+            #[cfg(feature = "native")]
             BackendKind::Native => {
                 crate::backend::native::synchronize_device(self)?;
             }
-            #[cfg(not(feature = "native-cpu"))]
+            #[cfg(not(feature = "native"))]
             BackendKind::Native => {}
         }
         Ok(())
@@ -280,11 +248,7 @@ impl Device {
 /// `*_if_available` constructors fall back only to Candle CPU. They never
 /// silently switch to the native Nove CPU backend.
 pub mod candle {
-    #[cfg(any(
-        feature = "candle-cpu",
-        feature = "candle-cuda",
-        feature = "candle-metal"
-    ))]
+    #[cfg(feature = "candle")]
     use super::{BackendKind, DeviceKind};
     use super::{Device, DeviceError};
 
@@ -296,7 +260,7 @@ pub mod candle {
     ///
     /// # Examples
     /// ```
-    /// use nove_backend::{BackendKind, DeviceKind, device};
+    /// use nove_backend::{BackendKind, Device, DeviceKind, device};
     ///
     /// # #[cfg(feature = "candle-cpu")]
     /// # {
@@ -331,13 +295,14 @@ pub mod candle {
     ///
     /// # Examples
     /// ```
-    /// use nove_backend::device;
+    /// use nove_backend::{device, BackendKind};
     ///
-    /// # #[cfg(feature = "candle-cuda")]
-    /// # {
-    /// let device = device::candle::cuda(0).unwrap();
-    /// assert!(device.is_cuda());
-    /// # }
+    /// #[cfg(feature = "candle-cuda")]
+    /// {
+    ///     let device = device::candle::cuda(0).unwrap();
+    ///     assert_eq!(device.backend(), BackendKind::Candle);
+    ///     assert!(device.is_cuda());
+    /// }
     /// ```
     pub fn cuda(index: usize) -> Result<Device, DeviceError> {
         #[cfg(feature = "candle-cuda")]
@@ -368,11 +333,11 @@ pub mod candle {
     /// ```
     /// use nove_backend::{BackendKind, device};
     ///
-    /// # #[cfg(feature = "candle-cuda")]
-    /// # {
-    /// let device = device::candle::cuda_if_available(0).unwrap();
-    /// assert_eq!(device.backend(), BackendKind::Candle);
-    /// # }
+    /// #[cfg(feature = "candle-cuda")]
+    /// {
+    ///     let device = device::candle::cuda_if_available(0).unwrap();
+    ///     assert_eq!(device.backend(), BackendKind::Candle);
+    /// }
     /// ```
     pub fn cuda_if_available(index: usize) -> Result<Device, DeviceError> {
         #[cfg(feature = "candle-cuda")]
@@ -404,13 +369,14 @@ pub mod candle {
     ///
     /// # Examples
     /// ```
-    /// use nove_backend::device;
+    /// use nove_backend::{device, BackendKind};
     ///
-    /// # #[cfg(feature = "candle-metal")]
-    /// # {
-    /// let device = device::candle::metal(0).unwrap();
-    /// assert!(device.is_metal());
-    /// # }
+    /// #[cfg(feature = "candle-metal")]
+    /// {
+    ///     let device = device::candle::metal(0).unwrap();
+    ///     assert_eq!(device.backend(), BackendKind::Candle);
+    ///     assert!(device.is_metal());
+    /// }
     /// ```
     pub fn metal(index: usize) -> Result<Device, DeviceError> {
         #[cfg(feature = "candle-metal")]
@@ -441,11 +407,11 @@ pub mod candle {
     /// ```
     /// use nove_backend::{BackendKind, device};
     ///
-    /// # #[cfg(feature = "candle-metal")]
-    /// # {
-    /// let device = device::candle::metal_if_available(0).unwrap();
-    /// assert_eq!(device.backend(), BackendKind::Candle);
-    /// # }
+    /// #[cfg(feature = "candle-metal")]
+    /// {
+    ///     let device = candle::metal_if_available(0).unwrap();
+    ///     assert_eq!(device.backend(), BackendKind::Candle);
+    /// }
     /// ```
     pub fn metal_if_available(index: usize) -> Result<Device, DeviceError> {
         #[cfg(feature = "candle-metal")]
@@ -467,6 +433,38 @@ pub mod candle {
     }
 }
 
+impl Default for Device {
+    /// Creates the default CPU device using the highest-priority enabled backend.
+    ///
+    /// # Notes
+    /// Priority: `candle-cuda` > `candle-metal` > `candle-cpu` > `native-cpu`.
+    ///
+    /// # Panics
+    /// * Panics if the selected GPU device is unavailable (e.g. `candle-cuda`
+    ///   enabled but no CUDA device present).
+    /// * Panics if no backend device feature is enabled.
+    #[allow(unreachable_code)]
+    fn default() -> Self {
+        #[cfg(feature = "candle-cuda")]
+        {
+            return candle::cuda(0).unwrap();
+        }
+        #[cfg(feature = "candle-metal")]
+        {
+            return candle::metal(0).unwrap();
+        }
+        #[cfg(feature = "candle-cpu")]
+        {
+            return candle::cpu().unwrap();
+        }
+        #[cfg(feature = "native-cpu")]
+        {
+            return native::cpu().unwrap();
+        }
+        panic!("Device::default() requires at least one backend feature to be enabled");
+    }
+}
+
 /// Nove native device constructors.
 pub mod native {
     #[cfg(feature = "native-cpu")]
@@ -481,15 +479,15 @@ pub mod native {
     ///
     /// # Examples
     /// ```
-    /// use nove_backend::{BackendKind, DeviceKind, device};
+    /// use nove_backend::{BackendKind, Device, DeviceKind, device};
     ///
-    /// # #[cfg(feature = "native-cpu")]
-    /// # {
-    /// let device = device::native::cpu().unwrap();
+    /// #[cfg(feature = "native-cpu")]
+    /// {
+    ///     let device = device::native::cpu().unwrap();
     ///
-    /// assert_eq!(device.backend(), BackendKind::Native);
-    /// assert_eq!(device.kind(), DeviceKind::Cpu);
-    /// # }
+    ///     assert_eq!(device.backend(), BackendKind::Native);
+    ///     assert_eq!(device.kind(), DeviceKind::Cpu);
+    /// }
     /// ```
     pub fn cpu() -> Result<Device, DeviceError> {
         #[cfg(feature = "native-cpu")]

@@ -66,7 +66,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// let lstm_cell = LstmCellBuilder::new(10, 20)
 ///     .bias_enabled(true)
-///     .device(nove::device::candle::cpu().unwrap())
+///     .device(Device::default())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true)
 ///     .build();
@@ -168,7 +168,7 @@ impl Display for LstmCell {
 ///
 /// # Optional Arguments
 /// * `bias_enabled` - Whether to enable the bias terms. Default is `true`.
-/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
+/// * `device` - The device to use for the layer. Default is `Device::default()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
 ///
@@ -187,7 +187,7 @@ impl Display for LstmCell {
 ///
 /// let lstm_cell = LstmCellBuilder::new(10, 20)
 ///     .bias_enabled(true)
-///     .device(nove::device::candle::cpu().unwrap())
+///     .device(Device::default())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true)
 ///     .build();
@@ -215,7 +215,7 @@ impl LstmCellBuilder {
             input_size,
             hidden_size,
             bias_enabled: true,
-            device: nove_tensor::device::candle::cpu().unwrap(),
+            device: Device::default(),
             dtype: DType::F32,
             grad_enabled: true,
         }
@@ -291,7 +291,7 @@ impl LstmCellBuilder {
     /// use nove::model::nn::LstmCellBuilder;
     /// use nove::tensor::Device;
     /// let mut builder = LstmCellBuilder::new(10, 20);
-    /// builder.device(nove::device::candle::cpu().unwrap());
+    /// builder.device(Device::default());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
         self.device = device;

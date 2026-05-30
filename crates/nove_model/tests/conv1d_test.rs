@@ -1,7 +1,6 @@
-use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::Conv1dBuilder;
-use nove::tensor::{DType, Shape, Tensor};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_conv1d_builder_creation() {
@@ -43,7 +42,7 @@ fn test_conv1d_forward_basic() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -59,7 +58,7 @@ fn test_conv1d_forward_with_padding() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3, 8]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -75,7 +74,7 @@ fn test_conv1d_forward_with_stride() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -91,7 +90,7 @@ fn test_conv1d_forward_with_dilation() {
     let input = Tensor::ones(
         &Shape::from_dims(&[1, 2, 10]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -112,7 +111,7 @@ fn test_conv1d_forward_with_padding_stride_dilation() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3, 14]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -173,17 +172,37 @@ fn test_conv1d_require_grad() {
 #[test]
 fn test_conv1d_to_device() {
     let mut conv = Conv1dBuilder::new(3, 5, 3)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .build()
         .unwrap();
 
-    let weight_device = conv.weight().device().unwrap();
-    assert!(weight_device.is_cpu());
+    // Round-trip: move to each backend device and verify
+    #[cfg(feature = "candle-cpu")]
+    {
+        let target = nove::device::candle::cpu().unwrap();
+        conv.to_device(&target).unwrap();
+        assert_eq!(conv.weight().device().unwrap(), target);
+    }
+    #[cfg(feature = "native-cpu")]
+    {
+        let target = nove::device::native::cpu().unwrap();
+        conv.to_device(&target).unwrap();
+        assert_eq!(conv.weight().device().unwrap(), target);
+    }
+    #[cfg(feature = "candle-cuda")]
+    if let Ok(target) = nove::device::candle::cuda(0) {
+        conv.to_device(&target).unwrap();
+        assert_eq!(conv.weight().device().unwrap(), target);
+    }
+    #[cfg(feature = "candle-metal")]
+    if let Ok(target) = nove::device::candle::metal(0) {
+        conv.to_device(&target).unwrap();
+        assert_eq!(conv.weight().device().unwrap(), target);
+    }
 
-    conv.to_device(&candle::cpu().unwrap()).unwrap();
-
-    let weight_device = conv.weight().device().unwrap();
-    assert!(weight_device.is_cpu());
+    // Move back to the default device
+    conv.to_device(&Device::default()).unwrap();
+    assert_eq!(conv.weight().device().unwrap(), Device::default());
 }
 
 #[test]
@@ -211,7 +230,7 @@ fn test_conv1d_builder_method_chaining() {
         .dilation(2)
         .groups(1)
         .bias_enabled(false)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .grad_enabled(true);
 

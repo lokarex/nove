@@ -29,7 +29,7 @@ static ID: AtomicUsize = AtomicUsize::new(0);
 ///
 /// let linear = LinearBuilder::new(10, 20)  // Required: in_features, out_features
 ///     .bias_enabled(true)     // Optional, default is true
-///     .device(nove::device::candle::cpu().unwrap())  // Optional, default is cpu
+///     .device(Device::default())  // Optional, default is `Device::default()`
 ///     .dtype(DType::F32)      // Optional, default is F32
 ///     .build();
 /// ```
@@ -152,7 +152,7 @@ impl Display for Linear {
 ///
 /// # Optional Arguments
 /// * `bias_enabled` - Whether to enable the bias term. Default is `true`.
-/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
+/// * `device` - The device to use for the layer. Default is `Device::default()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
 ///
@@ -171,7 +171,7 @@ impl Display for Linear {
 ///
 /// let linear = LinearBuilder::new(10, 20)  // Required: in_features, out_features
 ///     .bias_enabled(true)     // Optional, default is true
-///     .device(nove::device::candle::cpu().unwrap())  // Optional, default is cpu
+///     .device(Device::default())  // Optional, default is `Device::default()`
 ///     .dtype(DType::F32)      // Optional, default is F32
 ///     .grad_enabled(true)     // Optional, default is true
 ///     .build();
@@ -191,7 +191,7 @@ impl LinearBuilder {
             in_features,
             out_features,
             bias_enabled: true,
-            device: nove_tensor::device::candle::cpu().unwrap(),
+            device: Device::default(),
             dtype: DType::F32,
             grad_enabled: true,
         }
@@ -269,7 +269,7 @@ impl LinearBuilder {
     /// use nove::model::nn::LinearBuilder;
     /// use nove::tensor::Device;
     /// let mut linear_builder = LinearBuilder::new(10, 20);
-    /// linear_builder.device(nove::device::candle::cpu().unwrap());
+    /// linear_builder.device(Device::default());
     /// ```
     pub fn device(&mut self, device: Device) -> &mut Self {
         self.device = device;

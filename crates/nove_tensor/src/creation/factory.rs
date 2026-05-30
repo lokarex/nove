@@ -21,9 +21,9 @@ impl Tensor {
     /// # Examples
     /// * Create a 2x3 tensor with random values uniformly distributed between 0.0 and 1.0 (requires_grad=false)
     /// ```
-    /// use nove::tensor::{DType, Shape, Tensor};
+    /// use nove::tensor::{Device, DType, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -41,9 +41,9 @@ impl Tensor {
     /// ```
     /// * Create a random tensor with gradient tracking and verify backward propagation
     /// ```
-    /// use nove::tensor::{DType, Shape, Tensor};
+    /// use nove::tensor::{Device, DType, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -102,9 +102,9 @@ impl Tensor {
     /// # Examples
     /// * Create a 2x3 tensor with random values from normal distribution (requires_grad=false)
     /// ```
-    /// use nove::tensor::{DType, Shape, Tensor};
+    /// use nove::tensor::{Device, DType, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -119,9 +119,9 @@ impl Tensor {
     /// ```
     /// * Create a random tensor from normal distribution with gradient tracking and verify backward propagation
     /// ```
-    /// use nove::tensor::{DType, Shape, Tensor};
+    /// use nove::tensor::{Device, DType, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -176,9 +176,9 @@ impl Tensor {
     /// # Examples
     /// * Create a 2x3 tensor of zeros with f32 data type (requires_grad=false)
     /// ```
-    /// use nove::tensor::{DType, Shape, Tensor};
+    /// use nove::tensor::{Device, DType, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -193,9 +193,9 @@ impl Tensor {
     /// ```
     /// * Create a tensor of zeros with gradient tracking and verify backward propagation
     /// ```
-    /// use nove::tensor::{DType, Shape, Tensor};
+    /// use nove::tensor::{Device, DType, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -246,9 +246,9 @@ impl Tensor {
     /// # Examples
     /// * Create a 2x3 tensor of ones with f32 data type (requires_grad=false)
     /// ```
-    /// use nove::tensor::{DType, Shape, Tensor};
+    /// use nove::tensor::{Device, DType, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -263,9 +263,9 @@ impl Tensor {
     /// ```
     /// * Create a tensor of ones with gradient tracking and verify backward propagation
     /// ```
-    /// use nove::tensor::{DType, Shape, Tensor};
+    /// use nove::tensor::{Device, DType, Shape, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let shape = Shape::from(&[2, 3]);
     /// let dtype = DType::F32;
     ///
@@ -312,7 +312,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, false).unwrap();
     ///
     /// let zeros = tensor.zeros_like().unwrap();
@@ -328,7 +328,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, true).unwrap();
     ///
     /// let zeros = tensor.zeros_like().unwrap();
@@ -372,7 +372,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, false).unwrap();
     ///
     /// let ones = tensor.ones_like().unwrap();
@@ -388,7 +388,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// let tensor = Tensor::from_data(vec![1.0f32, 2.0, 3.0], &device, true).unwrap();
     ///
     /// let ones = tensor.ones_like().unwrap();

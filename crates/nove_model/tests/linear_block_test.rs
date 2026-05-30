@@ -1,7 +1,6 @@
-use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::{Activation, LinearBlockBuilder};
-use nove::tensor::{DType, Shape, Tensor};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_linear_block_builder_default() {
@@ -53,7 +52,7 @@ fn test_linear_block_builder_with_all_components() {
         .with_batch_norm1d()
         .with_dropout(0.3)
         .bias_enabled(true)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .grad_enabled(true)
         .build()
@@ -70,7 +69,7 @@ fn test_linear_block_forward_default() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -87,7 +86,7 @@ fn test_linear_block_forward_with_activation() {
         .unwrap();
 
     let input_data = vec![-1.0f32, 0.0, 1.0, 2.0, -2.0, 0.5];
-    let input = Tensor::from_data(input_data, &candle::cpu().unwrap(), false)
+    let input = Tensor::from_data(input_data, &Device::default(), false)
         .unwrap()
         .reshape(&Shape::from_dims(&[2, 3]))
         .unwrap();
@@ -111,12 +110,13 @@ fn test_linear_block_forward_with_batch_norm_training() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
 
     let output_training = block.forward(input.clone()).unwrap();
+    block.train(false).unwrap();
     let output_inference = block.forward(input).unwrap();
 
     assert_eq!(output_training.shape().unwrap(), Shape::from_dims(&[2, 4]));
@@ -133,12 +133,13 @@ fn test_linear_block_forward_with_dropout_training_vs_inference() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
 
     let output_training = block.forward(input.clone()).unwrap();
+    block.train(false).unwrap();
     let output_inference = block.forward(input).unwrap();
 
     assert_eq!(output_training.shape().unwrap(), Shape::from_dims(&[2, 4]));
@@ -163,7 +164,7 @@ fn test_linear_block_forward_complete_chain() {
         0.0f32,
         1.0f32,
         &Shape::from_dims(&[4, 5]),
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -252,11 +253,42 @@ fn test_linear_block_to_device() {
         .build()
         .unwrap();
 
-    block.to_device(&candle::cpu().unwrap()).unwrap();
+    // Round-trip: move to each backend device and verify
+    #[cfg(feature = "candle-cpu")]
+    {
+        let target = nove::device::candle::cpu().unwrap();
+        block.to_device(&target).unwrap();
+        for param in block.parameters().unwrap() {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "native-cpu")]
+    {
+        let target = nove::device::native::cpu().unwrap();
+        block.to_device(&target).unwrap();
+        for param in block.parameters().unwrap() {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "candle-cuda")]
+    if let Ok(target) = nove::device::candle::cuda(0) {
+        block.to_device(&target).unwrap();
+        for param in block.parameters().unwrap() {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
+    #[cfg(feature = "candle-metal")]
+    if let Ok(target) = nove::device::candle::metal(0) {
+        block.to_device(&target).unwrap();
+        for param in block.parameters().unwrap() {
+            assert_eq!(param.device().unwrap(), target);
+        }
+    }
 
-    let params = block.parameters().unwrap();
-    for param in params {
-        assert!(param.device().unwrap().is_cpu());
+    // Move back to the default device
+    block.to_device(&Device::default()).unwrap();
+    for param in block.parameters().unwrap() {
+        assert_eq!(param.device().unwrap(), Device::default());
     }
 }
 

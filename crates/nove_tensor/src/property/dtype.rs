@@ -16,8 +16,8 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, DType, Tensor};
     ///
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
+    /// let device = Device::default();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &device, false).unwrap();
     /// assert_eq!(tensor.dtype().unwrap(), DType::F32);
     ///
     /// let result = tensor.to_dtype(&DType::F32).unwrap();
@@ -30,8 +30,8 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, DType, Tensor};
     ///
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
+    /// let device = Device::default();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &device, false).unwrap();
     /// assert_eq!(tensor.dtype().unwrap(), DType::F32);
     ///
     /// let result = tensor.to_dtype(&DType::F64).unwrap();
@@ -83,8 +83,8 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, DType, Tensor};
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &cpu, false).unwrap();
+    /// let device = Device::default();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32], &device, false).unwrap();
     ///
     /// let dtype = tensor.dtype().unwrap();
     /// assert_eq!(dtype, DType::F32);

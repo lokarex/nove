@@ -18,7 +18,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![1.0, 2.0, 0.0], vec![4.0, 5.0, 0.0]], &device, false).unwrap();
@@ -32,7 +32,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![1.0, 2.0, 0.0], vec![0.0, 0.0, 0.0]], &device, false).unwrap();
@@ -63,7 +63,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![1.0, 2.0, 0.0], vec![4.0, 5.0, 0.0]], &device, false).unwrap();
@@ -77,7 +77,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![1.0, 2.0, 3.0], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![1.0, 2.0, 0.0], vec![0.0, 0.0, 0.0]], &device, false).unwrap();
@@ -108,7 +108,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![vec![1.5, -2.0, 3.0], vec![0.0, 5.0, -1.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![1.0, -1.0, 2.5], vec![-0.5, 4.0, -2.0]], &device, false).unwrap();
@@ -122,7 +122,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![vec![1.0], vec![2.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
@@ -153,7 +153,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![vec![1.5, -2.0, 3.0], vec![0.0, 5.0, -1.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![1.0, -1.0, 2.5], vec![-0.5, 4.0, -2.0]], &device, false).unwrap();
@@ -167,7 +167,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![1.0, 5.0, 100.0], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
@@ -198,7 +198,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![vec![1.0, -1.0, 3.0], vec![0.0, 5.0, -2.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![1.0, -2.0, 2.5], vec![0.0, 4.0, -1.0]], &device, false).unwrap();
@@ -212,7 +212,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![vec![10.0], vec![2.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();
@@ -243,7 +243,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![vec![1.0, -1.0, 3.0], vec![0.0, 5.0, -2.0]], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![1.0, -2.0, 2.5], vec![0.0, 4.0, -1.0]], &device, false).unwrap();
@@ -257,7 +257,7 @@ impl Tensor {
     /// ```
     /// use nove::tensor::{Device, Tensor, Shape};
     ///
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t1 = Tensor::from_data(vec![10.0, 5.0, 100.0], &device, false).unwrap();
     /// let t2 = Tensor::from_data(vec![vec![10.0, 20.0, 30.0], vec![40.0, 50.0, 60.0]], &device, false).unwrap();

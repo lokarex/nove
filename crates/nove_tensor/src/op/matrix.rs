@@ -14,7 +14,7 @@ impl Tensor {
     /// * Matrix multiplication of 2x3 and 3x4 matrices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Directly create 2x3 matrix without reshape
     /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
@@ -31,7 +31,7 @@ impl Tensor {
     /// * Backpropagation for matrix multiplication
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create tensors with gradient tracking enabled
     /// let t1 = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
@@ -106,7 +106,7 @@ impl Tensor {
     /// * Batch normalization with 4D input tensor
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create 4D input tensor with shape [2, 2, 2, 2] directly without reshape
     /// // Using nested Vec to represent 4D structure: [batch, channels, height, width]
@@ -164,7 +164,7 @@ impl Tensor {
     /// * Backpropagation for batch normalization
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create tensors with gradient tracking enabled
     /// let x = Tensor::from_data(vec![

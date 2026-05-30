@@ -30,7 +30,7 @@ static ID: AtomicUsize = AtomicUsize::new(1);
 /// let mut dropout = Dropout::new(0.5).unwrap();
 /// println!("{}", dropout);
 ///
-/// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &nove::device::candle::cpu().unwrap(), false).unwrap();
+/// let input = Tensor::from_data(&[0.0f32, 1.0f32, 2.0f32], &Device::default(), false).unwrap();
 ///
 /// // Training mode
 /// dropout.train(true).unwrap();

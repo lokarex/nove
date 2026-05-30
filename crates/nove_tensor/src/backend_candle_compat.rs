@@ -20,9 +20,9 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use candle_core::Tensor as CandleTensor;
-    /// use nove::tensor::Tensor;
+    /// use nove::tensor::{Device, Tensor};
     ///
-    /// let device = nove::device::candle::cpu().unwrap();
+    /// let device = Device::default();
     /// let candle_device = device.to_candle_device().unwrap();
     ///
     /// let candle_tensor = CandleTensor::from_slice(
@@ -75,9 +75,9 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use candle_core::Tensor as CandleTensor;
-    /// use nove::tensor::{Shape, Tensor};
+    /// use nove::tensor::{Device, Shape, Tensor};
     ///
-    /// let device = nove::device::candle::cpu().unwrap();
+    /// let device = Device::default();
     /// let nove_tensor = Tensor::from_slice(
     ///     &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0],
     ///     &Shape::from(&[2, 3]),

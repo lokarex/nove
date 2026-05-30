@@ -18,8 +18,8 @@ impl Tensor {
     /// * Reshape 1D tensor to 2D
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
+    /// let device = Device::default();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &device, false).unwrap();
     ///
     /// let result = tensor.reshape(&Shape::from(&[2, 2])).unwrap();
     /// assert_eq!(result.shape().unwrap(), (&[2, 2]).into());
@@ -29,8 +29,8 @@ impl Tensor {
     /// * Reshape 1D tensor to column vector
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
+    /// let device = Device::default();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &device, false).unwrap();
     ///
     /// let result = tensor.reshape(&Shape::from(&[3, 1])).unwrap();
     /// assert_eq!(result.shape().unwrap(), (&[3, 1]).into());
@@ -40,9 +40,9 @@ impl Tensor {
     /// * Backpropagate through reshape with gradient
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, true).unwrap();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &device, true).unwrap();
     /// let result = tensor.reshape(&Shape::from(&[2, 2])).unwrap();
     /// result.backward().unwrap();
     /// let grad = tensor.grad().unwrap().unwrap();
@@ -50,12 +50,12 @@ impl Tensor {
     /// assert_eq!(grad.to_vec::<f32>().unwrap(), vec![1.0, 1.0, 1.0, 1.0]);
     ///
     /// // The following Tensor is actually an intermediate Tensor, its grad is always None
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, true).unwrap().reshape(&Shape::from(&[2, 2])).unwrap();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &device, true).unwrap().reshape(&Shape::from(&[2, 2])).unwrap();
     /// tensor.backward().unwrap();
     /// assert!(tensor.grad().unwrap().is_none());
     ///
     /// // Keep a handle to the source tensor when chaining operations that should receive gradients.
-    /// let source = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, true).unwrap();
+    /// let source = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &device, true).unwrap();
     /// let tensor = source.reshape(&Shape::from(&[2, 2])).unwrap();
     /// tensor.backward().unwrap();
     /// let grad = source.grad().unwrap().unwrap();
@@ -97,8 +97,8 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
+    /// let device = Device::default();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &device, false).unwrap();
     ///
     /// let shape = tensor.shape().unwrap();
     /// assert_eq!(shape, (&[3]).into());
@@ -116,27 +116,27 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Tensor};
-    /// let cpu = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // 1-dimensional tensor (vector)
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &cpu, false).unwrap();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32], &device, false).unwrap();
     /// let num_dim = tensor.num_dim().unwrap();
     /// assert_eq!(num_dim, 1);
     ///
     /// // 2-dimensional tensor (matrix)
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &cpu, false).unwrap();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32], &device, false).unwrap();
     /// let result = tensor.reshape(&(&[2, 2]).into()).unwrap();
     /// let num_dim = result.num_dim().unwrap();
     /// assert_eq!(num_dim, 2);
     ///
     /// // 3-dimensional tensor
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32], &cpu, false).unwrap();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32], &device, false).unwrap();
     /// let result = tensor.reshape(&(&[2, 2, 2]).into()).unwrap();
     /// let num_dim = result.num_dim().unwrap();
     /// assert_eq!(num_dim, 3);
     ///
     /// // 4-dimensional tensor
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32], &cpu, false).unwrap();
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32], &device, false).unwrap();
     /// let result = tensor.reshape(&(&[2, 2, 1, 2]).into()).unwrap();
     /// let num_dim = result.num_dim().unwrap();
     /// assert_eq!(num_dim, 4);
@@ -158,7 +158,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
     /// let shape = Shape::from_dims(&[2, 4]);
@@ -171,7 +171,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, true).unwrap();
     ///
@@ -216,7 +216,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
@@ -228,7 +228,7 @@ impl Tensor {
     /// * Forward pass with start_dim
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
@@ -240,7 +240,7 @@ impl Tensor {
     /// * Forward pass with negative indices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
@@ -252,7 +252,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, true).unwrap();
     ///
@@ -307,7 +307,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0], vec![2.0]], &device, false).unwrap();
     ///
@@ -319,7 +319,7 @@ impl Tensor {
     /// * Forward pass with specific dimension
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0]], &device, false).unwrap();
     ///
@@ -331,7 +331,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0], vec![2.0]], &device, true).unwrap();
     ///
@@ -384,7 +384,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, false).unwrap();
     ///
@@ -396,7 +396,7 @@ impl Tensor {
     /// * Forward pass at different dimension
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![1.0, 2.0], &device, false).unwrap();
     ///
@@ -408,7 +408,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, true).unwrap();
     ///
@@ -448,7 +448,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
@@ -460,7 +460,7 @@ impl Tensor {
     /// * Forward pass with negative indices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
     ///
@@ -472,7 +472,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, true).unwrap();
     ///
@@ -496,6 +496,37 @@ impl Tensor {
         ))
     }
 
+    /// Returns a tensor with the same data but in a contiguous memory layout.
+    ///
+    /// This is necessary for operations like `matmul` on CUDA backends which
+    /// require contiguous inputs. Transpose and other view operations can
+    /// produce non-contiguous tensors.
+    ///
+    /// # Returns
+    /// * `Ok(Tensor)` - A contiguous copy of the tensor, or the original if already contiguous.
+    /// * `Err(TensorError)` - The backend failed to make the tensor contiguous.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    ///
+    /// let tensor = Tensor::from_data(&[1.0f32, 2.0, 3.0, 4.0], &Device::default(), false)
+    ///     .unwrap()
+    ///     .reshape(&Shape::from_dims(&[2, 2]))
+    ///     .unwrap();
+    /// let contig = tensor.contiguous().unwrap();
+    /// assert_eq!(contig.shape().unwrap().dims(), &[2, 2]);
+    /// ```
+    pub fn contiguous(&self) -> Result<Self, TensorError> {
+        let storage = self.backend_storage()?.contiguous()?;
+        Ok(Self::op_result_with_kind(
+            storage,
+            self.device()?,
+            vec![self.copy()],
+            OpKind::Contiguous,
+        ))
+    }
+
     /// Permute the dimensions of the tensor according to the given order.
     ///
     /// # Arguments
@@ -509,7 +540,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0]], vec![vec![3.0, 4.0]]], &device, false).unwrap();
     ///
@@ -521,7 +552,7 @@ impl Tensor {
     /// * Forward pass with negative indices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Shape [2, 1, 2] permuted with [-1, 0, 1] (same as [2, 0, 1])
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0]], vec![vec![3.0, 4.0]]], &device, false).unwrap();
@@ -534,7 +565,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![vec![1.0, 2.0]], vec![vec![3.0, 4.0]]], &device, true).unwrap();
     ///
@@ -579,7 +610,7 @@ impl Tensor {
     /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     ///
@@ -591,7 +622,7 @@ impl Tensor {
     /// * Forward pass with negative indices
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     ///
@@ -603,7 +634,7 @@ impl Tensor {
     /// * Forward pass along first dimension
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, false).unwrap();
     ///
@@ -615,7 +646,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///

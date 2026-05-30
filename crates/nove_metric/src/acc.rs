@@ -18,7 +18,7 @@ use crate::{EvaluationMetric, Metric, MetricError, MetricValue};
 /// use nove::tensor::{Device, Tensor};
 /// use nove::metric::{MetricValue, AccuracyMetric, EvaluationMetric, Metric};
 ///
-/// let device = nove::device::candle::cpu().unwrap();
+/// let device = Device::default();
 /// let output = Tensor::from_data(vec![
 ///     vec![0.1f64, 0.2f64, 0.7f64],
 ///     vec![0.3f64, 0.4f64, 0.3f64],

@@ -162,7 +162,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a tensor with gradient tracking enabled
     /// let data = [1.0f32, 2.0, 3.0, 4.0];
@@ -208,7 +208,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Create a tensor with gradient tracking enabled
     /// let data = [1.0f32, 2.0, 3.0, 4.0];

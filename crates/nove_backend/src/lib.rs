@@ -12,13 +12,9 @@
 //!
 //! # Examples
 //! ```
-//! use nove_backend::{BackendKind, DType, Shape, TensorBuffer, TensorPayload, device};
+//! use nove_backend::{BackendKind, Device, DType, Shape, TensorBuffer, TensorPayload, device};
 //!
-//! let device = if cfg!(feature = "candle-cpu") {
-//!     device::candle::cpu().unwrap()
-//! } else {
-//!     device::native::cpu().unwrap()
-//! };
+//! let device = Device::default();
 //! assert!(matches!(device.backend(), BackendKind::Candle | BackendKind::Native));
 //!
 //! let payload = TensorPayload::new(
@@ -42,6 +38,6 @@ pub use shape::Shape;
 
 pub mod backend;
 pub use backend::{
-    BackendError, BackendKind, BackendOps, DefaultBackend, FloatTensorElement, TensorBuffer,
+    BackendError, BackendKind, FloatTensorElement, TensorBuffer,
     IntoTensorPayload, TensorElement, TensorPayload,
 };

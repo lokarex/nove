@@ -1,9 +1,9 @@
-use nove::tensor::Tensor;
+use nove::tensor::{Device, Tensor};
 use nove_lossfn::{LossFn, MSELoss};
 
 #[test]
 fn test_mse_lossfn() {
-    let device = nove_tensor::device::candle::cpu().unwrap();
+    let device = Device::default();
 
     // Test case 1: Simple 2-element tensors
     let input = Tensor::from_data(&[1.0, 2.0], &device, false).unwrap();
@@ -64,7 +64,7 @@ fn test_mse_lossfn() {
 
 #[test]
 fn test_mse_lossfn_shape_mismatch() {
-    let device = nove_tensor::device::candle::cpu().unwrap();
+    let device = Device::default();
     let input = Tensor::from_data(&[[1.0, 2.0], [3.0, 4.0]], &device, false).unwrap();
     let target = Tensor::from_data(&[1.0, 2.0], &device, false).unwrap();
 

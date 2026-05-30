@@ -25,7 +25,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with positive and negative values
     /// let t = Tensor::from_data(vec![vec![-1.0, 2.0, -3.0], vec![4.0, -5.0, 6.0]], &device, false).unwrap();
     ///
@@ -39,7 +39,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with positive values for gradient test
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///
@@ -86,7 +86,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with values from -2 to 3
     /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
@@ -103,7 +103,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with values for gradient test
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///
@@ -160,7 +160,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with values from -2 to 3
     /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
@@ -177,7 +177,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with values for gradient test
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///
@@ -228,7 +228,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with values from -2 to 3
     /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
@@ -245,7 +245,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with values for gradient test
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///
@@ -296,7 +296,7 @@ impl Tensor {
     /// * Forward pass with value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with values from -2 to 3
     /// let t = Tensor::from_data(vec![vec![-2.0, -1.0, 0.0], vec![1.0, 2.0, 3.0]], &device, false).unwrap();
     ///
@@ -313,7 +313,7 @@ impl Tensor {
     /// * Backward pass with gradient verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     /// // Create a 2x3 matrix with values for gradient test
     /// let t = Tensor::from_data(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]], &device, true).unwrap();
     ///

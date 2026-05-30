@@ -9,7 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-nove = { path = "../../crates/nove" }
+nove = { path = "../../crates/nove", default-features = false }
 
 [features]
 default = []

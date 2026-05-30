@@ -1,7 +1,6 @@
-use nove::device::candle;
 use nove::model::Model;
 use nove::model::nn::LinearBuilder;
-use nove::tensor::{DType, Shape, Tensor};
+use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
 fn test_linear_builder_creation() {
@@ -35,7 +34,7 @@ fn test_linear_forward() {
     let input = Tensor::ones(
         &Shape::from_dims(&[2, 3]),
         &DType::F32,
-        &candle::cpu().unwrap(),
+        &Device::default(),
         false,
     )
     .unwrap();
@@ -107,7 +106,7 @@ fn test_linear_builder_method_chaining() {
         .in_features(15)
         .out_features(25)
         .bias_enabled(false)
-        .device(candle::cpu().unwrap())
+        .device(Device::default())
         .dtype(DType::F32)
         .grad_enabled(true);
 

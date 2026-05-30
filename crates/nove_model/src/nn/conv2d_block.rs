@@ -32,7 +32,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 /// * `activation` - Optional activation function after convolution. Default is `None`. (configured via `with_activation()`)
 /// * `batch_norm2d` - Whether 2D batch normalization is enabled after convolution. Default is `false`. (configured via `with_batch_norm2d()`)
 /// * `pool2d` - Optional pooling layer after activation/BatchNorm2d. Default is `None`. (configured via `with_pool2d()`)
-/// * `device` - The device to use for the layer. Default is `nove::device::candle::cpu().unwrap()`.
+/// * `device` - The device to use for the layer. Default is `Device::default()`.
 /// * `dtype` - The data type to use for the layer. Default is `DType::F32`.
 /// * `grad_enabled` - Whether to enable the gradient computation. Default is `true`.
 ///
@@ -58,7 +58,7 @@ static ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(
 ///     .with_activation(Activation::gelu())
 ///     .with_batch_norm2d()
 ///     .with_pool2d(Pool2d::avg_pool2d((2, 2), None).unwrap())
-///     .device(nove::device::candle::cpu().unwrap())
+///     .device(Device::default())
 ///     .dtype(DType::F32)
 ///     .grad_enabled(true);
 /// ```
@@ -112,7 +112,7 @@ impl Conv2dBlockBuilder {
             activation: None,
             use_batch_norm2d: false,
             pool2d: None,
-            device: nove_tensor::device::candle::cpu().unwrap(),
+            device: Device::default(),
             dtype: DType::F32,
             grad_enabled: true,
             training: true,
@@ -349,7 +349,7 @@ impl Conv2dBlockBuilder {
     /// ```no_run
     /// use nove::model::nn::Conv2dBlockBuilder;
     /// use nove::tensor::Device;
-    /// let builder = Conv2dBlockBuilder::new(1, 16, (3, 3), 1, 1).device(nove::device::candle::cpu().unwrap());
+    /// let builder = Conv2dBlockBuilder::new(1, 16, (3, 3), 1, 1).device(Device::default());
     /// ```
     pub fn device(mut self, device: Device) -> Self {
         self.device = device;

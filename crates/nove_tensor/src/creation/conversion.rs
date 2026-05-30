@@ -27,7 +27,7 @@ impl Tensor {
     /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// // Vec<&[S]> - Vec of 1D slices
     /// let data: Vec<&[f32]> = vec![&[1.0f32, 2.0f32, 3.0f32], &[4.0f32, 5.0f32, 6.0f32]];
@@ -124,7 +124,7 @@ impl Tensor {
     /// # Examples
     /// ```no_run
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     /// let shape = Shape::from(&[2, 3]);
@@ -169,7 +169,7 @@ impl Tensor {
     /// # Examples
     /// ```no_run
     /// use nove::tensor::{Device, Shape, Tensor};
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let data = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
     /// let shape = Shape::from(&[2, 3]);
@@ -214,7 +214,7 @@ impl Tensor {
     /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let tensor = Tensor::from_scalar(1.0f32, &device, false).unwrap();
     /// println!("{:?}", tensor);
@@ -246,7 +246,7 @@ impl Tensor {
     /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let tensor = Tensor::from_scalar(1.0f32, &device, false).unwrap();
     /// println!("{}", tensor.to_scalar::<f32>().unwrap());
@@ -274,7 +274,7 @@ impl Tensor {
     /// ```no_run
     /// use nove::tensor::Device;
     /// use nove::tensor::Tensor;
-    /// let device = if cfg!(feature = "candle-cpu") { nove::device::candle::cpu().unwrap() } else { nove::device::native::cpu().unwrap() };
+    /// let device = Device::default();
     ///
     /// let tensor = Tensor::from_data(&[[1.0f64, 2.0f64, 3.0f64], [4.0f64, 5.0f64, 6.0f64]], &device, false).unwrap();
     /// println!("{:?}", tensor.to_vec::<f64>().unwrap());
