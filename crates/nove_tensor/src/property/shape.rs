@@ -507,15 +507,32 @@ impl Tensor {
     /// * `Err(TensorError)` - The backend failed to make the tensor contiguous.
     ///
     /// # Examples
+    /// * Forward pass with shape and value verification
     /// ```
     /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::default();
     ///
-    /// let tensor = Tensor::from_data(&[1.0f32, 2.0, 3.0, 4.0], &Device::default(), false)
-    ///     .unwrap()
-    ///     .reshape(&Shape::from_dims(&[2, 2]))
-    ///     .unwrap();
-    /// let contig = tensor.contiguous().unwrap();
-    /// assert_eq!(contig.shape().unwrap().dims(), &[2, 2]);
+    /// // transpose produces a non-contiguous view
+    /// let t = Tensor::from_data(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device, false).unwrap();
+    /// let transposed = t.transpose(0, 1).unwrap();
+    /// let result = transposed.contiguous().unwrap();
+    /// assert_eq!(result.shape().unwrap(), Shape::from_dims(&[2, 2]));
+    /// assert_eq!(result.to_vec::<f64>().unwrap(), vec![1.0, 3.0, 2.0, 4.0]);
+    /// ```
+    ///
+    /// * Backward pass with gradient verification
+    /// ```
+    /// use nove::tensor::{Device, Shape, Tensor};
+    /// let device = Device::default();
+    ///
+    /// let t = Tensor::from_data(vec![1.0, 2.0, 3.0, 4.0], &device, true).unwrap();
+    ///
+    /// let result = t.contiguous().unwrap();
+    /// result.backward().unwrap();
+    ///
+    /// let grad = t.grad().unwrap().unwrap();
+    /// assert_eq!(grad.shape().unwrap(), Shape::from_dims(&[4]));
+    /// assert_eq!(grad.to_vec::<f64>().unwrap(), vec![1.0, 1.0, 1.0, 1.0]);
     /// ```
     pub fn contiguous(&self) -> Result<Self, TensorError> {
         let storage = self.backend_storage()?.contiguous()?;

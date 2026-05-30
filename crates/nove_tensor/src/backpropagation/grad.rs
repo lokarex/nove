@@ -331,7 +331,6 @@ impl Tensor {
         match op {
             OpKind::Leaf
             | OpKind::Clone
-            | OpKind::Contiguous
             | OpKind::Detach
             | OpKind::RequireGrad
             | OpKind::Gradient => Ok(vec![]),
@@ -441,6 +440,9 @@ impl Tensor {
                     .map(|dim| dim as isize)
                     .collect::<Vec<_>>();
                 unary_parent_grad(parents, grad_output, |_, grad| grad.permute(&inverse_dims))
+            }
+            OpKind::Contiguous => {
+                unary_parent_grad(parents, grad_output, |_, grad| Ok(grad.copy()))
             }
             OpKind::Narrow {
                 input_shape,
