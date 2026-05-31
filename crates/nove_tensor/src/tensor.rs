@@ -90,6 +90,16 @@ pub struct Tensor {
 }
 
 impl Clone for Tensor {
+    /// Clone the tensor.
+    ///
+    /// This is a convenience method that calls [`try_clone`](crate::tensor::Tensor::try_clone)
+    /// and unwraps the result. If cloning fails, it will panic.
+    ///
+    /// For error-safe cloning, use [`try_clone`](crate::tensor::Tensor::try_clone) instead.
+    ///
+    /// # See Also
+    /// * [`try_clone`](crate::tensor::Tensor::try_clone) - The fallible version that returns `Result`.
+    /// * [`copy`](crate::tensor::Tensor::copy) - Shallow copy that shares underlying data.
     fn clone(&self) -> Self {
         self.try_clone().unwrap()
     }
