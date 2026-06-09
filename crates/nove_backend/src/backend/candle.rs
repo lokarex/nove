@@ -43,22 +43,68 @@ pub(crate) fn to_candle_device(device: &Device) -> Result<nove_candle::CandleDev
 pub struct CandleStorage(nove_candle::CandleStorage);
 
 impl CandleStorage {
-    fn new(storage: nove_candle::CandleStorage) -> Self {
+    pub(crate) fn new(storage: nove_candle::CandleStorage) -> Self {
         Self(storage)
     }
 
-    fn inner(&self) -> &nove_candle::CandleStorage {
+    pub(crate) fn inner(&self) -> &nove_candle::CandleStorage {
         &self.0
     }
 
-    fn into_inner(self) -> nove_candle::CandleStorage {
+    pub(crate) fn into_inner(self) -> nove_candle::CandleStorage {
         self.0
     }
 
-    pub(crate) fn from_payload(
-        payload: &TensorPayload,
+    pub(crate) fn from_candle_tensor(
+        tensor: nove_candle::CandleTensor,
         device: &Device,
     ) -> Result<Self, BackendError> {
+        let device = to_candle_device(device)?;
+        nove_candle::CandleStorage::from_candle_tensor(tensor, &device)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+
+    pub(crate) fn to_candle_tensor(&self) -> Result<nove_candle::CandleTensor, BackendError> {
+        self.inner().to_candle_tensor().map_err(backend_error)
+    }
+}
+
+// -- Backend trait implementation -------------------------------------------------
+
+impl super::Backend for CandleStorage {
+    // -- properties --
+    fn dtype(&self) -> DType {
+        from_candle_dtype(self.inner().dtype())
+    }
+
+    fn shape(&self) -> Shape {
+        Shape::from(self.inner().shape())
+    }
+
+    fn to_tensor_buffer(&self) -> Result<TensorBuffer, BackendError> {
+        let tensor = self.inner().as_tensor().flatten_all().map_err(candle_op_error)?;
+        match self.dtype() {
+            DType::U8 => tensor.to_vec1::<u8>().map(TensorBuffer::U8).map_err(candle_op_error),
+            DType::U32 => tensor.to_vec1::<u32>().map(TensorBuffer::U32).map_err(candle_op_error),
+            DType::I64 => tensor.to_vec1::<i64>().map(TensorBuffer::I64).map_err(candle_op_error),
+            DType::F32 => tensor.to_vec1::<f32>().map(TensorBuffer::F32).map_err(candle_op_error),
+            DType::F64 => tensor.to_vec1::<f64>().map(TensorBuffer::F64).map_err(candle_op_error),
+            dtype => Err(BackendError::UnsupportedDType { backend: BackendKind::Candle, dtype }),
+        }
+    }
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.inner().fmt(f)
+    }
+
+    // -- lifecycle --
+    fn zero_set(&mut self) -> Result<(), BackendError> {
+        self.0.zero_set().map_err(backend_error)
+    }
+
+    // -- factories --
+    fn from_payload(payload: &TensorPayload, device: &Device) -> Result<Self, BackendError> {
         match payload.buffer() {
             TensorBuffer::U8(data) => Self::from_slice(data, payload.shape(), device),
             TensorBuffer::U32(data) => Self::from_slice(data, payload.shape(), device),
@@ -68,40 +114,156 @@ impl CandleStorage {
         }
     }
 
-    pub(crate) fn rand(
-        dtype: DType,
-        low: f64,
-        high: f64,
-        shape: &Shape,
-        device: &Device,
-    ) -> Result<Self, BackendError> {
+    fn zeros(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError> {
+        let device = to_candle_device(device)?;
+        nove_candle::CandleStorage::zeros(shape.dims(), to_candle_dtype(dtype), &device)
+            .map(Self::new).map_err(backend_error)
+    }
+
+    fn ones(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError> {
+        let device = to_candle_device(device)?;
+        nove_candle::CandleStorage::ones(shape.dims(), to_candle_dtype(dtype), &device)
+            .map(Self::new).map_err(backend_error)
+    }
+
+    fn rand(dtype: DType, low: f64, high: f64, shape: &Shape, device: &Device) -> Result<Self, BackendError> {
         match dtype {
             DType::F32 => Self::rand_typed(low as f32, high as f32, shape, device),
             DType::F64 => Self::rand_typed(low, high, shape, device),
-            dtype => Err(BackendError::UnsupportedDType {
-                backend: BackendKind::Candle,
-                dtype,
-            }),
+            dtype => Err(BackendError::UnsupportedDType { backend: BackendKind::Candle, dtype }),
         }
     }
 
-    pub(crate) fn randn(
-        dtype: DType,
-        mean: f64,
-        std: f64,
-        shape: &Shape,
-        device: &Device,
-    ) -> Result<Self, BackendError> {
+    fn randn(dtype: DType, mean: f64, std: f64, shape: &Shape, device: &Device) -> Result<Self, BackendError> {
         match dtype {
             DType::F32 => Self::randn_typed(mean as f32, std as f32, shape, device),
             DType::F64 => Self::randn_typed(mean, std, shape, device),
-            dtype => Err(BackendError::UnsupportedDType {
-                backend: BackendKind::Candle,
-                dtype,
-            }),
+            dtype => Err(BackendError::UnsupportedDType { backend: BackendKind::Candle, dtype }),
         }
     }
 
+    // -- collection --
+    fn stack(tensors: &[Self], dim: usize) -> Result<Self, BackendError> {
+        let tensors = tensors.iter().map(|s| s.inner().clone()).collect::<Vec<_>>();
+        nove_candle::CandleStorage::stack(&tensors, dim).map(Self::new).map_err(backend_error)
+    }
+
+    fn cat(tensors: &[Self], dim: usize) -> Result<Self, BackendError> {
+        let tensors = tensors.iter().map(|s| s.inner().clone()).collect::<Vec<_>>();
+        nove_candle::CandleStorage::cat(&tensors, dim).map(Self::new).map_err(backend_error)
+    }
+
+    // -- conversion --
+    fn to_device(&self, device: &Device) -> Result<Self, BackendError> {
+        let device = to_candle_device(device)?;
+        self.inner().to_device(&device).map(Self::new).map_err(backend_error)
+    }
+
+    fn to_dtype(&self, dtype: DType) -> Result<Self, BackendError> {
+        self.inner().to_dtype(to_candle_dtype(dtype)).map(Self::new).map_err(backend_error)
+    }
+
+    // -- unary (17) --
+    fn zeros_like(&self) -> Result<Self, BackendError> { self.inner().zeros_like().map(Self::new).map_err(backend_error) }
+    fn ones_like(&self) -> Result<Self, BackendError> { self.inner().ones_like().map(Self::new).map_err(backend_error) }
+    fn relu(&self) -> Result<Self, BackendError> { self.inner().relu().map(Self::new).map_err(backend_error) }
+    fn silu(&self) -> Result<Self, BackendError> { self.inner().silu().map(Self::new).map_err(backend_error) }
+    fn gelu(&self) -> Result<Self, BackendError> { self.inner().gelu().map(Self::new).map_err(backend_error) }
+    fn tanh(&self) -> Result<Self, BackendError> { self.inner().tanh().map(Self::new).map_err(backend_error) }
+    fn exp(&self) -> Result<Self, BackendError> { self.inner().exp().map(Self::new).map_err(backend_error) }
+    fn log(&self) -> Result<Self, BackendError> { self.inner().log().map(Self::new).map_err(backend_error) }
+    fn sqrt(&self) -> Result<Self, BackendError> { self.inner().sqrt().map(Self::new).map_err(backend_error) }
+    fn recip(&self) -> Result<Self, BackendError> { self.inner().recip().map(Self::new).map_err(backend_error) }
+    fn abs(&self) -> Result<Self, BackendError> { self.inner().abs().map(Self::new).map_err(backend_error) }
+    fn neg(&self) -> Result<Self, BackendError> { self.inner().neg().map(Self::new).map_err(backend_error) }
+    fn sum_all(&self) -> Result<Self, BackendError> { self.inner().sum_all().map(Self::new).map_err(backend_error) }
+    fn max_all(&self) -> Result<Self, BackendError> { self.inner().max_all().map(Self::new).map_err(backend_error) }
+    fn min_all(&self) -> Result<Self, BackendError> { self.inner().min_all().map(Self::new).map_err(backend_error) }
+    fn mean_all(&self) -> Result<Self, BackendError> { self.inner().mean_all().map(Self::new).map_err(backend_error) }
+    fn flatten_all(&self) -> Result<Self, BackendError> { self.inner().flatten_all().map(Self::new).map_err(backend_error) }
+
+    // -- binary (13) --
+    fn broadcast_add(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_add(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_mul(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_mul(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_div(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_div(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_sub(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_sub(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_eq(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_eq(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_ne(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_ne(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_gt(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_gt(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_lt(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_lt(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_ge(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_ge(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_le(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_le(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_matmul(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_matmul(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_pow(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_pow(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn embedding(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().embedding(rhs.inner()).map(Self::new).map_err(backend_error) }
+
+    // -- shape ops (11) --
+    fn reshape(&self, shape: &Shape) -> Result<Self, BackendError> { self.inner().reshape(shape.dims()).map(Self::new).map_err(backend_error) }
+    fn broadcast_as(&self, shape: &Shape) -> Result<Self, BackendError> { self.inner().broadcast_as(shape.dims()).map(Self::new).map_err(backend_error) }
+    fn flatten_from(&self, dim: usize) -> Result<Self, BackendError> { self.inner().flatten_from(dim).map(Self::new).map_err(backend_error) }
+    fn flatten_to(&self, dim: usize) -> Result<Self, BackendError> { self.inner().flatten_to(dim).map(Self::new).map_err(backend_error) }
+    fn flatten(&self, start: usize, end: usize) -> Result<Self, BackendError> { self.inner().flatten(start, end).map(Self::new).map_err(backend_error) }
+    fn squeeze(&self, dim: usize) -> Result<Self, BackendError> { self.inner().squeeze(dim).map(Self::new).map_err(backend_error) }
+    fn unsqueeze(&self, dim: usize) -> Result<Self, BackendError> { self.inner().unsqueeze(dim).map(Self::new).map_err(backend_error) }
+    fn transpose(&self, dim0: usize, dim1: usize) -> Result<Self, BackendError> { self.inner().transpose(dim0, dim1).map(Self::new).map_err(backend_error) }
+    fn contiguous(&self) -> Result<Self, BackendError> { self.inner().contiguous().map(Self::new).map_err(backend_error) }
+    fn permute(&self, dims: &[usize]) -> Result<Self, BackendError> { self.inner().permute(dims).map(Self::new).map_err(backend_error) }
+    fn narrow(&self, dim: usize, start: usize, length: usize) -> Result<Self, BackendError> { self.inner().narrow(dim, start, length).map(Self::new).map_err(backend_error) }
+
+    // -- math (3) --
+    fn affine(&self, weight: f64, bias: f64) -> Result<Self, BackendError> { self.inner().affine(weight, bias).map(Self::new).map_err(backend_error) }
+    fn clamp(&self, min: f64, max: f64) -> Result<Self, BackendError> { self.inner().clamp(min, max).map(Self::new).map_err(backend_error) }
+    fn powf(&self, exponent: f64) -> Result<Self, BackendError> { self.inner().powf(exponent).map(Self::new).map_err(backend_error) }
+
+    // -- reduction (10) --
+    fn sum(&self, dim: usize) -> Result<Self, BackendError> { self.inner().sum(dim).map(Self::new).map_err(backend_error) }
+    fn sum_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().sum_keepdim(dim).map(Self::new).map_err(backend_error) }
+    fn max(&self, dim: usize) -> Result<Self, BackendError> { self.inner().max(dim).map(Self::new).map_err(backend_error) }
+    fn max_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().max_keepdim(dim).map(Self::new).map_err(backend_error) }
+    fn min(&self, dim: usize) -> Result<Self, BackendError> { self.inner().min(dim).map(Self::new).map_err(backend_error) }
+    fn min_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().min_keepdim(dim).map(Self::new).map_err(backend_error) }
+    fn mean(&self, dim: usize) -> Result<Self, BackendError> { self.inner().mean(dim).map(Self::new).map_err(backend_error) }
+    fn mean_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().mean_keepdim(dim).map(Self::new).map_err(backend_error) }
+    fn var(&self, dim: usize) -> Result<Self, BackendError> { self.inner().var(dim).map(Self::new).map_err(backend_error) }
+    fn var_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().var_keepdim(dim).map(Self::new).map_err(backend_error) }
+
+    // -- arg ops (4) --
+    fn argmax(&self, dim: usize) -> Result<Self, BackendError> { self.inner().argmax(dim).map(Self::new).map_err(backend_error) }
+    fn argmax_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().argmax_keepdim(dim).map(Self::new).map_err(backend_error) }
+    fn argmin(&self, dim: usize) -> Result<Self, BackendError> { self.inner().argmin(dim).map(Self::new).map_err(backend_error) }
+    fn argmin_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().argmin_keepdim(dim).map(Self::new).map_err(backend_error) }
+
+    // -- convolution (2) --
+    fn conv1d(&self, kernel: &Self, padding: usize, stride: usize, dilation: usize, groups: usize) -> Result<Self, BackendError> {
+        self.inner().conv1d(kernel.inner(), padding, stride, dilation, groups).map(Self::new).map_err(backend_error)
+    }
+    fn conv2d(&self, kernel: &Self, padding: usize, stride: usize, dilation: usize, groups: usize) -> Result<Self, BackendError> {
+        self.inner().conv2d(kernel.inner(), padding, stride, dilation, groups).map(Self::new).map_err(backend_error)
+    }
+
+    // -- pooling (2) --
+    fn max_pool2d_with_stride(&self, kernel_size: (usize, usize), stride: (usize, usize)) -> Result<Self, BackendError> {
+        self.inner().max_pool2d_with_stride(kernel_size, stride).map(Self::new).map_err(backend_error)
+    }
+    fn avg_pool2d_with_stride(&self, kernel_size: (usize, usize), stride: (usize, usize)) -> Result<Self, BackendError> {
+        self.inner().avg_pool2d_with_stride(kernel_size, stride).map(Self::new).map_err(backend_error)
+    }
+
+    // -- indexing (3) --
+    fn gather(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
+        self.inner().gather(indexes.inner(), dim).map(Self::new).map_err(backend_error)
+    }
+    fn index_select(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
+        self.inner().index_select(indexes.inner(), dim).map(Self::new).map_err(backend_error)
+    }
+    fn where_cond(condition: &Self, true_value: &Self, false_value: &Self) -> Result<Self, BackendError> {
+        condition.inner().where_cond(true_value.inner(), false_value.inner()).map(Self::new).map_err(backend_error)
+    }
+}
+
+// -- Private helpers (generic over Candle types) ---
+
+impl CandleStorage {
     fn from_slice<D>(
         data: &[D],
         shape: &Shape,
@@ -142,465 +304,6 @@ impl CandleStorage {
     {
         let device = to_candle_device(device)?;
         nove_candle::CandleStorage::randn(mean, std, shape.dims(), &device)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn zeros(
-        shape: &Shape,
-        dtype: DType,
-        device: &Device,
-    ) -> Result<Self, BackendError> {
-        let device = to_candle_device(device)?;
-        nove_candle::CandleStorage::zeros(
-            shape.dims(),
-            to_candle_dtype(dtype),
-            &device,
-        )
-        .map(Self::new)
-        .map_err(backend_error)
-    }
-
-    pub(crate) fn ones(
-        shape: &Shape,
-        dtype: DType,
-        device: &Device,
-    ) -> Result<Self, BackendError> {
-        let device = to_candle_device(device)?;
-        nove_candle::CandleStorage::ones(
-            shape.dims(),
-            to_candle_dtype(dtype),
-            &device,
-        )
-        .map(Self::new)
-        .map_err(backend_error)
-    }
-
-    pub(crate) fn from_candle_tensor(
-        tensor: nove_candle::CandleTensor,
-        device: &Device,
-    ) -> Result<Self, BackendError> {
-        let device = to_candle_device(device)?;
-        nove_candle::CandleStorage::from_candle_tensor(tensor, &device)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn to_candle_tensor(&self) -> Result<nove_candle::CandleTensor, BackendError> {
-        self.inner().to_candle_tensor().map_err(backend_error)
-    }
-
-    pub(crate) fn assign_from(&mut self, other: &Self) -> Result<(), BackendError> {
-        self.0.assign_from(other.inner()).map_err(backend_error)
-    }
-
-    pub(crate) fn dtype(&self) -> DType {
-        from_candle_dtype(self.inner().dtype())
-    }
-
-    pub(crate) fn to_tensor_buffer(&self) -> Result<TensorBuffer, BackendError> {
-        let tensor = self
-            .inner()
-            .as_tensor()
-            .flatten_all()
-            .map_err(candle_op_error)?;
-        match self.dtype() {
-            DType::U8 => tensor
-                .to_vec1::<u8>()
-                .map(TensorBuffer::U8)
-                .map_err(candle_op_error),
-            DType::U32 => tensor
-                .to_vec1::<u32>()
-                .map(TensorBuffer::U32)
-                .map_err(candle_op_error),
-            DType::I64 => tensor
-                .to_vec1::<i64>()
-                .map(TensorBuffer::I64)
-                .map_err(candle_op_error),
-            DType::F32 => tensor
-                .to_vec1::<f32>()
-                .map(TensorBuffer::F32)
-                .map_err(candle_op_error),
-            DType::F64 => tensor
-                .to_vec1::<f64>()
-                .map(TensorBuffer::F64)
-                .map_err(candle_op_error),
-            dtype => Err(BackendError::UnsupportedDType {
-                backend: BackendKind::Candle,
-                dtype,
-            }),
-        }
-    }
-
-    pub(crate) fn shape(&self) -> Shape {
-        Shape::from(self.inner().shape())
-    }
-
-    pub(crate) fn zero_set(&mut self) -> Result<(), BackendError> {
-        self.0.zero_set().map_err(backend_error)
-    }
-
-    pub(crate) fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.inner().fmt(f)
-    }
-
-    pub(crate) fn stack(tensors: &[Self], dim: usize) -> Result<Self, BackendError> {
-        let tensors = tensors
-            .iter()
-            .map(|storage| storage.inner().clone())
-            .collect::<Vec<_>>();
-        nove_candle::CandleStorage::stack(&tensors, dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn cat(tensors: &[Self], dim: usize) -> Result<Self, BackendError> {
-        let tensors = tensors
-            .iter()
-            .map(|storage| storage.inner().clone())
-            .collect::<Vec<_>>();
-        nove_candle::CandleStorage::cat(&tensors, dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-}
-
-macro_rules! candle_unary_methods {
-    ($($method:ident),+ $(,)?) => {
-        impl CandleStorage {
-            $(
-                pub(crate) fn $method(&self) -> Result<Self, BackendError> {
-                    self.inner().$method().map(Self::new).map_err(backend_error)
-                }
-            )+
-        }
-    };
-}
-
-macro_rules! candle_binary_methods {
-    ($($method:ident),+ $(,)?) => {
-        impl CandleStorage {
-            $(
-                pub(crate) fn $method(&self, rhs: &Self) -> Result<Self, BackendError> {
-                    self.inner()
-                        .$method(rhs.inner())
-                        .map(Self::new)
-                        .map_err(backend_error)
-                }
-            )+
-        }
-    };
-}
-
-candle_unary_methods!(
-    zeros_like,
-    ones_like,
-    relu,
-    silu,
-    gelu,
-    tanh,
-    exp,
-    log,
-    sqrt,
-    recip,
-    abs,
-    neg,
-    sum_all,
-    max_all,
-    min_all,
-    mean_all,
-    flatten_all,
-);
-
-candle_binary_methods!(
-    broadcast_add,
-    broadcast_mul,
-    broadcast_div,
-    broadcast_sub,
-    broadcast_eq,
-    broadcast_ne,
-    broadcast_gt,
-    broadcast_lt,
-    broadcast_ge,
-    broadcast_le,
-    broadcast_matmul,
-    broadcast_pow,
-    embedding,
-);
-
-impl CandleStorage {
-    pub(crate) fn to_device(&self, device: &Device) -> Result<Self, BackendError> {
-        let device = to_candle_device(device)?;
-        self.inner()
-            .to_device(&device)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn to_dtype(&self, dtype: DType) -> Result<Self, BackendError> {
-        self.inner()
-            .to_dtype(to_candle_dtype(dtype))
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn reshape(&self, shape: &Shape) -> Result<Self, BackendError> {
-        self.inner()
-            .reshape(shape.dims())
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn broadcast_as(&self, shape: &Shape) -> Result<Self, BackendError> {
-        self.inner()
-            .broadcast_as(shape.dims())
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn flatten_from(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .flatten_from(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn flatten_to(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .flatten_to(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn flatten(&self, start: usize, end: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .flatten(start, end)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn squeeze(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .squeeze(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn unsqueeze(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .unsqueeze(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn transpose(&self, dim0: usize, dim1: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .transpose(dim0, dim1)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn contiguous(&self) -> Result<Self, BackendError> {
-        self.inner()
-            .contiguous()
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn permute(&self, dims: &[usize]) -> Result<Self, BackendError> {
-        self.inner()
-            .permute(dims)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn narrow(
-        &self,
-        dim: usize,
-        start: usize,
-        length: usize,
-    ) -> Result<Self, BackendError> {
-        self.inner()
-            .narrow(dim, start, length)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn affine(&self, weight: f64, bias: f64) -> Result<Self, BackendError> {
-        self.inner()
-            .affine(weight, bias)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn clamp(&self, min: f64, max: f64) -> Result<Self, BackendError> {
-        self.inner()
-            .clamp(min, max)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn powf(&self, exponent: f64) -> Result<Self, BackendError> {
-        self.inner()
-            .powf(exponent)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn sum(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner().sum(dim).map(Self::new).map_err(backend_error)
-    }
-
-    pub(crate) fn sum_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .sum_keepdim(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn max(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner().max(dim).map(Self::new).map_err(backend_error)
-    }
-
-    pub(crate) fn max_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .max_keepdim(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn min(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner().min(dim).map(Self::new).map_err(backend_error)
-    }
-
-    pub(crate) fn min_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .min_keepdim(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn mean(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner().mean(dim).map(Self::new).map_err(backend_error)
-    }
-
-    pub(crate) fn mean_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .mean_keepdim(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn var(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner().var(dim).map(Self::new).map_err(backend_error)
-    }
-
-    pub(crate) fn var_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .var_keepdim(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn argmax(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .argmax(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn argmax_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .argmax_keepdim(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn argmin(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .argmin(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn argmin_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .argmin_keepdim(dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn conv1d(
-        &self,
-        kernel: &Self,
-        padding: usize,
-        stride: usize,
-        dilation: usize,
-        groups: usize,
-    ) -> Result<Self, BackendError> {
-        self.inner()
-            .conv1d(kernel.inner(), padding, stride, dilation, groups)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn conv2d(
-        &self,
-        kernel: &Self,
-        padding: usize,
-        stride: usize,
-        dilation: usize,
-        groups: usize,
-    ) -> Result<Self, BackendError> {
-        self.inner()
-            .conv2d(kernel.inner(), padding, stride, dilation, groups)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn max_pool2d_with_stride(
-        &self,
-        kernel_size: (usize, usize),
-        stride: (usize, usize),
-    ) -> Result<Self, BackendError> {
-        self.inner()
-            .max_pool2d_with_stride(kernel_size, stride)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn avg_pool2d_with_stride(
-        &self,
-        kernel_size: (usize, usize),
-        stride: (usize, usize),
-    ) -> Result<Self, BackendError> {
-        self.inner()
-            .avg_pool2d_with_stride(kernel_size, stride)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn where_cond(
-        &self,
-        true_value: &Self,
-        false_value: &Self,
-    ) -> Result<Self, BackendError> {
-        self.inner()
-            .where_cond(true_value.inner(), false_value.inner())
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn gather(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .gather(indexes.inner(), dim)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn index_select(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
-        self.inner()
-            .index_select(indexes.inner(), dim)
             .map(Self::new)
             .map_err(backend_error)
     }
