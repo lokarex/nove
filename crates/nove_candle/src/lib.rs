@@ -13,7 +13,7 @@
 //! use nove_candle::{CandleDType, CandleDevice, CandleStorage};
 //!
 //! let device = CandleDevice::Cpu;
-//! let storage = CandleStorage::ones(&[2, 2], CandleDType::F32, &device, false).unwrap();
+//! let storage = CandleStorage::ones(&[2, 2], CandleDType::F32, &device).unwrap();
 //!
 //! assert_eq!(storage.shape(), vec![2, 2]);
 //! assert_eq!(storage.dtype(), CandleDType::F32);
@@ -74,15 +74,14 @@ pub enum CandleDeviceKind {
 /// Candle-backed tensor storage.
 ///
 /// # Notes
-/// Storage values are detached Candle tensors. The `requires_grad` arguments on
-/// constructors are accepted for adapter compatibility, but Nove's graph
-/// metadata owns gradient tracking.
+/// Storage values are detached Candle tensors. Nove's graph metadata owns
+/// gradient tracking independently of Candle autograd.
 #[derive(Clone, Debug)]
 #[doc(hidden)]
 pub struct CandleStorage(candle_core::Tensor);
 
 impl CandleStorage {
-    pub fn from_data<A>(data: A, device: &CandleDevice, _requires_grad: bool) -> CandleResult<Self>
+    pub fn from_data<A>(data: A, device: &CandleDevice) -> CandleResult<Self>
     where
         A: CandleNdArray,
     {
@@ -93,7 +92,6 @@ impl CandleStorage {
         data: Vec<D>,
         shape: &[usize],
         device: &CandleDevice,
-        _requires_grad: bool,
     ) -> CandleResult<Self>
     where
         D: CandleWithDType,
@@ -105,7 +103,6 @@ impl CandleStorage {
         data: &[D],
         shape: &[usize],
         device: &CandleDevice,
-        _requires_grad: bool,
     ) -> CandleResult<Self>
     where
         D: CandleWithDType,
@@ -118,7 +115,6 @@ impl CandleStorage {
         high: T,
         shape: &[usize],
         device: &CandleDevice,
-        _requires_grad: bool,
     ) -> CandleResult<Self>
     where
         T: CandleFloatDType,
@@ -131,7 +127,6 @@ impl CandleStorage {
         std: T,
         shape: &[usize],
         device: &CandleDevice,
-        _requires_grad: bool,
     ) -> CandleResult<Self>
     where
         T: CandleFloatDType,
@@ -143,7 +138,6 @@ impl CandleStorage {
         shape: &[usize],
         dtype: CandleDType,
         device: &CandleDevice,
-        _requires_grad: bool,
     ) -> CandleResult<Self> {
         Ok(Self(candle_core::Tensor::zeros(shape, dtype, device)?))
     }
@@ -152,7 +146,6 @@ impl CandleStorage {
         shape: &[usize],
         dtype: CandleDType,
         device: &CandleDevice,
-        _requires_grad: bool,
     ) -> CandleResult<Self> {
         Ok(Self(candle_core::Tensor::ones(shape, dtype, device)?))
     }
@@ -160,34 +153,21 @@ impl CandleStorage {
     pub fn from_candle_tensor(
         tensor: candle_core::Tensor,
         device: &CandleDevice,
-        _requires_grad: bool,
     ) -> CandleResult<Self> {
-        let tensor = tensor.copy()?.to_device(device)?.detach();
+        let tensor = tensor.to_device(device)?;
         Ok(Self(tensor))
     }
 
     pub fn to_candle_tensor(&self) -> CandleResult<candle_core::Tensor> {
-        Ok(self.as_tensor().copy()?.detach())
+        Ok(self.as_tensor().copy()?)
     }
 
     pub fn as_tensor(&self) -> &candle_core::Tensor {
         &self.0
     }
 
-    pub fn copy_detached(&self) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().copy()?.detach()))
-    }
-
-    pub fn detach(&self) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().detach()))
-    }
-
-    pub fn with_requires_grad(&self, _requires_grad: bool) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().copy()?.detach()))
-    }
-
-    pub fn assign_from(&mut self, other: &Self, _requires_grad: bool) -> CandleResult<()> {
-        *self = Self(other.as_tensor().copy()?.detach());
+    pub fn assign_from(&mut self, other: &Self) -> CandleResult<()> {
+        *self = other.clone();
         Ok(())
     }
 
@@ -660,7 +640,7 @@ pub fn load_safetensors(
         .map(|(name, tensor)| {
             Ok((
                 name,
-                CandleStorage::from_candle_tensor(tensor, device, false)?,
+                CandleStorage::from_candle_tensor(tensor, device)?,
             ))
         })
         .collect::<CandleResult<HashMap<_, _>>>()

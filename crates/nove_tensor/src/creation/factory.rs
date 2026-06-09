@@ -76,7 +76,7 @@ impl Tensor {
     where
         T: FloatTensorElement,
     {
-        let storage = BackendStorage::rand(low, high, shape, device, requires_grad)?;
+        let storage = BackendStorage::rand(low, high, shape, device)?;
         Ok(Self::from_backend_storage(
             storage,
             device.clone(),
@@ -151,7 +151,7 @@ impl Tensor {
     where
         T: FloatTensorElement,
     {
-        let storage = BackendStorage::randn(mean, std, shape, device, requires_grad)?;
+        let storage = BackendStorage::randn(mean, std, shape, device)?;
         Ok(Self::from_backend_storage(
             storage,
             device.clone(),
@@ -221,7 +221,7 @@ impl Tensor {
         device: &Device,
         requires_grad: bool,
     ) -> Result<Self, TensorError> {
-        let storage = BackendStorage::zeros(shape, *dtype, device, requires_grad)?;
+        let storage = BackendStorage::zeros(shape, *dtype, device)?;
         Ok(Self::from_backend_storage(
             storage,
             device.clone(),
@@ -291,7 +291,7 @@ impl Tensor {
         device: &Device,
         requires_grad: bool,
     ) -> Result<Self, TensorError> {
-        let storage = BackendStorage::ones(shape, *dtype, device, requires_grad)?;
+        let storage = BackendStorage::ones(shape, *dtype, device)?;
         Ok(Self::from_backend_storage(
             storage,
             device.clone(),

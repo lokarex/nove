@@ -51,7 +51,6 @@ impl Tensor {
         let storage = nove_backend::backend::candle::storage_from_candle_tensor(
             tensor,
             device,
-            requires_grad,
         )?;
         Ok(Self::from_backend_storage(
             storage,

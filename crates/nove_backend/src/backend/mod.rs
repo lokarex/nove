@@ -25,12 +25,12 @@
 //! assert_eq!(payload.shape().dims(), &[2, 2]);
 //! ```
 
-#![allow(private_interfaces, dead_code, unreachable_patterns, unused_variables)]
+#![allow(private_interfaces, dead_code, unused_variables)]
 
 #[cfg(feature = "candle")]
 pub mod candle;
 
-#[cfg(feature = "native-cpu")]
+#[cfg(feature = "native")]
 pub mod native;
 
 use crate::{DType, Device, Shape, device::DeviceKind};
@@ -70,10 +70,6 @@ pub enum BackendError {
         /// Backend-provided message.
         message: String,
     },
-
-    /// No backend storage implementation is enabled.
-    #[error("No tensor backend is enabled")]
-    NoBackendEnabled,
 
     /// The selected backend is not available in the compiled feature set.
     #[error("Unsupported backend: {0:?}")]
@@ -196,16 +192,6 @@ impl TensorBuffer {
     /// ```
     pub fn is_empty(&self) -> bool {
         self.len() == 0
-    }
-
-    fn to_f64_vec(&self) -> Vec<f64> {
-        match self {
-            Self::U8(data) => data.iter().map(|value| *value as f64).collect(),
-            Self::U32(data) => data.iter().map(|value| *value as f64).collect(),
-            Self::I64(data) => data.iter().map(|value| *value as f64).collect(),
-            Self::F32(data) => data.iter().map(|value| *value as f64).collect(),
-            Self::F64(data) => data.clone(),
-        }
     }
 }
 
@@ -577,38 +563,36 @@ where
 pub enum BackendStorage {
     #[cfg(feature = "candle")]
     Candle(candle::CandleStorage),
-    #[cfg(feature = "native-cpu")]
+    #[cfg(feature = "native")]
     Native(native::NativeStorage),
-    Unavailable,
 }
 
 impl BackendStorage {
-    pub fn from_data<A>(data: A, device: &Device, requires_grad: bool) -> Result<Self, BackendError>
+    pub fn from_data<A>(data: A, device: &Device) -> Result<Self, BackendError>
     where
         A: IntoTensorPayload,
     {
-        Self::from_payload(data.into_tensor_payload()?, device, requires_grad)
+        Self::from_payload(data.into_tensor_payload()?, device)
     }
 
     pub fn from_payload(
         payload: TensorPayload,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError> {
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::from_payload(
                 &payload,
                 device,
-                requires_grad,
             )?)),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             BackendKind::Native => {
                 if device.kind() != DeviceKind::Cpu {
                     return Err(BackendError::UnsupportedDevice(device.kind()));
                 }
                 Ok(Self::Native(native::NativeStorage::from_payload(&payload)?))
             }
+            #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
@@ -617,7 +601,6 @@ impl BackendStorage {
         data: Vec<D>,
         shape: &Shape,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError>
     where
         D: TensorElement,
@@ -625,7 +608,6 @@ impl BackendStorage {
         Self::from_payload(
             TensorPayload::new(D::into_buffer(data), shape.clone())?,
             device,
-            requires_grad,
         )
     }
 
@@ -633,12 +615,11 @@ impl BackendStorage {
         data: &[D],
         shape: &Shape,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError>
     where
         D: TensorElement,
     {
-        Self::from_vec(data.to_vec(), shape, device, requires_grad)
+        Self::from_vec(data.to_vec(), shape, device)
     }
 
     pub fn rand<T>(
@@ -646,7 +627,6 @@ impl BackendStorage {
         high: T,
         shape: &Shape,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError>
     where
         T: FloatTensorElement,
@@ -659,26 +639,15 @@ impl BackendStorage {
                 high.to_f64(),
                 shape,
                 device,
-                requires_grad,
             )?)),
-            #[cfg(feature = "native-cpu")]
-            BackendKind::Native => {
-                let count = shape.elem_count();
-                let mut state = 0x1234_5678_9abc_def0u64 ^ count as u64;
-                let span = high.to_f64() - low.to_f64();
-                let values = (0..count)
-                    .map(|_| {
-                        state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
-                        let unit = ((state >> 11) as f64) / ((1u64 << 53) as f64);
-                        low.to_f64() + unit * span
-                    })
-                    .collect::<Vec<_>>();
-                Ok(Self::Native(native::NativeStorage::from_f64_values(
-                    values,
-                    shape,
-                    T::dtype(),
-                )?))
-            }
+            #[cfg(feature = "native")]
+            BackendKind::Native => Ok(Self::Native(native::NativeStorage::rand(
+                T::dtype(),
+                low.to_f64(),
+                high.to_f64(),
+                shape,
+            )?)),
+            #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
@@ -688,7 +657,6 @@ impl BackendStorage {
         std: T,
         shape: &Shape,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError>
     where
         T: FloatTensorElement,
@@ -701,28 +669,15 @@ impl BackendStorage {
                 std.to_f64(),
                 shape,
                 device,
-                requires_grad,
             )?)),
-            #[cfg(feature = "native-cpu")]
-            BackendKind::Native => {
-                let count = shape.elem_count();
-                let mut state = 0x0fed_cba9_8765_4321u64 ^ count as u64;
-                let mut values = Vec::with_capacity(count);
-                while values.len() < count {
-                    state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
-                    let u1 =
-                        (((state >> 11) as f64) / ((1u64 << 53) as f64)).max(f64::MIN_POSITIVE);
-                    state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
-                    let u2 = ((state >> 11) as f64) / ((1u64 << 53) as f64);
-                    let z0 = (-2.0 * u1.ln()).sqrt() * (std::f64::consts::TAU * u2).cos();
-                    values.push(mean.to_f64() + std.to_f64() * z0);
-                }
-                Ok(Self::Native(native::NativeStorage::from_f64_values(
-                    values,
-                    shape,
-                    T::dtype(),
-                )?))
-            }
+            #[cfg(feature = "native")]
+            BackendKind::Native => Ok(Self::Native(native::NativeStorage::randn(
+                T::dtype(),
+                mean.to_f64(),
+                std.to_f64(),
+                shape,
+            )?)),
+            #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
@@ -731,7 +686,6 @@ impl BackendStorage {
         shape: &Shape,
         dtype: DType,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError> {
         match device.backend() {
             #[cfg(feature = "candle")]
@@ -739,10 +693,10 @@ impl BackendStorage {
                 shape,
                 dtype,
                 device,
-                requires_grad,
             )?)),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             BackendKind::Native => Ok(Self::Native(native::NativeStorage::zeros(shape, dtype)?)),
+            #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
@@ -751,7 +705,6 @@ impl BackendStorage {
         shape: &Shape,
         dtype: DType,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError> {
         match device.backend() {
             #[cfg(feature = "candle")]
@@ -759,10 +712,10 @@ impl BackendStorage {
                 shape,
                 dtype,
                 device,
-                requires_grad,
             )?)),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             BackendKind::Native => Ok(Self::Native(native::NativeStorage::ones(shape, dtype)?)),
+            #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
@@ -793,9 +746,8 @@ impl BackendStorage {
         match self {
             #[cfg(feature = "candle")]
             Self::Candle(storage) => storage.to_tensor_buffer(),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             Self::Native(storage) => storage.to_tensor_buffer(),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
         }
     }
 
@@ -810,14 +762,18 @@ impl BackendStorage {
                     .iter()
                     .map(|storage| match storage {
                         Self::Candle(storage) => Ok(storage.clone()),
-                        _ => Err(BackendError::NoBackendEnabled),
+                        #[cfg(all(feature = "candle", feature = "native"))]
+                        _ => Err(BackendError::BackendMismatch {
+                            expected: BackendKind::Candle,
+                            found: storage.backend_kind().unwrap_or(BackendKind::Candle),
+                        }),
                     })
                     .collect::<Result<Vec<_>, BackendError>>()?;
                 return Ok(Self::Candle(candle::CandleStorage::stack(&tensors, dim)?));
             }
         }
 
-        #[cfg(feature = "native-cpu")]
+        #[cfg(feature = "native")]
         {
             if tensors
                 .iter()
@@ -827,7 +783,11 @@ impl BackendStorage {
                     .iter()
                     .map(|storage| match storage {
                         Self::Native(storage) => Ok(storage.clone()),
-                        _ => Err(BackendError::NoBackendEnabled),
+                        #[cfg(all(feature = "candle", feature = "native"))]
+                        _ => Err(BackendError::BackendMismatch {
+                            expected: BackendKind::Native,
+                            found: storage.backend_kind().unwrap_or(BackendKind::Native),
+                        }),
                     })
                     .collect::<Result<Vec<_>, BackendError>>()?;
                 return Ok(Self::Native(native::NativeStorage::stack(&tensors, dim)?));
@@ -835,7 +795,9 @@ impl BackendStorage {
         }
 
         let _ = (tensors, dim);
-        Err(BackendError::NoBackendEnabled)
+        Err(BackendError::InvalidOperation(
+            "stack requires all tensors to use the same backend".to_string(),
+        ))
     }
 
     pub fn cat(tensors: &[Self], dim: usize) -> Result<Self, BackendError> {
@@ -849,14 +811,18 @@ impl BackendStorage {
                     .iter()
                     .map(|storage| match storage {
                         Self::Candle(storage) => Ok(storage.clone()),
-                        _ => Err(BackendError::NoBackendEnabled),
+                        #[cfg(all(feature = "candle", feature = "native"))]
+                        _ => Err(BackendError::BackendMismatch {
+                            expected: BackendKind::Candle,
+                            found: storage.backend_kind().unwrap_or(BackendKind::Candle),
+                        }),
                     })
                     .collect::<Result<Vec<_>, BackendError>>()?;
                 return Ok(Self::Candle(candle::CandleStorage::cat(&tensors, dim)?));
             }
         }
 
-        #[cfg(feature = "native-cpu")]
+        #[cfg(feature = "native")]
         {
             if tensors
                 .iter()
@@ -866,7 +832,11 @@ impl BackendStorage {
                     .iter()
                     .map(|storage| match storage {
                         Self::Native(storage) => Ok(storage.clone()),
-                        _ => Err(BackendError::NoBackendEnabled),
+                        #[cfg(all(feature = "candle", feature = "native"))]
+                        _ => Err(BackendError::BackendMismatch {
+                            expected: BackendKind::Native,
+                            found: storage.backend_kind().unwrap_or(BackendKind::Native),
+                        }),
                     })
                     .collect::<Result<Vec<_>, BackendError>>()?;
                 return Ok(Self::Native(native::NativeStorage::cat(&tensors, dim)?));
@@ -874,63 +844,35 @@ impl BackendStorage {
         }
 
         let _ = (tensors, dim);
-        Err(BackendError::NoBackendEnabled)
+        Err(BackendError::InvalidOperation(
+            "cat requires all tensors to use the same backend".to_string(),
+        ))
     }
 
     pub fn backend_kind(&self) -> Result<BackendKind, BackendError> {
         match self {
             #[cfg(feature = "candle")]
             Self::Candle(_) => Ok(BackendKind::Candle),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             Self::Native(_) => Ok(BackendKind::Native),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
-    }
-
-    pub fn copy_detached(&self) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.copy_detached()?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.copy_detached()?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
         }
     }
 
     pub fn detach(&self) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.detach()?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.detach()?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        Ok(self.clone())
     }
 
-    pub fn with_requires_grad(&self, _requires_grad: bool) -> Result<Self, BackendError> {
-        self.copy_detached()
-    }
-
-    pub fn assign_from(&mut self, other: &Self, requires_grad: bool) -> Result<(), BackendError> {
-        match (self, other) {
-            #[cfg(feature = "candle")]
-            (Self::Candle(lhs), Self::Candle(rhs)) => lhs.assign_from(rhs, requires_grad),
-            #[cfg(feature = "native-cpu")]
-            (Self::Native(lhs), Self::Native(rhs)) => lhs.assign_from(rhs),
-            (lhs, rhs) => Err(BackendError::BackendMismatch {
-                expected: lhs.backend_kind().unwrap_or(BackendKind::Candle),
-                found: rhs.backend_kind().unwrap_or(BackendKind::Candle),
-            }),
-        }
+    pub fn assign_from(&mut self, other: &Self) -> Result<(), BackendError> {
+        *self = other.clone();
+        Ok(())
     }
 
     pub fn dtype(&self) -> Result<DType, BackendError> {
         match self {
             #[cfg(feature = "candle")]
             Self::Candle(storage) => Ok(storage.dtype()),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             Self::Native(storage) => Ok(storage.dtype()),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
         }
     }
 
@@ -938,9 +880,8 @@ impl BackendStorage {
         match self {
             #[cfg(feature = "candle")]
             Self::Candle(storage) => Ok(storage.shape()),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             Self::Native(storage) => Ok(storage.shape()),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
         }
     }
 
@@ -948,9 +889,8 @@ impl BackendStorage {
         match self {
             #[cfg(feature = "candle")]
             Self::Candle(storage) => storage.zero_set(),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             Self::Native(storage) => storage.zero_set(),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
         }
     }
 
@@ -958,11 +898,29 @@ impl BackendStorage {
         match self {
             #[cfg(feature = "candle")]
             Self::Candle(storage) => storage.fmt(f),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             Self::Native(storage) => storage.fmt(f),
-            Self::Unavailable => write!(f, "<unavailable backend storage>"),
         }
     }
+}
+
+macro_rules! dispatch {
+    ($self:ident, $method:ident $(,)?) => {
+        match $self {
+            #[cfg(feature = "candle")]
+            Self::Candle(storage) => Ok(Self::Candle(storage.$method()?)),
+            #[cfg(feature = "native")]
+            Self::Native(storage) => Ok(Self::Native(storage.$method()?)),
+        }
+    };
+    ($self:ident, $method:ident, $($arg:expr),+ $(,)?) => {
+        match $self {
+            #[cfg(feature = "candle")]
+            Self::Candle(storage) => Ok(Self::Candle(storage.$method($($arg),+)?)),
+            #[cfg(feature = "native")]
+            Self::Native(storage) => Ok(Self::Native(storage.$method($($arg),+)?)),
+        }
+    };
 }
 
 macro_rules! backend_unary_methods {
@@ -973,9 +931,9 @@ macro_rules! backend_unary_methods {
                     match self {
                         #[cfg(feature = "candle")]
                         Self::Candle(storage) => Ok(Self::Candle(storage.$method()?)),
-                        #[cfg(feature = "native-cpu")]
+                        #[cfg(feature = "native")]
                         Self::Native(storage) => Ok(Self::Native(storage.$method()?)),
-                        Self::Unavailable => Err(BackendError::NoBackendEnabled),
+
                     }
                 }
             )+
@@ -991,19 +949,18 @@ macro_rules! backend_binary_methods {
                     match (self, rhs) {
                         #[cfg(feature = "candle")]
                         (Self::Candle(lhs), Self::Candle(rhs)) => Ok(Self::Candle(lhs.$method(rhs)?)),
-                        #[cfg(feature = "native-cpu")]
+                        #[cfg(feature = "native")]
                         (Self::Native(lhs), Self::Native(rhs)) => Ok(Self::Native(lhs.$method(rhs)?)),
-                        #[cfg(feature = "candle")]
+                        #[cfg(all(feature = "candle", feature = "native"))]
                         (Self::Candle(_), other) => Err(BackendError::BackendMismatch {
                             expected: BackendKind::Candle,
                             found: other.backend_kind().unwrap_or(BackendKind::Candle),
                         }),
-                        #[cfg(feature = "native-cpu")]
+                        #[cfg(all(feature = "candle", feature = "native"))]
                         (Self::Native(_), other) => Err(BackendError::BackendMismatch {
                             expected: BackendKind::Native,
                             found: other.backend_kind().unwrap_or(BackendKind::Native),
                         }),
-                        _ => Err(BackendError::NoBackendEnabled),
                     }
                 }
             )+
@@ -1054,315 +1011,140 @@ impl BackendStorage {
             (Self::Candle(storage), BackendKind::Candle) => {
                 Ok(Self::Candle(storage.to_device(device)?))
             }
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             (Self::Native(storage), BackendKind::Native) if device.kind() == DeviceKind::Cpu => {
-                Ok(Self::Native(storage.copy_detached()?))
+                Ok(Self::Native(storage.clone()))
             }
-            #[cfg(all(feature = "candle", feature = "native-cpu"))]
+            #[cfg(all(feature = "candle", feature = "native"))]
             (Self::Native(storage), BackendKind::Candle) => {
                 let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
                 Ok(Self::Candle(candle::CandleStorage::from_payload(
-                    &payload, device, false,
+                    &payload, device,
                 )?))
             }
-            #[cfg(all(feature = "candle", feature = "native-cpu"))]
+            #[cfg(all(feature = "candle", feature = "native"))]
             (Self::Candle(storage), BackendKind::Native) if device.kind() == DeviceKind::Cpu => {
                 let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
                 Ok(Self::Native(native::NativeStorage::from_payload(&payload)?))
             }
-            (Self::Unavailable, _) => Err(BackendError::NoBackendEnabled),
             (_, backend) => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
 
     pub fn to_dtype(&self, dtype: DType) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.to_dtype(dtype)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.to_dtype(dtype)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, to_dtype, dtype)
     }
 
     pub fn reshape(&self, shape: &Shape) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.reshape(shape)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.reshape(shape)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, reshape, shape)
     }
 
     pub fn broadcast_as(&self, shape: &Shape) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.broadcast_as(shape)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.broadcast_as(shape)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, broadcast_as, shape)
     }
 
     pub fn flatten_from(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.flatten_from(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.flatten_from(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, flatten_from, dim)
     }
 
     pub fn flatten_to(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.flatten_to(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.flatten_to(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, flatten_to, dim)
     }
 
     pub fn flatten(&self, start: usize, end: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.flatten(start, end)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.flatten(start, end)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, flatten, start, end)
     }
 
     pub fn squeeze(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.squeeze(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.squeeze(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, squeeze, dim)
     }
 
     pub fn unsqueeze(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.unsqueeze(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.unsqueeze(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, unsqueeze, dim)
     }
 
     pub fn transpose(&self, dim0: usize, dim1: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.transpose(dim0, dim1)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.transpose(dim0, dim1)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, transpose, dim0, dim1)
     }
 
     pub fn contiguous(&self) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.contiguous()?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.contiguous()?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, contiguous)
     }
 
     pub fn permute(&self, dims: &[usize]) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.permute(dims)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.permute(dims)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, permute, dims)
     }
 
     pub fn narrow(&self, dim: usize, start: usize, length: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.narrow(dim, start, length)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.narrow(dim, start, length)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, narrow, dim, start, length)
     }
 
     pub fn affine(&self, weight: f64, bias: f64) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.affine(weight, bias)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.affine(weight, bias)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, affine, weight, bias)
     }
 
     pub fn clamp(&self, min: f64, max: f64) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.clamp(min, max)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.clamp(min, max)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, clamp, min, max)
     }
 
     pub fn powf(&self, exponent: f64) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.powf(exponent)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.powf(exponent)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, powf, exponent)
     }
 
     pub fn sum(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.sum(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.sum(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, sum, dim)
     }
 
     pub fn sum_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.sum_keepdim(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.sum_keepdim(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, sum_keepdim, dim)
     }
 
     pub fn max(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.max(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.max(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, max, dim)
     }
 
     pub fn max_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.max_keepdim(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.max_keepdim(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, max_keepdim, dim)
     }
 
     pub fn min(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.min(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.min(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, min, dim)
     }
 
     pub fn min_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.min_keepdim(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.min_keepdim(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, min_keepdim, dim)
     }
 
     pub fn mean(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.mean(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.mean(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, mean, dim)
     }
 
     pub fn mean_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.mean_keepdim(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.mean_keepdim(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, mean_keepdim, dim)
     }
 
     pub fn var(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.var(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.var(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, var, dim)
     }
 
     pub fn var_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.var_keepdim(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.var_keepdim(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, var_keepdim, dim)
     }
 
     pub fn argmax(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.argmax(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.argmax(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, argmax, dim)
     }
 
     pub fn argmax_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.argmax_keepdim(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.argmax_keepdim(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, argmax_keepdim, dim)
     }
 
     pub fn argmin(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.argmin(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.argmin(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, argmin, dim)
     }
 
     pub fn argmin_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        match self {
-            #[cfg(feature = "candle")]
-            Self::Candle(storage) => Ok(Self::Candle(storage.argmin_keepdim(dim)?)),
-            #[cfg(feature = "native-cpu")]
-            Self::Native(storage) => Ok(Self::Native(storage.argmin_keepdim(dim)?)),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
-        }
+        dispatch!(self, argmin_keepdim, dim)
     }
 
     pub fn conv1d(
@@ -1378,11 +1160,20 @@ impl BackendStorage {
             (Self::Candle(lhs), Self::Candle(rhs)) => Ok(Self::Candle(
                 lhs.conv1d(rhs, padding, stride, dilation, groups)?,
             )),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             (Self::Native(lhs), Self::Native(rhs)) => Ok(Self::Native(
                 lhs.conv1d(rhs, padding, stride, dilation, groups)?,
             )),
-            _ => Err(BackendError::NoBackendEnabled),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Candle(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Candle,
+                found: other.backend_kind().unwrap_or(BackendKind::Candle),
+            }),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Native(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Native,
+                found: other.backend_kind().unwrap_or(BackendKind::Native),
+            }),
         }
     }
 
@@ -1399,11 +1190,20 @@ impl BackendStorage {
             (Self::Candle(lhs), Self::Candle(rhs)) => Ok(Self::Candle(
                 lhs.conv2d(rhs, padding, stride, dilation, groups)?,
             )),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             (Self::Native(lhs), Self::Native(rhs)) => Ok(Self::Native(
                 lhs.conv2d(rhs, padding, stride, dilation, groups)?,
             )),
-            _ => Err(BackendError::NoBackendEnabled),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Candle(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Candle,
+                found: other.backend_kind().unwrap_or(BackendKind::Candle),
+            }),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Native(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Native,
+                found: other.backend_kind().unwrap_or(BackendKind::Native),
+            }),
         }
     }
 
@@ -1417,11 +1217,10 @@ impl BackendStorage {
             Self::Candle(storage) => Ok(Self::Candle(
                 storage.max_pool2d_with_stride(kernel_size, stride)?,
             )),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             Self::Native(storage) => Ok(Self::Native(
                 storage.max_pool2d_with_stride(kernel_size, stride)?,
             )),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
         }
     }
 
@@ -1435,11 +1234,10 @@ impl BackendStorage {
             Self::Candle(storage) => Ok(Self::Candle(
                 storage.avg_pool2d_with_stride(kernel_size, stride)?,
             )),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             Self::Native(storage) => Ok(Self::Native(
                 storage.avg_pool2d_with_stride(kernel_size, stride)?,
             )),
-            Self::Unavailable => Err(BackendError::NoBackendEnabled),
         }
     }
 
@@ -1447,9 +1245,18 @@ impl BackendStorage {
         match (self, indexes) {
             #[cfg(feature = "candle")]
             (Self::Candle(lhs), Self::Candle(rhs)) => Ok(Self::Candle(lhs.gather(rhs, dim)?)),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             (Self::Native(lhs), Self::Native(rhs)) => Ok(Self::Native(lhs.gather(rhs, dim)?)),
-            _ => Err(BackendError::NoBackendEnabled),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Candle(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Candle,
+                found: other.backend_kind().unwrap_or(BackendKind::Candle),
+            }),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Native(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Native,
+                found: other.backend_kind().unwrap_or(BackendKind::Native),
+            }),
         }
     }
 
@@ -1457,9 +1264,18 @@ impl BackendStorage {
         match (self, indexes) {
             #[cfg(feature = "candle")]
             (Self::Candle(lhs), Self::Candle(rhs)) => Ok(Self::Candle(lhs.index_select(rhs, dim)?)),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             (Self::Native(lhs), Self::Native(rhs)) => Ok(Self::Native(lhs.index_select(rhs, dim)?)),
-            _ => Err(BackendError::NoBackendEnabled),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Candle(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Candle,
+                found: other.backend_kind().unwrap_or(BackendKind::Candle),
+            }),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Native(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Native,
+                found: other.backend_kind().unwrap_or(BackendKind::Native),
+            }),
         }
     }
 
@@ -1473,11 +1289,20 @@ impl BackendStorage {
             (Self::Candle(condition), Self::Candle(true_value), Self::Candle(false_value)) => {
                 Ok(Self::Candle(condition.where_cond(true_value, false_value)?))
             }
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             (Self::Native(condition), Self::Native(true_value), Self::Native(false_value)) => {
                 Ok(Self::Native(condition.where_cond(true_value, false_value)?))
             }
-            _ => Err(BackendError::NoBackendEnabled),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Candle(_), _, _) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Candle,
+                found: BackendKind::Native,
+            }),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Native(_), _, _) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Native,
+                found: BackendKind::Candle,
+            }),
         }
     }
 }
@@ -1555,10 +1380,11 @@ pub fn load_safetensors(
     match device.backend() {
         #[cfg(feature = "candle")]
         BackendKind::Candle => candle::load_safetensors(file_path, device),
+        #[cfg(not(feature = "candle"))]
+        BackendKind::Candle => Err(BackendError::UnsupportedBackend(BackendKind::Candle)),
         BackendKind::Native => Err(BackendError::UnsupportedOperation {
             backend: BackendKind::Native,
             operation: "load_safetensors".to_string(),
         }),
-        backend => Err(BackendError::UnsupportedBackend(backend)),
     }
 }

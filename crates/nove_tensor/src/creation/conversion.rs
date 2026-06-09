@@ -95,7 +95,7 @@ impl Tensor {
     where
         A: IntoTensorPayload,
     {
-        let storage = BackendStorage::from_data(data, device, requires_grad)?;
+        let storage = BackendStorage::from_data(data, device)?;
         Ok(Self::from_backend_storage(
             storage,
             device.clone(),
@@ -140,7 +140,7 @@ impl Tensor {
     where
         D: TensorElement,
     {
-        let storage = BackendStorage::from_vec(data, shape, device, requires_grad)?;
+        let storage = BackendStorage::from_vec(data, shape, device)?;
         Ok(Self::from_backend_storage(
             storage,
             device.clone(),
@@ -185,7 +185,7 @@ impl Tensor {
     where
         D: TensorElement,
     {
-        let storage = BackendStorage::from_slice(data, shape, device, requires_grad)?;
+        let storage = BackendStorage::from_slice(data, shape, device)?;
         Ok(Self::from_backend_storage(
             storage,
             device.clone(),

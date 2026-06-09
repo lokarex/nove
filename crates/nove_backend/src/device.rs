@@ -467,7 +467,7 @@ impl Default for Device {
 
 /// Nove native device constructors.
 pub mod native {
-    #[cfg(feature = "native-cpu")]
+    #[cfg(feature = "native")]
     use super::{BackendKind, DeviceKind};
     use super::{Device, DeviceError};
 

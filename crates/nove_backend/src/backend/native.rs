@@ -86,11 +86,44 @@ impl NativeStorage {
         .map_err(backend_error)
     }
 
-    pub(crate) fn from_f64_values(
-        values: Vec<f64>,
-        shape: &Shape,
+    pub(crate) fn rand(
         dtype: DType,
+        low: f64,
+        high: f64,
+        shape: &Shape,
     ) -> Result<Self, BackendError> {
+        let count = shape.elem_count();
+        let mut state = 0x1234_5678_9abc_def0u64 ^ count as u64;
+        let span = high - low;
+        let values = (0..count)
+            .map(|_| {
+                state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let unit = ((state >> 11) as f64) / ((1u64 << 53) as f64);
+                low + unit * span
+            })
+            .collect::<Vec<_>>();
+        nove_native::cpu::CpuStorage::from_f64_values(values, shape.dims(), to_cpu_dtype(dtype)?)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+
+    pub(crate) fn randn(
+        dtype: DType,
+        mean: f64,
+        std: f64,
+        shape: &Shape,
+    ) -> Result<Self, BackendError> {
+        let count = shape.elem_count();
+        let mut state = 0x0fed_cba9_8765_4321u64 ^ count as u64;
+        let mut values = Vec::with_capacity(count);
+        while values.len() < count {
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let u1 = (((state >> 11) as f64) / ((1u64 << 53) as f64)).max(f64::MIN_POSITIVE);
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let u2 = ((state >> 11) as f64) / ((1u64 << 53) as f64);
+            let z0 = (-2.0 * u1.ln()).sqrt() * (std::f64::consts::TAU * u2).cos();
+            values.push(mean + std * z0);
+        }
         nove_native::cpu::CpuStorage::from_f64_values(values, shape.dims(), to_cpu_dtype(dtype)?)
             .map(Self::new)
             .map_err(backend_error)
@@ -118,18 +151,6 @@ impl NativeStorage {
 
     pub(crate) fn dtype(&self) -> DType {
         from_cpu_dtype(self.0.dtype())
-    }
-
-    pub(crate) fn copy_detached(&self) -> Result<Self, BackendError> {
-        self.0.copy_detached().map(Self::new).map_err(backend_error)
-    }
-
-    pub(crate) fn detach(&self) -> Result<Self, BackendError> {
-        self.0.detach().map(Self::new).map_err(backend_error)
-    }
-
-    pub(crate) fn assign_from(&mut self, other: &Self) -> Result<(), BackendError> {
-        self.0.assign_from(&other.0).map_err(backend_error)
     }
 
     pub(crate) fn zero_set(&mut self) -> Result<(), BackendError> {

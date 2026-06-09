@@ -254,7 +254,7 @@ impl Tensor {
     pub fn try_clone(&self) -> Result<Self, TensorError> {
         let data = self.data.read()?;
         Ok(Tensor::from_backend_parts(
-            data.storage.copy_detached()?,
+            data.storage.clone(),
             data.device.clone(),
             data.requires_grad,
             vec![],
@@ -303,7 +303,7 @@ impl Tensor {
         let requires_grad = self_data.requires_grad;
         self_data
             .storage
-            .assign_from(&other_storage, requires_grad)?;
+            .assign_from(&other_storage)?;
         if !requires_grad {
             self_data.grad = None;
             self_data.graph.clear_parents();

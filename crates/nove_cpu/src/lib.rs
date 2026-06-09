@@ -336,22 +336,6 @@ impl CpuStorage {
         &self.buffer
     }
 
-    /// Returns a detached copy.
-    pub fn copy_detached(&self) -> CpuResult<Self> {
-        Ok(self.clone())
-    }
-
-    /// Returns a detached view.
-    pub fn detach(&self) -> CpuResult<Self> {
-        Ok(self.clone())
-    }
-
-    /// Updates this storage from another storage.
-    pub fn assign_from(&mut self, other: &Self) -> CpuResult<()> {
-        *self = other.clone();
-        Ok(())
-    }
-
     /// Sets all values to zero in place.
     pub fn zero_set(&mut self) -> CpuResult<()> {
         self.buffer = match self.dtype() {

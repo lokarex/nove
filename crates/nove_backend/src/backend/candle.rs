@@ -58,24 +58,13 @@ impl CandleStorage {
     pub(crate) fn from_payload(
         payload: &TensorPayload,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError> {
         match payload.buffer() {
-            TensorBuffer::U8(data) => {
-                Self::from_slice(data, payload.shape(), device, requires_grad)
-            }
-            TensorBuffer::U32(data) => {
-                Self::from_slice(data, payload.shape(), device, requires_grad)
-            }
-            TensorBuffer::I64(data) => {
-                Self::from_slice(data, payload.shape(), device, requires_grad)
-            }
-            TensorBuffer::F32(data) => {
-                Self::from_slice(data, payload.shape(), device, requires_grad)
-            }
-            TensorBuffer::F64(data) => {
-                Self::from_slice(data, payload.shape(), device, requires_grad)
-            }
+            TensorBuffer::U8(data) => Self::from_slice(data, payload.shape(), device),
+            TensorBuffer::U32(data) => Self::from_slice(data, payload.shape(), device),
+            TensorBuffer::I64(data) => Self::from_slice(data, payload.shape(), device),
+            TensorBuffer::F32(data) => Self::from_slice(data, payload.shape(), device),
+            TensorBuffer::F64(data) => Self::from_slice(data, payload.shape(), device),
         }
     }
 
@@ -85,11 +74,10 @@ impl CandleStorage {
         high: f64,
         shape: &Shape,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError> {
         match dtype {
-            DType::F32 => Self::rand_typed(low as f32, high as f32, shape, device, requires_grad),
-            DType::F64 => Self::rand_typed(low, high, shape, device, requires_grad),
+            DType::F32 => Self::rand_typed(low as f32, high as f32, shape, device),
+            DType::F64 => Self::rand_typed(low, high, shape, device),
             dtype => Err(BackendError::UnsupportedDType {
                 backend: BackendKind::Candle,
                 dtype,
@@ -103,11 +91,10 @@ impl CandleStorage {
         std: f64,
         shape: &Shape,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError> {
         match dtype {
-            DType::F32 => Self::randn_typed(mean as f32, std as f32, shape, device, requires_grad),
-            DType::F64 => Self::randn_typed(mean, std, shape, device, requires_grad),
+            DType::F32 => Self::randn_typed(mean as f32, std as f32, shape, device),
+            DType::F64 => Self::randn_typed(mean, std, shape, device),
             dtype => Err(BackendError::UnsupportedDType {
                 backend: BackendKind::Candle,
                 dtype,
@@ -119,13 +106,12 @@ impl CandleStorage {
         data: &[D],
         shape: &Shape,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError>
     where
         D: nove_candle::CandleWithDType,
     {
         let device = to_candle_device(device)?;
-        nove_candle::CandleStorage::from_slice(data, shape.dims(), &device, requires_grad)
+        nove_candle::CandleStorage::from_slice(data, shape.dims(), &device)
             .map(Self::new)
             .map_err(backend_error)
     }
@@ -135,13 +121,12 @@ impl CandleStorage {
         high: T,
         shape: &Shape,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError>
     where
         T: nove_candle::CandleFloatDType,
     {
         let device = to_candle_device(device)?;
-        nove_candle::CandleStorage::rand(low, high, shape.dims(), &device, requires_grad)
+        nove_candle::CandleStorage::rand(low, high, shape.dims(), &device)
             .map(Self::new)
             .map_err(backend_error)
     }
@@ -151,13 +136,12 @@ impl CandleStorage {
         std: T,
         shape: &Shape,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError>
     where
         T: nove_candle::CandleFloatDType,
     {
         let device = to_candle_device(device)?;
-        nove_candle::CandleStorage::randn(mean, std, shape.dims(), &device, requires_grad)
+        nove_candle::CandleStorage::randn(mean, std, shape.dims(), &device)
             .map(Self::new)
             .map_err(backend_error)
     }
@@ -166,14 +150,12 @@ impl CandleStorage {
         shape: &Shape,
         dtype: DType,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError> {
         let device = to_candle_device(device)?;
         nove_candle::CandleStorage::zeros(
             shape.dims(),
             to_candle_dtype(dtype),
             &device,
-            requires_grad,
         )
         .map(Self::new)
         .map_err(backend_error)
@@ -183,14 +165,12 @@ impl CandleStorage {
         shape: &Shape,
         dtype: DType,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError> {
         let device = to_candle_device(device)?;
         nove_candle::CandleStorage::ones(
             shape.dims(),
             to_candle_dtype(dtype),
             &device,
-            requires_grad,
         )
         .map(Self::new)
         .map_err(backend_error)
@@ -199,10 +179,9 @@ impl CandleStorage {
     pub(crate) fn from_candle_tensor(
         tensor: nove_candle::CandleTensor,
         device: &Device,
-        requires_grad: bool,
     ) -> Result<Self, BackendError> {
         let device = to_candle_device(device)?;
-        nove_candle::CandleStorage::from_candle_tensor(tensor, &device, requires_grad)
+        nove_candle::CandleStorage::from_candle_tensor(tensor, &device)
             .map(Self::new)
             .map_err(backend_error)
     }
@@ -211,32 +190,8 @@ impl CandleStorage {
         self.inner().to_candle_tensor().map_err(backend_error)
     }
 
-    pub(crate) fn copy_detached(&self) -> Result<Self, BackendError> {
-        self.inner()
-            .copy_detached()
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn detach(&self) -> Result<Self, BackendError> {
-        self.inner().detach().map(Self::new).map_err(backend_error)
-    }
-
-    pub(crate) fn with_requires_grad(&self, requires_grad: bool) -> Result<Self, BackendError> {
-        self.inner()
-            .with_requires_grad(requires_grad)
-            .map(Self::new)
-            .map_err(backend_error)
-    }
-
-    pub(crate) fn assign_from(
-        &mut self,
-        other: &Self,
-        requires_grad: bool,
-    ) -> Result<(), BackendError> {
-        self.0
-            .assign_from(other.inner(), requires_grad)
-            .map_err(backend_error)
+    pub(crate) fn assign_from(&mut self, other: &Self) -> Result<(), BackendError> {
+        self.0.assign_from(other.inner()).map_err(backend_error)
     }
 
     pub(crate) fn dtype(&self) -> DType {
@@ -696,14 +651,13 @@ pub(crate) fn save_safetensors(
         .into_iter()
         .map(|(name, storage)| match storage {
             BackendStorage::Candle(storage) => Ok((name, storage.into_inner())),
-            #[cfg(feature = "native-cpu")]
+            #[cfg(feature = "native")]
             BackendStorage::Native(storage) => {
                 let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
                 let device = Device::new(BackendKind::Candle, DeviceKind::Cpu, 0);
-                let storage = CandleStorage::from_payload(&payload, &device, false)?;
+                let storage = CandleStorage::from_payload(&payload, &device)?;
                 Ok((name, storage.into_inner()))
             }
-            BackendStorage::Unavailable => Err(BackendError::NoBackendEnabled),
         })
         .collect::<Result<HashMap<_, _>, BackendError>>()?;
     nove_candle::save_safetensors(file_path, tensors).map_err(backend_error)
@@ -734,7 +688,6 @@ pub(crate) fn load_safetensors(
 /// # Arguments
 /// * `tensor` - Candle tensor to copy into backend storage.
 /// * `device` - Target Nove device descriptor.
-/// * `requires_grad` - Whether Nove should mark the created tensor as requiring gradients.
 ///
 /// # Returns
 /// * `Ok(BackendStorage)` - Candle-backed storage wrapping a detached Candle tensor.
@@ -750,7 +703,7 @@ pub(crate) fn load_safetensors(
 ///     let candle_device = device.to_candle_device().unwrap();
 ///     let tensor = CandleTensor::from_slice(&[1.0f32, 2.0], &[2], &candle_device).unwrap();
 ///
-///     let storage = candle::storage_from_candle_tensor(tensor, &device, false).unwrap();
+///     let storage = candle::storage_from_candle_tensor(tensor, &device).unwrap();
 ///     let roundtrip = candle::storage_to_candle_tensor(&storage).unwrap();
 ///
 ///     assert_eq!(roundtrip.dims(), &[2]);
@@ -759,12 +712,10 @@ pub(crate) fn load_safetensors(
 pub fn storage_from_candle_tensor(
     tensor: nove_candle::CandleTensor,
     device: &Device,
-    requires_grad: bool,
 ) -> Result<BackendStorage, BackendError> {
     Ok(BackendStorage::Candle(CandleStorage::from_candle_tensor(
         tensor,
         device,
-        requires_grad,
     )?))
 }
 
@@ -788,7 +739,7 @@ pub fn storage_from_candle_tensor(
 ///
 /// #[cfg(feature = "candle-cpu")] {
 ///     let device = device::candle::cpu().unwrap();
-///     let storage = BackendStorage::ones(&Shape::from_dims(&[2]), DType::F32, &device, false).unwrap();
+///     let storage = BackendStorage::ones(&Shape::from_dims(&[2]), DType::F32, &device).unwrap();
 ///     let candle_tensor = nove_backend::backend::candle::storage_to_candle_tensor(&storage).unwrap();
 ///
 ///     assert_eq!(candle_tensor.dims(), &[2]);
@@ -799,13 +750,12 @@ pub fn storage_to_candle_tensor(
 ) -> Result<nove_candle::CandleTensor, BackendError> {
     match storage {
         BackendStorage::Candle(storage) => storage.to_candle_tensor(),
-        #[cfg(feature = "native-cpu")]
+        #[cfg(feature = "native")]
         BackendStorage::Native(storage) => {
             let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
             let device = Device::new(BackendKind::Candle, DeviceKind::Cpu, 0);
-            CandleStorage::from_payload(&payload, &device, false)?.to_candle_tensor()
+            CandleStorage::from_payload(&payload, &device)?.to_candle_tensor()
         }
-        BackendStorage::Unavailable => Err(BackendError::NoBackendEnabled),
     }
 }
 

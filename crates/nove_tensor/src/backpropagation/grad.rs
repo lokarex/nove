@@ -61,7 +61,7 @@ impl Tensor {
         }
 
         let data = self.data.read()?;
-        let storage = data.storage.with_requires_grad(requires_grad)?;
+        let storage = data.storage.clone();
         let device = data.device.clone();
         let name = data.name.clone();
         drop(data);

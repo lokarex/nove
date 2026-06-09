@@ -27,6 +27,12 @@
 //! assert_eq!(payload.shape().dims(), &[2, 2]);
 //! ```
 
+#[cfg(not(any(feature = "candle", feature = "native")))]
+compile_error!(
+    "At least one backend feature must be enabled; \
+     enable one of: candle, candle-cpu, candle-cuda, candle-metal, native-cpu"
+);
+
 pub mod device;
 pub use device::{Device, DeviceError, DeviceKind};
 
