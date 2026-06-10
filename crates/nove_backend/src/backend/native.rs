@@ -82,40 +82,60 @@ impl NativeStorage {
 
 macro_rules! cpu_unary_methods {
     ($($method:ident),+ $(,)?) => {
-        impl super::Backend for NativeStorage {
-            $(
-                fn $method(&self) -> Result<Self, BackendError> {
-                    self.0.$method().map(Self::new).map_err(backend_error)
-                }
-            )+
-        }
+        $(
+            fn $method(&self) -> Result<Self, BackendError> {
+                self.0.$method().map(Self::new).map_err(backend_error)
+            }
+        )+
     };
 }
 
 macro_rules! cpu_binary_methods {
     ($($method:ident),+ $(,)?) => {
-        impl super::Backend for NativeStorage {
-            $(
-                fn $method(&self, rhs: &Self) -> Result<Self, BackendError> {
-                    self.0.$method(&rhs.0).map(Self::new).map_err(backend_error)
-                }
-            )+
-        }
+        $(
+            fn $method(&self, rhs: &Self) -> Result<Self, BackendError> {
+                self.0.$method(&rhs.0).map(Self::new).map_err(backend_error)
+            }
+        )+
     };
 }
 
-cpu_unary_methods!(
-    zeros_like, ones_like, relu, silu, gelu, tanh, exp, log, sqrt,
-    recip, abs, neg, sum_all, max_all, min_all, mean_all, flatten_all,
-);
-
-cpu_binary_methods!(
-    broadcast_add, broadcast_mul, broadcast_div, broadcast_sub,
-    broadcast_eq, broadcast_ne, broadcast_gt, broadcast_lt,
-    broadcast_ge, broadcast_le, broadcast_matmul, broadcast_pow, embedding,
-);
-
 impl super::Backend for NativeStorage {
+    cpu_unary_methods!(
+        zeros_like,
+        ones_like,
+        relu,
+        silu,
+        gelu,
+        tanh,
+        exp,
+        log,
+        sqrt,
+        recip,
+        abs,
+        neg,
+        sum_all,
+        max_all,
+        min_all,
+        mean_all,
+        flatten_all,
+    );
+
+    cpu_binary_methods!(
+        broadcast_add,
+        broadcast_mul,
+        broadcast_div,
+        broadcast_sub,
+        broadcast_eq,
+        broadcast_ne,
+        broadcast_gt,
+        broadcast_lt,
+        broadcast_ge,
+        broadcast_le,
+        broadcast_matmul,
+        broadcast_pow,
+        embedding,
+    );
     fn from_payload(payload: &TensorPayload, _device: &Device) -> Result<Self, BackendError> {
         nove_native::cpu::CpuStorage::from_buffer(
             to_cpu_buffer(payload.buffer()),
@@ -179,28 +199,44 @@ impl super::Backend for NativeStorage {
 
     fn stack(tensors: &[Self], dim: usize) -> Result<Self, BackendError> {
         let tensors = tensors.iter().map(|s| s.0.clone()).collect::<Vec<_>>();
-        nove_native::cpu::CpuStorage::stack(&tensors, dim).map(Self::new).map_err(backend_error)
+        nove_native::cpu::CpuStorage::stack(&tensors, dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn cat(tensors: &[Self], dim: usize) -> Result<Self, BackendError> {
         let tensors = tensors.iter().map(|s| s.0.clone()).collect::<Vec<_>>();
-        nove_native::cpu::CpuStorage::cat(&tensors, dim).map(Self::new).map_err(backend_error)
+        nove_native::cpu::CpuStorage::cat(&tensors, dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn to_dtype(&self, dtype: DType) -> Result<Self, BackendError> {
-        self.0.to_dtype(to_cpu_dtype(dtype)?).map(Self::new).map_err(backend_error)
+        self.0
+            .to_dtype(to_cpu_dtype(dtype)?)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn reshape(&self, shape: &Shape) -> Result<Self, BackendError> {
-        self.0.reshape(shape.dims()).map(Self::new).map_err(backend_error)
+        self.0
+            .reshape(shape.dims())
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn broadcast_as(&self, shape: &Shape) -> Result<Self, BackendError> {
-        self.0.broadcast_as(shape.dims()).map(Self::new).map_err(backend_error)
+        self.0
+            .broadcast_as(shape.dims())
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn flatten_from(&self, dim: usize) -> Result<Self, BackendError> {
-        self.0.flatten_from(dim).map(Self::new).map_err(backend_error)
+        self.0
+            .flatten_from(dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn flatten_to(&self, dim: usize) -> Result<Self, BackendError> {
@@ -208,7 +244,10 @@ impl super::Backend for NativeStorage {
     }
 
     fn flatten(&self, start: usize, end: usize) -> Result<Self, BackendError> {
-        self.0.flatten(start, end).map(Self::new).map_err(backend_error)
+        self.0
+            .flatten(start, end)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn squeeze(&self, dim: usize) -> Result<Self, BackendError> {
@@ -220,7 +259,10 @@ impl super::Backend for NativeStorage {
     }
 
     fn transpose(&self, dim0: usize, dim1: usize) -> Result<Self, BackendError> {
-        self.0.transpose(dim0, dim1).map(Self::new).map_err(backend_error)
+        self.0
+            .transpose(dim0, dim1)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn contiguous(&self) -> Result<Self, BackendError> {
@@ -232,11 +274,17 @@ impl super::Backend for NativeStorage {
     }
 
     fn narrow(&self, dim: usize, start: usize, length: usize) -> Result<Self, BackendError> {
-        self.0.narrow(dim, start, length).map(Self::new).map_err(backend_error)
+        self.0
+            .narrow(dim, start, length)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn affine(&self, weight: f64, bias: f64) -> Result<Self, BackendError> {
-        self.0.affine(weight, bias).map(Self::new).map_err(backend_error)
+        self.0
+            .affine(weight, bias)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn clamp(&self, min: f64, max: f64) -> Result<Self, BackendError> {
@@ -252,7 +300,10 @@ impl super::Backend for NativeStorage {
     }
 
     fn sum_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.0.sum_keepdim(dim).map(Self::new).map_err(backend_error)
+        self.0
+            .sum_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn max(&self, dim: usize) -> Result<Self, BackendError> {
@@ -260,7 +311,10 @@ impl super::Backend for NativeStorage {
     }
 
     fn max_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.0.max_keepdim(dim).map(Self::new).map_err(backend_error)
+        self.0
+            .max_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn min(&self, dim: usize) -> Result<Self, BackendError> {
@@ -268,7 +322,10 @@ impl super::Backend for NativeStorage {
     }
 
     fn min_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.0.min_keepdim(dim).map(Self::new).map_err(backend_error)
+        self.0
+            .min_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn mean(&self, dim: usize) -> Result<Self, BackendError> {
@@ -276,7 +333,10 @@ impl super::Backend for NativeStorage {
     }
 
     fn mean_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.0.mean_keepdim(dim).map(Self::new).map_err(backend_error)
+        self.0
+            .mean_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn var(&self, dim: usize) -> Result<Self, BackendError> {
@@ -284,7 +344,10 @@ impl super::Backend for NativeStorage {
     }
 
     fn var_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.0.var_keepdim(dim).map(Self::new).map_err(backend_error)
+        self.0
+            .var_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn argmax(&self, dim: usize) -> Result<Self, BackendError> {
@@ -292,7 +355,10 @@ impl super::Backend for NativeStorage {
     }
 
     fn argmax_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.0.argmax_keepdim(dim).map(Self::new).map_err(backend_error)
+        self.0
+            .argmax_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn argmin(&self, dim: usize) -> Result<Self, BackendError> {
@@ -300,35 +366,86 @@ impl super::Backend for NativeStorage {
     }
 
     fn argmin_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
-        self.0.argmin_keepdim(dim).map(Self::new).map_err(backend_error)
+        self.0
+            .argmin_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
-    fn conv1d(&self, kernel: &Self, padding: usize, stride: usize, dilation: usize, groups: usize) -> Result<Self, BackendError> {
-        self.0.conv1d(&kernel.0, padding, stride, dilation, groups).map(Self::new).map_err(backend_error)
+    fn conv1d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError> {
+        self.0
+            .conv1d(&kernel.0, padding, stride, dilation, groups)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
-    fn conv2d(&self, kernel: &Self, padding: usize, stride: usize, dilation: usize, groups: usize) -> Result<Self, BackendError> {
-        self.0.conv2d(&kernel.0, padding, stride, dilation, groups).map(Self::new).map_err(backend_error)
+    fn conv2d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError> {
+        self.0
+            .conv2d(&kernel.0, padding, stride, dilation, groups)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
-    fn max_pool2d_with_stride(&self, kernel_size: (usize, usize), stride: (usize, usize)) -> Result<Self, BackendError> {
-        self.0.max_pool2d_with_stride(kernel_size, stride).map(Self::new).map_err(backend_error)
+    fn max_pool2d_with_stride(
+        &self,
+        kernel_size: (usize, usize),
+        stride: (usize, usize),
+    ) -> Result<Self, BackendError> {
+        self.0
+            .max_pool2d_with_stride(kernel_size, stride)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
-    fn avg_pool2d_with_stride(&self, kernel_size: (usize, usize), stride: (usize, usize)) -> Result<Self, BackendError> {
-        self.0.avg_pool2d_with_stride(kernel_size, stride).map(Self::new).map_err(backend_error)
+    fn avg_pool2d_with_stride(
+        &self,
+        kernel_size: (usize, usize),
+        stride: (usize, usize),
+    ) -> Result<Self, BackendError> {
+        self.0
+            .avg_pool2d_with_stride(kernel_size, stride)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn gather(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
-        self.0.gather(&indexes.0, dim).map(Self::new).map_err(backend_error)
+        self.0
+            .gather(&indexes.0, dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn index_select(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
-        self.0.index_select(&indexes.0, dim).map(Self::new).map_err(backend_error)
+        self.0
+            .index_select(&indexes.0, dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
-    fn where_cond(condition: &Self, true_value: &Self, false_value: &Self) -> Result<Self, BackendError> {
-        condition.0.where_cond(&true_value.0, &false_value.0).map(Self::new).map_err(backend_error)
+    fn where_cond(
+        condition: &Self,
+        true_value: &Self,
+        false_value: &Self,
+    ) -> Result<Self, BackendError> {
+        condition
+            .0
+            .where_cond(&true_value.0, &false_value.0)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 }
 

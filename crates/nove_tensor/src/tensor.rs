@@ -301,9 +301,7 @@ impl Tensor {
         let other_storage = other.backend_storage()?;
         let mut self_data = self.data.write()?;
         let requires_grad = self_data.requires_grad;
-        self_data
-            .storage
-            .assign_from(&other_storage)?;
+        self_data.storage.assign_from(&other_storage)?;
         if !requires_grad {
             self_data.grad = None;
             self_data.graph.clear_parents();

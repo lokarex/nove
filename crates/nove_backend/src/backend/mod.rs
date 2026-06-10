@@ -577,8 +577,20 @@ pub(crate) trait Backend: Clone + std::fmt::Debug + Sized {
     fn from_payload(payload: &TensorPayload, device: &Device) -> Result<Self, BackendError>;
     fn zeros(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError>;
     fn ones(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError>;
-    fn rand(dtype: DType, low: f64, high: f64, shape: &Shape, device: &Device) -> Result<Self, BackendError>;
-    fn randn(dtype: DType, mean: f64, std: f64, shape: &Shape, device: &Device) -> Result<Self, BackendError>;
+    fn rand(
+        dtype: DType,
+        low: f64,
+        high: f64,
+        shape: &Shape,
+        device: &Device,
+    ) -> Result<Self, BackendError>;
+    fn randn(
+        dtype: DType,
+        mean: f64,
+        std: f64,
+        shape: &Shape,
+        device: &Device,
+    ) -> Result<Self, BackendError>;
 
     // -- collection --
     fn stack(tensors: &[Self], dim: usize) -> Result<Self, BackendError>;
@@ -586,7 +598,9 @@ pub(crate) trait Backend: Clone + std::fmt::Debug + Sized {
 
     // -- conversion --
     fn to_dtype(&self, dtype: DType) -> Result<Self, BackendError>;
-    fn to_device(&self, _device: &Device) -> Result<Self, BackendError> { Ok(self.clone()) }
+    fn to_device(&self, _device: &Device) -> Result<Self, BackendError> {
+        Ok(self.clone())
+    }
 
     // -- unary (17) --
     fn zeros_like(&self) -> Result<Self, BackendError>;
@@ -631,7 +645,9 @@ pub(crate) trait Backend: Clone + std::fmt::Debug + Sized {
     fn squeeze(&self, dim: usize) -> Result<Self, BackendError>;
     fn unsqueeze(&self, dim: usize) -> Result<Self, BackendError>;
     fn transpose(&self, dim0: usize, dim1: usize) -> Result<Self, BackendError>;
-    fn contiguous(&self) -> Result<Self, BackendError> { Ok(self.clone()) }
+    fn contiguous(&self) -> Result<Self, BackendError> {
+        Ok(self.clone())
+    }
     fn permute(&self, dims: &[usize]) -> Result<Self, BackendError>;
     fn narrow(&self, dim: usize, start: usize, length: usize) -> Result<Self, BackendError>;
 
@@ -659,17 +675,43 @@ pub(crate) trait Backend: Clone + std::fmt::Debug + Sized {
     fn argmin_keepdim(&self, dim: usize) -> Result<Self, BackendError>;
 
     // -- convolution (2) --
-    fn conv1d(&self, kernel: &Self, padding: usize, stride: usize, dilation: usize, groups: usize) -> Result<Self, BackendError>;
-    fn conv2d(&self, kernel: &Self, padding: usize, stride: usize, dilation: usize, groups: usize) -> Result<Self, BackendError>;
+    fn conv1d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError>;
+    fn conv2d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError>;
 
     // -- pooling (2) --
-    fn max_pool2d_with_stride(&self, kernel_size: (usize, usize), stride: (usize, usize)) -> Result<Self, BackendError>;
-    fn avg_pool2d_with_stride(&self, kernel_size: (usize, usize), stride: (usize, usize)) -> Result<Self, BackendError>;
+    fn max_pool2d_with_stride(
+        &self,
+        kernel_size: (usize, usize),
+        stride: (usize, usize),
+    ) -> Result<Self, BackendError>;
+    fn avg_pool2d_with_stride(
+        &self,
+        kernel_size: (usize, usize),
+        stride: (usize, usize),
+    ) -> Result<Self, BackendError>;
 
     // -- indexing (3) --
     fn gather(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError>;
     fn index_select(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError>;
-    fn where_cond(condition: &Self, true_value: &Self, false_value: &Self) -> Result<Self, BackendError>;
+    fn where_cond(
+        condition: &Self,
+        true_value: &Self,
+        false_value: &Self,
+    ) -> Result<Self, BackendError>;
 }
 
 /// Backend-owned tensor storage.
@@ -690,33 +732,27 @@ impl BackendStorage {
         Self::from_payload(data.into_tensor_payload()?, device)
     }
 
-    pub fn from_payload(
-        payload: TensorPayload,
-        device: &Device,
-    ) -> Result<Self, BackendError> {
+    pub fn from_payload(payload: TensorPayload, device: &Device) -> Result<Self, BackendError> {
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::from_payload(
-                &payload,
-                device,
+                &payload, device,
             )?)),
             #[cfg(feature = "native")]
             BackendKind::Native => {
                 if device.kind() != DeviceKind::Cpu {
                     return Err(BackendError::UnsupportedDevice(device.kind()));
                 }
-                Ok(Self::Native(native::NativeStorage::from_payload(&payload)?))
+                Ok(Self::Native(native::NativeStorage::from_payload(
+                    &payload, device,
+                )?))
             }
             #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
 
-    pub fn from_vec<D>(
-        data: Vec<D>,
-        shape: &Shape,
-        device: &Device,
-    ) -> Result<Self, BackendError>
+    pub fn from_vec<D>(data: Vec<D>, shape: &Shape, device: &Device) -> Result<Self, BackendError>
     where
         D: TensorElement,
     {
@@ -726,23 +762,14 @@ impl BackendStorage {
         )
     }
 
-    pub fn from_slice<D>(
-        data: &[D],
-        shape: &Shape,
-        device: &Device,
-    ) -> Result<Self, BackendError>
+    pub fn from_slice<D>(data: &[D], shape: &Shape, device: &Device) -> Result<Self, BackendError>
     where
         D: TensorElement,
     {
         Self::from_vec(data.to_vec(), shape, device)
     }
 
-    pub fn rand<T>(
-        low: T,
-        high: T,
-        shape: &Shape,
-        device: &Device,
-    ) -> Result<Self, BackendError>
+    pub fn rand<T>(low: T, high: T, shape: &Shape, device: &Device) -> Result<Self, BackendError>
     where
         T: FloatTensorElement,
     {
@@ -761,18 +788,14 @@ impl BackendStorage {
                 low.to_f64(),
                 high.to_f64(),
                 shape,
+                device,
             )?)),
             #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
 
-    pub fn randn<T>(
-        mean: T,
-        std: T,
-        shape: &Shape,
-        device: &Device,
-    ) -> Result<Self, BackendError>
+    pub fn randn<T>(mean: T, std: T, shape: &Shape, device: &Device) -> Result<Self, BackendError>
     where
         T: FloatTensorElement,
     {
@@ -791,45 +814,38 @@ impl BackendStorage {
                 mean.to_f64(),
                 std.to_f64(),
                 shape,
+                device,
             )?)),
             #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
 
-    pub fn zeros(
-        shape: &Shape,
-        dtype: DType,
-        device: &Device,
-    ) -> Result<Self, BackendError> {
+    pub fn zeros(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError> {
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::zeros(
-                shape,
-                dtype,
-                device,
+                shape, dtype, device,
             )?)),
             #[cfg(feature = "native")]
-            BackendKind::Native => Ok(Self::Native(native::NativeStorage::zeros(shape, dtype)?)),
+            BackendKind::Native => Ok(Self::Native(native::NativeStorage::zeros(
+                shape, dtype, device,
+            )?)),
             #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
 
-    pub fn ones(
-        shape: &Shape,
-        dtype: DType,
-        device: &Device,
-    ) -> Result<Self, BackendError> {
+    pub fn ones(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError> {
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::ones(
-                shape,
-                dtype,
-                device,
+                shape, dtype, device,
             )?)),
             #[cfg(feature = "native")]
-            BackendKind::Native => Ok(Self::Native(native::NativeStorage::ones(shape, dtype)?)),
+            BackendKind::Native => Ok(Self::Native(native::NativeStorage::ones(
+                shape, dtype, device,
+            )?)),
             #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }
@@ -1140,7 +1156,9 @@ impl BackendStorage {
             #[cfg(all(feature = "candle", feature = "native"))]
             (Self::Candle(storage), BackendKind::Native) if device.kind() == DeviceKind::Cpu => {
                 let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
-                Ok(Self::Native(native::NativeStorage::from_payload(&payload)?))
+                Ok(Self::Native(native::NativeStorage::from_payload(
+                    &payload, device,
+                )?))
             }
             (_, backend) => Err(BackendError::UnsupportedBackend(backend)),
         }
@@ -1402,11 +1420,19 @@ impl BackendStorage {
         match (condition, true_value, false_value) {
             #[cfg(feature = "candle")]
             (Self::Candle(condition), Self::Candle(true_value), Self::Candle(false_value)) => {
-                Ok(Self::Candle(candle::CandleStorage::where_cond(condition, true_value, false_value)?))
+                Ok(Self::Candle(candle::CandleStorage::where_cond(
+                    condition,
+                    true_value,
+                    false_value,
+                )?))
             }
             #[cfg(feature = "native")]
             (Self::Native(condition), Self::Native(true_value), Self::Native(false_value)) => {
-                Ok(Self::Native(native::NativeStorage::where_cond(condition, true_value, false_value)?))
+                Ok(Self::Native(native::NativeStorage::where_cond(
+                    condition,
+                    true_value,
+                    false_value,
+                )?))
             }
             #[cfg(all(feature = "candle", feature = "native"))]
             (Self::Candle(_), _, _) => Err(BackendError::BackendMismatch {

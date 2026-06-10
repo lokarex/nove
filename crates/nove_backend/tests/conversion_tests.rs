@@ -37,8 +37,7 @@ fn ragged_2d_fails() {
 
 #[test]
 fn ragged_3d_fails() {
-    let result =
-        vec![vec![vec![1u8; 2]; 2], vec![vec![5u8]]].into_tensor_payload();
+    let result = vec![vec![vec![1u8; 2]; 2], vec![vec![5u8]]].into_tensor_payload();
     assert!(result.is_err());
 }
 

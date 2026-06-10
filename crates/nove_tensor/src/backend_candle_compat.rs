@@ -48,10 +48,7 @@ impl Tensor {
         device: &Device,
         requires_grad: bool,
     ) -> Result<Self, TensorError> {
-        let storage = nove_backend::backend::candle::storage_from_candle_tensor(
-            tensor,
-            device,
-        )?;
+        let storage = nove_backend::backend::candle::storage_from_candle_tensor(tensor, device)?;
         Ok(Self::from_backend_storage(
             storage,
             device.clone(),

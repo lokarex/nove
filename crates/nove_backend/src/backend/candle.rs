@@ -83,14 +83,36 @@ impl super::Backend for CandleStorage {
     }
 
     fn to_tensor_buffer(&self) -> Result<TensorBuffer, BackendError> {
-        let tensor = self.inner().as_tensor().flatten_all().map_err(candle_op_error)?;
+        let tensor = self
+            .inner()
+            .as_tensor()
+            .flatten_all()
+            .map_err(candle_op_error)?;
         match self.dtype() {
-            DType::U8 => tensor.to_vec1::<u8>().map(TensorBuffer::U8).map_err(candle_op_error),
-            DType::U32 => tensor.to_vec1::<u32>().map(TensorBuffer::U32).map_err(candle_op_error),
-            DType::I64 => tensor.to_vec1::<i64>().map(TensorBuffer::I64).map_err(candle_op_error),
-            DType::F32 => tensor.to_vec1::<f32>().map(TensorBuffer::F32).map_err(candle_op_error),
-            DType::F64 => tensor.to_vec1::<f64>().map(TensorBuffer::F64).map_err(candle_op_error),
-            dtype => Err(BackendError::UnsupportedDType { backend: BackendKind::Candle, dtype }),
+            DType::U8 => tensor
+                .to_vec1::<u8>()
+                .map(TensorBuffer::U8)
+                .map_err(candle_op_error),
+            DType::U32 => tensor
+                .to_vec1::<u32>()
+                .map(TensorBuffer::U32)
+                .map_err(candle_op_error),
+            DType::I64 => tensor
+                .to_vec1::<i64>()
+                .map(TensorBuffer::I64)
+                .map_err(candle_op_error),
+            DType::F32 => tensor
+                .to_vec1::<f32>()
+                .map(TensorBuffer::F32)
+                .map_err(candle_op_error),
+            DType::F64 => tensor
+                .to_vec1::<f64>()
+                .map(TensorBuffer::F64)
+                .map_err(candle_op_error),
+            dtype => Err(BackendError::UnsupportedDType {
+                backend: BackendKind::Candle,
+                dtype,
+            }),
         }
     }
 
@@ -117,158 +139,474 @@ impl super::Backend for CandleStorage {
     fn zeros(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError> {
         let device = to_candle_device(device)?;
         nove_candle::CandleStorage::zeros(shape.dims(), to_candle_dtype(dtype), &device)
-            .map(Self::new).map_err(backend_error)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn ones(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError> {
         let device = to_candle_device(device)?;
         nove_candle::CandleStorage::ones(shape.dims(), to_candle_dtype(dtype), &device)
-            .map(Self::new).map_err(backend_error)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
-    fn rand(dtype: DType, low: f64, high: f64, shape: &Shape, device: &Device) -> Result<Self, BackendError> {
+    fn rand(
+        dtype: DType,
+        low: f64,
+        high: f64,
+        shape: &Shape,
+        device: &Device,
+    ) -> Result<Self, BackendError> {
         match dtype {
             DType::F32 => Self::rand_typed(low as f32, high as f32, shape, device),
             DType::F64 => Self::rand_typed(low, high, shape, device),
-            dtype => Err(BackendError::UnsupportedDType { backend: BackendKind::Candle, dtype }),
+            dtype => Err(BackendError::UnsupportedDType {
+                backend: BackendKind::Candle,
+                dtype,
+            }),
         }
     }
 
-    fn randn(dtype: DType, mean: f64, std: f64, shape: &Shape, device: &Device) -> Result<Self, BackendError> {
+    fn randn(
+        dtype: DType,
+        mean: f64,
+        std: f64,
+        shape: &Shape,
+        device: &Device,
+    ) -> Result<Self, BackendError> {
         match dtype {
             DType::F32 => Self::randn_typed(mean as f32, std as f32, shape, device),
             DType::F64 => Self::randn_typed(mean, std, shape, device),
-            dtype => Err(BackendError::UnsupportedDType { backend: BackendKind::Candle, dtype }),
+            dtype => Err(BackendError::UnsupportedDType {
+                backend: BackendKind::Candle,
+                dtype,
+            }),
         }
     }
 
     // -- collection --
     fn stack(tensors: &[Self], dim: usize) -> Result<Self, BackendError> {
-        let tensors = tensors.iter().map(|s| s.inner().clone()).collect::<Vec<_>>();
-        nove_candle::CandleStorage::stack(&tensors, dim).map(Self::new).map_err(backend_error)
+        let tensors = tensors
+            .iter()
+            .map(|s| s.inner().clone())
+            .collect::<Vec<_>>();
+        nove_candle::CandleStorage::stack(&tensors, dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn cat(tensors: &[Self], dim: usize) -> Result<Self, BackendError> {
-        let tensors = tensors.iter().map(|s| s.inner().clone()).collect::<Vec<_>>();
-        nove_candle::CandleStorage::cat(&tensors, dim).map(Self::new).map_err(backend_error)
+        let tensors = tensors
+            .iter()
+            .map(|s| s.inner().clone())
+            .collect::<Vec<_>>();
+        nove_candle::CandleStorage::cat(&tensors, dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     // -- conversion --
     fn to_device(&self, device: &Device) -> Result<Self, BackendError> {
         let device = to_candle_device(device)?;
-        self.inner().to_device(&device).map(Self::new).map_err(backend_error)
+        self.inner()
+            .to_device(&device)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn to_dtype(&self, dtype: DType) -> Result<Self, BackendError> {
-        self.inner().to_dtype(to_candle_dtype(dtype)).map(Self::new).map_err(backend_error)
+        self.inner()
+            .to_dtype(to_candle_dtype(dtype))
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     // -- unary (17) --
-    fn zeros_like(&self) -> Result<Self, BackendError> { self.inner().zeros_like().map(Self::new).map_err(backend_error) }
-    fn ones_like(&self) -> Result<Self, BackendError> { self.inner().ones_like().map(Self::new).map_err(backend_error) }
-    fn relu(&self) -> Result<Self, BackendError> { self.inner().relu().map(Self::new).map_err(backend_error) }
-    fn silu(&self) -> Result<Self, BackendError> { self.inner().silu().map(Self::new).map_err(backend_error) }
-    fn gelu(&self) -> Result<Self, BackendError> { self.inner().gelu().map(Self::new).map_err(backend_error) }
-    fn tanh(&self) -> Result<Self, BackendError> { self.inner().tanh().map(Self::new).map_err(backend_error) }
-    fn exp(&self) -> Result<Self, BackendError> { self.inner().exp().map(Self::new).map_err(backend_error) }
-    fn log(&self) -> Result<Self, BackendError> { self.inner().log().map(Self::new).map_err(backend_error) }
-    fn sqrt(&self) -> Result<Self, BackendError> { self.inner().sqrt().map(Self::new).map_err(backend_error) }
-    fn recip(&self) -> Result<Self, BackendError> { self.inner().recip().map(Self::new).map_err(backend_error) }
-    fn abs(&self) -> Result<Self, BackendError> { self.inner().abs().map(Self::new).map_err(backend_error) }
-    fn neg(&self) -> Result<Self, BackendError> { self.inner().neg().map(Self::new).map_err(backend_error) }
-    fn sum_all(&self) -> Result<Self, BackendError> { self.inner().sum_all().map(Self::new).map_err(backend_error) }
-    fn max_all(&self) -> Result<Self, BackendError> { self.inner().max_all().map(Self::new).map_err(backend_error) }
-    fn min_all(&self) -> Result<Self, BackendError> { self.inner().min_all().map(Self::new).map_err(backend_error) }
-    fn mean_all(&self) -> Result<Self, BackendError> { self.inner().mean_all().map(Self::new).map_err(backend_error) }
-    fn flatten_all(&self) -> Result<Self, BackendError> { self.inner().flatten_all().map(Self::new).map_err(backend_error) }
+    fn zeros_like(&self) -> Result<Self, BackendError> {
+        self.inner()
+            .zeros_like()
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn ones_like(&self) -> Result<Self, BackendError> {
+        self.inner()
+            .ones_like()
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn relu(&self) -> Result<Self, BackendError> {
+        self.inner().relu().map(Self::new).map_err(backend_error)
+    }
+    fn silu(&self) -> Result<Self, BackendError> {
+        self.inner().silu().map(Self::new).map_err(backend_error)
+    }
+    fn gelu(&self) -> Result<Self, BackendError> {
+        self.inner().gelu().map(Self::new).map_err(backend_error)
+    }
+    fn tanh(&self) -> Result<Self, BackendError> {
+        self.inner().tanh().map(Self::new).map_err(backend_error)
+    }
+    fn exp(&self) -> Result<Self, BackendError> {
+        self.inner().exp().map(Self::new).map_err(backend_error)
+    }
+    fn log(&self) -> Result<Self, BackendError> {
+        self.inner().log().map(Self::new).map_err(backend_error)
+    }
+    fn sqrt(&self) -> Result<Self, BackendError> {
+        self.inner().sqrt().map(Self::new).map_err(backend_error)
+    }
+    fn recip(&self) -> Result<Self, BackendError> {
+        self.inner().recip().map(Self::new).map_err(backend_error)
+    }
+    fn abs(&self) -> Result<Self, BackendError> {
+        self.inner().abs().map(Self::new).map_err(backend_error)
+    }
+    fn neg(&self) -> Result<Self, BackendError> {
+        self.inner().neg().map(Self::new).map_err(backend_error)
+    }
+    fn sum_all(&self) -> Result<Self, BackendError> {
+        self.inner().sum_all().map(Self::new).map_err(backend_error)
+    }
+    fn max_all(&self) -> Result<Self, BackendError> {
+        self.inner().max_all().map(Self::new).map_err(backend_error)
+    }
+    fn min_all(&self) -> Result<Self, BackendError> {
+        self.inner().min_all().map(Self::new).map_err(backend_error)
+    }
+    fn mean_all(&self) -> Result<Self, BackendError> {
+        self.inner()
+            .mean_all()
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn flatten_all(&self) -> Result<Self, BackendError> {
+        self.inner()
+            .flatten_all()
+            .map(Self::new)
+            .map_err(backend_error)
+    }
 
     // -- binary (13) --
-    fn broadcast_add(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_add(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_mul(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_mul(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_div(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_div(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_sub(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_sub(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_eq(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_eq(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_ne(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_ne(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_gt(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_gt(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_lt(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_lt(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_ge(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_ge(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_le(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_le(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_matmul(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_matmul(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn broadcast_pow(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().broadcast_pow(rhs.inner()).map(Self::new).map_err(backend_error) }
-    fn embedding(&self, rhs: &Self) -> Result<Self, BackendError> { self.inner().embedding(rhs.inner()).map(Self::new).map_err(backend_error) }
+    fn broadcast_add(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_add(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_mul(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_mul(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_div(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_div(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_sub(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_sub(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_eq(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_eq(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_ne(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_ne(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_gt(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_gt(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_lt(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_lt(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_ge(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_ge(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_le(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_le(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_matmul(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_matmul(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_pow(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_pow(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn embedding(&self, rhs: &Self) -> Result<Self, BackendError> {
+        self.inner()
+            .embedding(rhs.inner())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
 
     // -- shape ops (11) --
-    fn reshape(&self, shape: &Shape) -> Result<Self, BackendError> { self.inner().reshape(shape.dims()).map(Self::new).map_err(backend_error) }
-    fn broadcast_as(&self, shape: &Shape) -> Result<Self, BackendError> { self.inner().broadcast_as(shape.dims()).map(Self::new).map_err(backend_error) }
-    fn flatten_from(&self, dim: usize) -> Result<Self, BackendError> { self.inner().flatten_from(dim).map(Self::new).map_err(backend_error) }
-    fn flatten_to(&self, dim: usize) -> Result<Self, BackendError> { self.inner().flatten_to(dim).map(Self::new).map_err(backend_error) }
-    fn flatten(&self, start: usize, end: usize) -> Result<Self, BackendError> { self.inner().flatten(start, end).map(Self::new).map_err(backend_error) }
-    fn squeeze(&self, dim: usize) -> Result<Self, BackendError> { self.inner().squeeze(dim).map(Self::new).map_err(backend_error) }
-    fn unsqueeze(&self, dim: usize) -> Result<Self, BackendError> { self.inner().unsqueeze(dim).map(Self::new).map_err(backend_error) }
-    fn transpose(&self, dim0: usize, dim1: usize) -> Result<Self, BackendError> { self.inner().transpose(dim0, dim1).map(Self::new).map_err(backend_error) }
-    fn contiguous(&self) -> Result<Self, BackendError> { self.inner().contiguous().map(Self::new).map_err(backend_error) }
-    fn permute(&self, dims: &[usize]) -> Result<Self, BackendError> { self.inner().permute(dims).map(Self::new).map_err(backend_error) }
-    fn narrow(&self, dim: usize, start: usize, length: usize) -> Result<Self, BackendError> { self.inner().narrow(dim, start, length).map(Self::new).map_err(backend_error) }
+    fn reshape(&self, shape: &Shape) -> Result<Self, BackendError> {
+        self.inner()
+            .reshape(shape.dims())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn broadcast_as(&self, shape: &Shape) -> Result<Self, BackendError> {
+        self.inner()
+            .broadcast_as(shape.dims())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn flatten_from(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .flatten_from(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn flatten_to(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .flatten_to(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn flatten(&self, start: usize, end: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .flatten(start, end)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn squeeze(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .squeeze(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn unsqueeze(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .unsqueeze(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn transpose(&self, dim0: usize, dim1: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .transpose(dim0, dim1)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn contiguous(&self) -> Result<Self, BackendError> {
+        self.inner()
+            .contiguous()
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn permute(&self, dims: &[usize]) -> Result<Self, BackendError> {
+        self.inner()
+            .permute(dims)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn narrow(&self, dim: usize, start: usize, length: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .narrow(dim, start, length)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
 
     // -- math (3) --
-    fn affine(&self, weight: f64, bias: f64) -> Result<Self, BackendError> { self.inner().affine(weight, bias).map(Self::new).map_err(backend_error) }
-    fn clamp(&self, min: f64, max: f64) -> Result<Self, BackendError> { self.inner().clamp(min, max).map(Self::new).map_err(backend_error) }
-    fn powf(&self, exponent: f64) -> Result<Self, BackendError> { self.inner().powf(exponent).map(Self::new).map_err(backend_error) }
+    fn affine(&self, weight: f64, bias: f64) -> Result<Self, BackendError> {
+        self.inner()
+            .affine(weight, bias)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn clamp(&self, min: f64, max: f64) -> Result<Self, BackendError> {
+        self.inner()
+            .clamp(min, max)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn powf(&self, exponent: f64) -> Result<Self, BackendError> {
+        self.inner()
+            .powf(exponent)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
 
     // -- reduction (10) --
-    fn sum(&self, dim: usize) -> Result<Self, BackendError> { self.inner().sum(dim).map(Self::new).map_err(backend_error) }
-    fn sum_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().sum_keepdim(dim).map(Self::new).map_err(backend_error) }
-    fn max(&self, dim: usize) -> Result<Self, BackendError> { self.inner().max(dim).map(Self::new).map_err(backend_error) }
-    fn max_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().max_keepdim(dim).map(Self::new).map_err(backend_error) }
-    fn min(&self, dim: usize) -> Result<Self, BackendError> { self.inner().min(dim).map(Self::new).map_err(backend_error) }
-    fn min_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().min_keepdim(dim).map(Self::new).map_err(backend_error) }
-    fn mean(&self, dim: usize) -> Result<Self, BackendError> { self.inner().mean(dim).map(Self::new).map_err(backend_error) }
-    fn mean_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().mean_keepdim(dim).map(Self::new).map_err(backend_error) }
-    fn var(&self, dim: usize) -> Result<Self, BackendError> { self.inner().var(dim).map(Self::new).map_err(backend_error) }
-    fn var_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().var_keepdim(dim).map(Self::new).map_err(backend_error) }
+    fn sum(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner().sum(dim).map(Self::new).map_err(backend_error)
+    }
+    fn sum_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .sum_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn max(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner().max(dim).map(Self::new).map_err(backend_error)
+    }
+    fn max_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .max_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn min(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner().min(dim).map(Self::new).map_err(backend_error)
+    }
+    fn min_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .min_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn mean(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner().mean(dim).map(Self::new).map_err(backend_error)
+    }
+    fn mean_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .mean_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn var(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner().var(dim).map(Self::new).map_err(backend_error)
+    }
+    fn var_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .var_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
 
     // -- arg ops (4) --
-    fn argmax(&self, dim: usize) -> Result<Self, BackendError> { self.inner().argmax(dim).map(Self::new).map_err(backend_error) }
-    fn argmax_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().argmax_keepdim(dim).map(Self::new).map_err(backend_error) }
-    fn argmin(&self, dim: usize) -> Result<Self, BackendError> { self.inner().argmin(dim).map(Self::new).map_err(backend_error) }
-    fn argmin_keepdim(&self, dim: usize) -> Result<Self, BackendError> { self.inner().argmin_keepdim(dim).map(Self::new).map_err(backend_error) }
+    fn argmax(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .argmax(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn argmax_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .argmax_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn argmin(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .argmin(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn argmin_keepdim(&self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .argmin_keepdim(dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
 
     // -- convolution (2) --
-    fn conv1d(&self, kernel: &Self, padding: usize, stride: usize, dilation: usize, groups: usize) -> Result<Self, BackendError> {
-        self.inner().conv1d(kernel.inner(), padding, stride, dilation, groups).map(Self::new).map_err(backend_error)
+    fn conv1d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError> {
+        self.inner()
+            .conv1d(kernel.inner(), padding, stride, dilation, groups)
+            .map(Self::new)
+            .map_err(backend_error)
     }
-    fn conv2d(&self, kernel: &Self, padding: usize, stride: usize, dilation: usize, groups: usize) -> Result<Self, BackendError> {
-        self.inner().conv2d(kernel.inner(), padding, stride, dilation, groups).map(Self::new).map_err(backend_error)
+    fn conv2d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError> {
+        self.inner()
+            .conv2d(kernel.inner(), padding, stride, dilation, groups)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     // -- pooling (2) --
-    fn max_pool2d_with_stride(&self, kernel_size: (usize, usize), stride: (usize, usize)) -> Result<Self, BackendError> {
-        self.inner().max_pool2d_with_stride(kernel_size, stride).map(Self::new).map_err(backend_error)
+    fn max_pool2d_with_stride(
+        &self,
+        kernel_size: (usize, usize),
+        stride: (usize, usize),
+    ) -> Result<Self, BackendError> {
+        self.inner()
+            .max_pool2d_with_stride(kernel_size, stride)
+            .map(Self::new)
+            .map_err(backend_error)
     }
-    fn avg_pool2d_with_stride(&self, kernel_size: (usize, usize), stride: (usize, usize)) -> Result<Self, BackendError> {
-        self.inner().avg_pool2d_with_stride(kernel_size, stride).map(Self::new).map_err(backend_error)
+    fn avg_pool2d_with_stride(
+        &self,
+        kernel_size: (usize, usize),
+        stride: (usize, usize),
+    ) -> Result<Self, BackendError> {
+        self.inner()
+            .avg_pool2d_with_stride(kernel_size, stride)
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     // -- indexing (3) --
     fn gather(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
-        self.inner().gather(indexes.inner(), dim).map(Self::new).map_err(backend_error)
+        self.inner()
+            .gather(indexes.inner(), dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
     fn index_select(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
-        self.inner().index_select(indexes.inner(), dim).map(Self::new).map_err(backend_error)
+        self.inner()
+            .index_select(indexes.inner(), dim)
+            .map(Self::new)
+            .map_err(backend_error)
     }
-    fn where_cond(condition: &Self, true_value: &Self, false_value: &Self) -> Result<Self, BackendError> {
-        condition.inner().where_cond(true_value.inner(), false_value.inner()).map(Self::new).map_err(backend_error)
+    fn where_cond(
+        condition: &Self,
+        true_value: &Self,
+        false_value: &Self,
+    ) -> Result<Self, BackendError> {
+        condition
+            .inner()
+            .where_cond(true_value.inner(), false_value.inner())
+            .map(Self::new)
+            .map_err(backend_error)
     }
 }
 
 // -- Private helpers (generic over Candle types) ---
 
 impl CandleStorage {
-    fn from_slice<D>(
-        data: &[D],
-        shape: &Shape,
-        device: &Device,
-    ) -> Result<Self, BackendError>
+    fn from_slice<D>(data: &[D], shape: &Shape, device: &Device) -> Result<Self, BackendError>
     where
         D: nove_candle::CandleWithDType,
     {
@@ -278,12 +616,7 @@ impl CandleStorage {
             .map_err(backend_error)
     }
 
-    fn rand_typed<T>(
-        low: T,
-        high: T,
-        shape: &Shape,
-        device: &Device,
-    ) -> Result<Self, BackendError>
+    fn rand_typed<T>(low: T, high: T, shape: &Shape, device: &Device) -> Result<Self, BackendError>
     where
         T: nove_candle::CandleFloatDType,
     {
@@ -293,12 +626,7 @@ impl CandleStorage {
             .map_err(backend_error)
     }
 
-    fn randn_typed<T>(
-        mean: T,
-        std: T,
-        shape: &Shape,
-        device: &Device,
-    ) -> Result<Self, BackendError>
+    fn randn_typed<T>(mean: T, std: T, shape: &Shape, device: &Device) -> Result<Self, BackendError>
     where
         T: nove_candle::CandleFloatDType,
     {
@@ -417,8 +745,7 @@ pub fn storage_from_candle_tensor(
     device: &Device,
 ) -> Result<BackendStorage, BackendError> {
     Ok(BackendStorage::Candle(CandleStorage::from_candle_tensor(
-        tensor,
-        device,
+        tensor, device,
     )?))
 }
 

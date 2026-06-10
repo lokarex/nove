@@ -88,65 +88,39 @@ impl CandleStorage {
         Ok(Self(candle_core::Tensor::new(data, device)?))
     }
 
-    pub fn from_vec<D>(
-        data: Vec<D>,
-        shape: &[usize],
-        device: &CandleDevice,
-    ) -> CandleResult<Self>
+    pub fn from_vec<D>(data: Vec<D>, shape: &[usize], device: &CandleDevice) -> CandleResult<Self>
     where
         D: CandleWithDType,
     {
         Ok(Self(candle_core::Tensor::from_vec(data, shape, device)?))
     }
 
-    pub fn from_slice<D>(
-        data: &[D],
-        shape: &[usize],
-        device: &CandleDevice,
-    ) -> CandleResult<Self>
+    pub fn from_slice<D>(data: &[D], shape: &[usize], device: &CandleDevice) -> CandleResult<Self>
     where
         D: CandleWithDType,
     {
         Ok(Self(candle_core::Tensor::from_slice(data, shape, device)?))
     }
 
-    pub fn rand<T>(
-        low: T,
-        high: T,
-        shape: &[usize],
-        device: &CandleDevice,
-    ) -> CandleResult<Self>
+    pub fn rand<T>(low: T, high: T, shape: &[usize], device: &CandleDevice) -> CandleResult<Self>
     where
         T: CandleFloatDType,
     {
         Ok(Self(candle_core::Tensor::rand(low, high, shape, device)?))
     }
 
-    pub fn randn<T>(
-        mean: T,
-        std: T,
-        shape: &[usize],
-        device: &CandleDevice,
-    ) -> CandleResult<Self>
+    pub fn randn<T>(mean: T, std: T, shape: &[usize], device: &CandleDevice) -> CandleResult<Self>
     where
         T: CandleFloatDType,
     {
         Ok(Self(candle_core::Tensor::randn(mean, std, shape, device)?))
     }
 
-    pub fn zeros(
-        shape: &[usize],
-        dtype: CandleDType,
-        device: &CandleDevice,
-    ) -> CandleResult<Self> {
+    pub fn zeros(shape: &[usize], dtype: CandleDType, device: &CandleDevice) -> CandleResult<Self> {
         Ok(Self(candle_core::Tensor::zeros(shape, dtype, device)?))
     }
 
-    pub fn ones(
-        shape: &[usize],
-        dtype: CandleDType,
-        device: &CandleDevice,
-    ) -> CandleResult<Self> {
+    pub fn ones(shape: &[usize], dtype: CandleDType, device: &CandleDevice) -> CandleResult<Self> {
         Ok(Self(candle_core::Tensor::ones(shape, dtype, device)?))
     }
 
@@ -154,12 +128,12 @@ impl CandleStorage {
         tensor: candle_core::Tensor,
         device: &CandleDevice,
     ) -> CandleResult<Self> {
-        let tensor = tensor.to_device(device)?;
+        let tensor = tensor.to_device(device)?.detach();
         Ok(Self(tensor))
     }
 
     pub fn to_candle_tensor(&self) -> CandleResult<candle_core::Tensor> {
-        Ok(self.as_tensor().copy()?)
+        Ok(self.as_tensor().copy()?.detach())
     }
 
     pub fn as_tensor(&self) -> &candle_core::Tensor {
@@ -193,7 +167,7 @@ impl CandleStorage {
             .iter()
             .map(|storage| storage.as_tensor().clone())
             .collect::<Vec<_>>();
-        Ok(Self(candle_core::Tensor::stack(&tensors, dim)?))
+        Ok(Self(candle_core::Tensor::stack(&tensors, dim)?.detach()))
     }
 
     pub fn cat(tensors: &[Self], dim: usize) -> CandleResult<Self> {
@@ -201,7 +175,7 @@ impl CandleStorage {
             .iter()
             .map(|storage| storage.as_tensor().clone())
             .collect::<Vec<_>>();
-        Ok(Self(candle_core::Tensor::cat(&tensors, dim)?))
+        Ok(Self(candle_core::Tensor::cat(&tensors, dim)?.detach()))
     }
 }
 
@@ -210,7 +184,7 @@ macro_rules! candle_unary_methods {
         impl CandleStorage {
             $(
                 pub fn $method(&self) -> CandleResult<Self> {
-                    Ok(Self(self.as_tensor().$method()?))
+                    Ok(Self(self.as_tensor().$method()?.detach()))
                 }
             )+
         }
@@ -222,7 +196,7 @@ macro_rules! candle_binary_methods {
         impl CandleStorage {
             $(
                 pub fn $method(&self, rhs: &Self) -> CandleResult<Self> {
-                    Ok(Self(self.as_tensor().$method(rhs.as_tensor())?))
+                    Ok(Self(self.as_tensor().$method(rhs.as_tensor())?.detach()))
                 }
             )+
         }
@@ -267,134 +241,128 @@ candle_binary_methods!(
 
 impl CandleStorage {
     pub fn to_device(&self, device: &CandleDevice) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().to_device(device)?))
+        Ok(Self(self.as_tensor().to_device(device)?.detach()))
     }
 
     pub fn to_dtype(&self, dtype: CandleDType) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().to_dtype(dtype)?))
+        Ok(Self(self.as_tensor().to_dtype(dtype)?.detach()))
     }
 
     pub fn reshape(&self, shape: &[usize]) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().reshape(shape)?))
+        Ok(Self(self.as_tensor().reshape(shape)?.detach()))
     }
 
     pub fn broadcast_as(&self, shape: &[usize]) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().broadcast_as(shape)?))
+        Ok(Self(self.as_tensor().broadcast_as(shape)?.detach()))
     }
 
-    /// Broadcast-aware matrix multiplication with contiguity guarantee.
-    ///
-    /// Candle\'s underlying matmul requires contiguous tensors. When
-    /// a broadcasted view (e.g. a gradient expanded from a scalar via
-    /// broadcast_as) flows through matmul backward, its zero-stride
-    /// layout causes a non-contiguous error. We make both operands
-    /// contiguous before calling the candle routine.
     pub fn broadcast_matmul(&self, rhs: &Self) -> CandleResult<Self> {
         Ok(Self(
             self.as_tensor()
                 .contiguous()?
-                .broadcast_matmul(&rhs.as_tensor().contiguous()?)?,
+                .broadcast_matmul(&rhs.as_tensor().contiguous()?)?
+                .detach(),
         ))
     }
 
     pub fn flatten_from(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().flatten_from(dim)?))
+        Ok(Self(self.as_tensor().flatten_from(dim)?.detach()))
     }
 
     pub fn flatten_to(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().flatten_to(dim)?))
+        Ok(Self(self.as_tensor().flatten_to(dim)?.detach()))
     }
 
     pub fn flatten(&self, start: usize, end: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().flatten(start, end)?))
+        Ok(Self(self.as_tensor().flatten(start, end)?.detach()))
     }
 
     pub fn squeeze(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().squeeze(dim)?))
+        Ok(Self(self.as_tensor().squeeze(dim)?.detach()))
     }
 
     pub fn unsqueeze(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().unsqueeze(dim)?))
+        Ok(Self(self.as_tensor().unsqueeze(dim)?.detach()))
     }
 
     pub fn transpose(&self, dim0: usize, dim1: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().transpose(dim0, dim1)?))
+        Ok(Self(self.as_tensor().transpose(dim0, dim1)?.detach()))
     }
 
     pub fn permute(&self, dims: &[usize]) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().permute(dims)?))
+        Ok(Self(self.as_tensor().permute(dims)?.detach()))
     }
 
     pub fn narrow(&self, dim: usize, start: usize, length: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().narrow(dim, start, length)?))
+        Ok(Self(self.as_tensor().narrow(dim, start, length)?.detach()))
     }
 
     pub fn affine(&self, weight: f64, bias: f64) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().affine(weight, bias)?))
+        Ok(Self(self.as_tensor().affine(weight, bias)?.detach()))
     }
 
     pub fn clamp(&self, min: f64, max: f64) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().clamp(min, max)?))
+        Ok(Self(self.as_tensor().clamp(min, max)?.detach()))
     }
 
     pub fn powf(&self, exponent: f64) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().powf(exponent)?))
+        Ok(Self(self.as_tensor().powf(exponent)?.detach()))
     }
 
     pub fn sum(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().sum(dim)?))
+        Ok(Self(self.as_tensor().sum(dim)?.detach()))
     }
 
     pub fn sum_keepdim(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().sum_keepdim(dim)?))
+        Ok(Self(self.as_tensor().sum_keepdim(dim)?.detach()))
     }
 
     pub fn max(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().max(dim)?))
+        Ok(Self(self.as_tensor().max(dim)?.detach()))
     }
 
     pub fn max_keepdim(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().max_keepdim(dim)?))
+        Ok(Self(self.as_tensor().max_keepdim(dim)?.detach()))
     }
 
     pub fn min(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().min(dim)?))
+        Ok(Self(self.as_tensor().min(dim)?.detach()))
     }
 
     pub fn min_keepdim(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().min_keepdim(dim)?))
+        Ok(Self(self.as_tensor().min_keepdim(dim)?.detach()))
     }
 
     pub fn mean(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().mean(dim)?))
+        Ok(Self(self.as_tensor().mean(dim)?.detach()))
     }
 
     pub fn mean_keepdim(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().mean_keepdim(dim)?))
+        Ok(Self(self.as_tensor().mean_keepdim(dim)?.detach()))
     }
 
     pub fn var(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().var(dim)?))
+        Ok(Self(self.as_tensor().var(dim)?.detach()))
     }
 
     pub fn var_keepdim(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().var_keepdim(dim)?))
+        Ok(Self(self.as_tensor().var_keepdim(dim)?.detach()))
     }
 
     pub fn argmax(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().argmax(dim)?))
+        Ok(Self(self.as_tensor().argmax(dim)?.detach()))
     }
 
     pub fn argmax_keepdim(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().argmax_keepdim(dim)?))
+        Ok(Self(self.as_tensor().argmax_keepdim(dim)?.detach()))
     }
 
     pub fn argmin(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().argmin(dim)?))
+        Ok(Self(self.as_tensor().argmin(dim)?.detach()))
     }
 
     pub fn argmin_keepdim(&self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().argmin_keepdim(dim)?))
+        Ok(Self(self.as_tensor().argmin_keepdim(dim)?.detach()))
     }
 
     pub fn conv1d(
@@ -405,13 +373,11 @@ impl CandleStorage {
         dilation: usize,
         groups: usize,
     ) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().conv1d(
-            kernel.as_tensor(),
-            padding,
-            stride,
-            dilation,
-            groups,
-        )?))
+        Ok(Self(
+            self.as_tensor()
+                .conv1d(kernel.as_tensor(), padding, stride, dilation, groups)?
+                .detach(),
+        ))
     }
 
     pub fn conv2d(
@@ -422,13 +388,11 @@ impl CandleStorage {
         dilation: usize,
         groups: usize,
     ) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().conv2d(
-            kernel.as_tensor(),
-            padding,
-            stride,
-            dilation,
-            groups,
-        )?))
+        Ok(Self(
+            self.as_tensor()
+                .conv2d(kernel.as_tensor(), padding, stride, dilation, groups)?
+                .detach(),
+        ))
     }
 
     pub fn max_pool2d_with_stride(
@@ -438,7 +402,8 @@ impl CandleStorage {
     ) -> CandleResult<Self> {
         Ok(Self(
             self.as_tensor()
-                .max_pool2d_with_stride(kernel_size, stride)?,
+                .max_pool2d_with_stride(kernel_size, stride)?
+                .detach(),
         ))
     }
 
@@ -449,19 +414,23 @@ impl CandleStorage {
     ) -> CandleResult<Self> {
         Ok(Self(
             self.as_tensor()
-                .avg_pool2d_with_stride(kernel_size, stride)?,
+                .avg_pool2d_with_stride(kernel_size, stride)?
+                .detach(),
         ))
     }
 
     pub fn where_cond(&self, true_value: &Self, false_value: &Self) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().where_cond(
-            true_value.as_tensor(),
-            false_value.as_tensor(),
-        )?))
+        Ok(Self(
+            self.as_tensor()
+                .where_cond(true_value.as_tensor(), false_value.as_tensor())?
+                .detach(),
+        ))
     }
 
     pub fn gather(&self, indexes: &Self, dim: usize) -> CandleResult<Self> {
-        Ok(Self(self.as_tensor().gather(indexes.as_tensor(), dim)?))
+        Ok(Self(
+            self.as_tensor().gather(indexes.as_tensor(), dim)?.detach(),
+        ))
     }
 
     pub fn index_select(&self, indexes: &Self, dim: usize) -> CandleResult<Self> {
@@ -480,7 +449,6 @@ impl CandleStorage {
             return Ok(Self(empty));
         }
 
-        // Validate indices are within bounds to prevent device-side asserts on CUDA.
         let dim_size = self.as_tensor().dims()[dim];
         let idx_vec = indexes
             .as_tensor()
@@ -504,7 +472,9 @@ impl CandleStorage {
         }
 
         Ok(Self(
-            self.as_tensor().index_select(indexes.as_tensor(), dim)?,
+            self.as_tensor()
+                .index_select(indexes.as_tensor(), dim)?
+                .detach(),
         ))
     }
 }
@@ -637,11 +607,6 @@ pub fn load_safetensors(
     let tensors = candle_core::safetensors::load(file_path, device)?;
     tensors
         .into_iter()
-        .map(|(name, tensor)| {
-            Ok((
-                name,
-                CandleStorage::from_candle_tensor(tensor, device)?,
-            ))
-        })
+        .map(|(name, tensor)| Ok((name, CandleStorage::from_candle_tensor(tensor, device)?)))
         .collect::<CandleResult<HashMap<_, _>>>()
 }

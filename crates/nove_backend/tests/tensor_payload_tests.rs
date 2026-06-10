@@ -2,8 +2,7 @@ use nove_backend::{BackendError, DType, Shape, TensorBuffer, TensorPayload};
 
 #[test]
 fn payload_new_matching_length_succeeds() {
-    let p =
-        TensorPayload::new(TensorBuffer::F32(vec![1.0; 4]), Shape::from_dims(&[2, 2])).unwrap();
+    let p = TensorPayload::new(TensorBuffer::F32(vec![1.0; 4]), Shape::from_dims(&[2, 2])).unwrap();
     assert_eq!(p.shape().dims(), &[2, 2]);
     assert_eq!(p.buffer().dtype(), DType::F32);
 }
