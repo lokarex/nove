@@ -1,5 +1,8 @@
 use super::{BackendError, BackendKind, BackendStorage, TensorBuffer, TensorPayload};
-use crate::{DType, Device, Shape, device::DeviceKind};
+use crate::{
+    DType, Device, Shape,
+    device::{BackendDeviceHandle, DeviceKind},
+};
 use std::collections::HashMap;
 
 fn backend_error(error: nove_candle::CandleBackendError) -> BackendError {
@@ -33,8 +36,11 @@ fn to_candle_device_kind(kind: DeviceKind) -> nove_candle::CandleDeviceKind {
 }
 
 pub(crate) fn to_candle_device(device: &Device) -> Result<nove_candle::CandleDevice, BackendError> {
-    nove_candle::to_candle_device(to_candle_device_kind(device.kind()), device.index())
-        .map_err(backend_error)
+    match device.handle() {
+        BackendDeviceHandle::Candle(device) => Ok(device.clone()),
+        #[cfg(feature = "native")]
+        BackendDeviceHandle::Native => Err(BackendError::UnsupportedBackend(device.backend())),
+    }
 }
 
 /// Candle-backed tensor storage adapter.
@@ -669,6 +675,13 @@ pub(crate) fn validate_device(kind: DeviceKind, index: usize) -> Result<(), Back
     nove_candle::validate_device(to_candle_device_kind(kind), index).map_err(backend_error)
 }
 
+pub(crate) fn create_candle_device(
+    kind: DeviceKind,
+    index: usize,
+) -> Result<nove_candle::CandleDevice, BackendError> {
+    nove_candle::to_candle_device(to_candle_device_kind(kind), index).map_err(backend_error)
+}
+
 pub(crate) fn synchronize_device(device: &Device) -> Result<(), BackendError> {
     let device = to_candle_device(device)?;
     nove_candle::synchronize_device(&device).map_err(backend_error)
@@ -685,7 +698,9 @@ pub(crate) fn save_safetensors(
             #[cfg(feature = "native")]
             BackendStorage::Native(storage) => {
                 let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
-                let device = Device::new(BackendKind::Candle, DeviceKind::Cpu, 0);
+                let handle = create_candle_device(DeviceKind::Cpu, 0)?;
+                let device =
+                    Device::from_handle(BackendDeviceHandle::Candle(handle), DeviceKind::Cpu, 0);
                 let storage = CandleStorage::from_payload(&payload, &device)?;
                 Ok((name, storage.into_inner()))
             }
@@ -783,7 +798,9 @@ pub fn storage_to_candle_tensor(
         #[cfg(feature = "native")]
         BackendStorage::Native(storage) => {
             let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
-            let device = Device::new(BackendKind::Candle, DeviceKind::Cpu, 0);
+            let handle = create_candle_device(DeviceKind::Cpu, 0)?;
+            let device =
+                Device::from_handle(BackendDeviceHandle::Candle(handle), DeviceKind::Cpu, 0);
             CandleStorage::from_payload(&payload, &device)?.to_candle_tensor()
         }
     }
@@ -798,7 +815,7 @@ impl Device {
     ///
     /// # Returns
     /// * `Ok(CandleDevice)` - The Candle device if the selected device is available.
-    /// * `Err(DeviceError)` - The error when the Candle device cannot be created.
+    /// * `Err(DeviceError)` - The error when this is not a Candle-backed device.
     ///
     /// # Examples
     /// ```

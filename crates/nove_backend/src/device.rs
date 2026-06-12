@@ -60,21 +60,42 @@ pub struct Device {
     backend: BackendKind,
     kind: DeviceKind,
     index: usize,
+    #[allow(dead_code)]
+    handle: BackendDeviceHandle,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum BackendDeviceHandle {
+    #[cfg(feature = "candle")]
+    Candle(nove_candle::CandleDevice),
+    #[cfg(feature = "native")]
+    Native,
+}
+
+impl BackendDeviceHandle {
+    fn backend(&self) -> BackendKind {
+        match self {
+            #[cfg(feature = "candle")]
+            Self::Candle(_) => BackendKind::Candle,
+            #[cfg(feature = "native")]
+            Self::Native => BackendKind::Native,
+        }
+    }
 }
 
 impl Device {
-    #[cfg(any(
-        feature = "candle-cpu",
-        feature = "candle-cuda",
-        feature = "candle-metal",
-        feature = "native-cpu"
-    ))]
-    pub(crate) fn new(backend: BackendKind, kind: DeviceKind, index: usize) -> Self {
+    pub(crate) fn from_handle(handle: BackendDeviceHandle, kind: DeviceKind, index: usize) -> Self {
         Self {
-            backend,
+            backend: handle.backend(),
             kind,
             index,
+            handle,
         }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn handle(&self) -> &BackendDeviceHandle {
+        &self.handle
     }
 
     /// Returns the backend selected for this device.
@@ -249,7 +270,7 @@ impl Device {
 /// silently switch to the native Nove CPU backend.
 pub mod candle {
     #[cfg(feature = "candle")]
-    use super::{BackendKind, DeviceKind};
+    use super::{BackendDeviceHandle, DeviceKind};
     use super::{Device, DeviceError};
 
     /// Creates a Candle-backed CPU device.
@@ -273,7 +294,12 @@ pub mod candle {
     pub fn cpu() -> Result<Device, DeviceError> {
         #[cfg(feature = "candle-cpu")]
         {
-            Ok(Device::new(BackendKind::Candle, DeviceKind::Cpu, 0))
+            let handle = crate::backend::candle::create_candle_device(DeviceKind::Cpu, 0)?;
+            Ok(Device::from_handle(
+                BackendDeviceHandle::Candle(handle),
+                DeviceKind::Cpu,
+                0,
+            ))
         }
 
         #[cfg(not(feature = "candle-cpu"))]
@@ -307,8 +333,12 @@ pub mod candle {
     pub fn cuda(index: usize) -> Result<Device, DeviceError> {
         #[cfg(feature = "candle-cuda")]
         {
-            crate::backend::candle::validate_device(DeviceKind::Cuda, index)?;
-            Ok(Device::new(BackendKind::Candle, DeviceKind::Cuda, index))
+            let handle = crate::backend::candle::create_candle_device(DeviceKind::Cuda, index)?;
+            Ok(Device::from_handle(
+                BackendDeviceHandle::Candle(handle),
+                DeviceKind::Cuda,
+                index,
+            ))
         }
 
         #[cfg(not(feature = "candle-cuda"))]
@@ -342,11 +372,7 @@ pub mod candle {
     pub fn cuda_if_available(index: usize) -> Result<Device, DeviceError> {
         #[cfg(feature = "candle-cuda")]
         {
-            if crate::backend::candle::validate_device(DeviceKind::Cuda, index).is_ok() {
-                Ok(Device::new(BackendKind::Candle, DeviceKind::Cuda, index))
-            } else {
-                cpu()
-            }
+            cuda(index).or_else(|_| cpu())
         }
 
         #[cfg(not(feature = "candle-cuda"))]
@@ -381,8 +407,12 @@ pub mod candle {
     pub fn metal(index: usize) -> Result<Device, DeviceError> {
         #[cfg(feature = "candle-metal")]
         {
-            crate::backend::candle::validate_device(DeviceKind::Metal, index)?;
-            Ok(Device::new(BackendKind::Candle, DeviceKind::Metal, index))
+            let handle = crate::backend::candle::create_candle_device(DeviceKind::Metal, index)?;
+            Ok(Device::from_handle(
+                BackendDeviceHandle::Candle(handle),
+                DeviceKind::Metal,
+                index,
+            ))
         }
 
         #[cfg(not(feature = "candle-metal"))]
@@ -416,11 +446,7 @@ pub mod candle {
     pub fn metal_if_available(index: usize) -> Result<Device, DeviceError> {
         #[cfg(feature = "candle-metal")]
         {
-            if crate::backend::candle::validate_device(DeviceKind::Metal, index).is_ok() {
-                Ok(Device::new(BackendKind::Candle, DeviceKind::Metal, index))
-            } else {
-                cpu()
-            }
+            metal(index).or_else(|_| cpu())
         }
 
         #[cfg(not(feature = "candle-metal"))]
@@ -467,8 +493,8 @@ impl Default for Device {
 
 /// Nove native device constructors.
 pub mod native {
-    #[cfg(feature = "native")]
-    use super::{BackendKind, DeviceKind};
+    #[cfg(feature = "native-cpu")]
+    use super::{BackendDeviceHandle, DeviceKind};
     use super::{Device, DeviceError};
 
     /// Creates a native Nove CPU device.
@@ -492,7 +518,11 @@ pub mod native {
     pub fn cpu() -> Result<Device, DeviceError> {
         #[cfg(feature = "native-cpu")]
         {
-            Ok(Device::new(BackendKind::Native, DeviceKind::Cpu, 0))
+            Ok(Device::from_handle(
+                BackendDeviceHandle::Native,
+                DeviceKind::Cpu,
+                0,
+            ))
         }
 
         #[cfg(not(feature = "native-cpu"))]
