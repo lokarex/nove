@@ -1097,6 +1097,186 @@ impl CpuStorage {
         )
     }
 
+    pub fn conv_transpose1d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> CpuResult<Self> {
+        if self.shape.len() != 3 || kernel.shape.len() != 3 || groups == 0 {
+            return Err(CpuBackendError::InvalidOperation(format!(
+                "conv_transpose1d expects rank-3 tensors and non-zero groups, got {:?}, {:?}, groups={groups}",
+                self.shape, kernel.shape
+            )));
+        }
+        let [batch, input_channels, input_length] = [self.shape[0], self.shape[1], self.shape[2]];
+        let [
+            kernel_input_channels,
+            output_channels_per_group,
+            kernel_size,
+        ] = [kernel.shape[0], kernel.shape[1], kernel.shape[2]];
+        if kernel_input_channels != input_channels || input_channels % groups != 0 {
+            return Err(CpuBackendError::InvalidOperation(format!(
+                "conv_transpose1d expected matching input/kernel channels divisible by groups={groups}, got {input_channels} and {kernel_input_channels}"
+            )));
+        }
+        let output_length = conv_transpose_output_size(
+            input_length,
+            kernel_size,
+            padding,
+            output_padding,
+            stride,
+            dilation,
+            "conv_transpose1d",
+        )?;
+        let input_values = self.to_f64_vec()?;
+        let kernel_values = kernel.to_f64_vec()?;
+        let output_channels = output_channels_per_group * groups;
+        let input_channels_per_group = input_channels / groups;
+        let mut output = vec![0.0; batch * output_channels * output_length];
+
+        for n in 0..batch {
+            for ic in 0..input_channels {
+                let group = ic / input_channels_per_group;
+                for il in 0..input_length {
+                    let input_value = input_values[(n * input_channels + ic) * input_length + il];
+                    for oc_local in 0..output_channels_per_group {
+                        let oc = group * output_channels_per_group + oc_local;
+                        for k in 0..kernel_size {
+                            let padded = il * stride + k * dilation;
+                            if padded < padding {
+                                continue;
+                            }
+                            let ol = padded - padding;
+                            if ol < output_length {
+                                let kernel_index =
+                                    (ic * output_channels_per_group + oc_local) * kernel_size + k;
+                                let output_index = (n * output_channels + oc) * output_length + ol;
+                                output[output_index] += input_value * kernel_values[kernel_index];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Self::from_f64_values(
+            output,
+            &[batch, output_channels, output_length],
+            promote_float_dtype(self.dtype(), kernel.dtype()),
+        )
+    }
+
+    pub fn conv_transpose2d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: (usize, usize),
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> CpuResult<Self> {
+        if self.shape.len() != 4 || kernel.shape.len() != 4 || groups == 0 {
+            return Err(CpuBackendError::InvalidOperation(format!(
+                "conv_transpose2d expects rank-4 tensors and non-zero groups, got {:?}, {:?}, groups={groups}",
+                self.shape, kernel.shape
+            )));
+        }
+        let [batch, input_channels, input_h, input_w] =
+            [self.shape[0], self.shape[1], self.shape[2], self.shape[3]];
+        let [
+            kernel_input_channels,
+            output_channels_per_group,
+            kernel_h,
+            kernel_w,
+        ] = [
+            kernel.shape[0],
+            kernel.shape[1],
+            kernel.shape[2],
+            kernel.shape[3],
+        ];
+        if kernel_input_channels != input_channels || input_channels % groups != 0 {
+            return Err(CpuBackendError::InvalidOperation(format!(
+                "conv_transpose2d expected matching input/kernel channels divisible by groups={groups}, got {input_channels} and {kernel_input_channels}"
+            )));
+        }
+        let output_h = conv_transpose_output_size(
+            input_h,
+            kernel_h,
+            padding,
+            output_padding.0,
+            stride,
+            dilation,
+            "conv_transpose2d",
+        )?;
+        let output_w = conv_transpose_output_size(
+            input_w,
+            kernel_w,
+            padding,
+            output_padding.1,
+            stride,
+            dilation,
+            "conv_transpose2d",
+        )?;
+        let input_values = self.to_f64_vec()?;
+        let kernel_values = kernel.to_f64_vec()?;
+        let output_channels = output_channels_per_group * groups;
+        let input_channels_per_group = input_channels / groups;
+        let mut output = vec![0.0; batch * output_channels * output_h * output_w];
+
+        for n in 0..batch {
+            for ic in 0..input_channels {
+                let group = ic / input_channels_per_group;
+                for ih in 0..input_h {
+                    for iw in 0..input_w {
+                        let input_index = ((n * input_channels + ic) * input_h + ih) * input_w + iw;
+                        let input_value = input_values[input_index];
+                        for oc_local in 0..output_channels_per_group {
+                            let oc = group * output_channels_per_group + oc_local;
+                            for kh in 0..kernel_h {
+                                let padded_h = ih * stride + kh * dilation;
+                                if padded_h < padding {
+                                    continue;
+                                }
+                                let oh = padded_h - padding;
+                                if oh >= output_h {
+                                    continue;
+                                }
+                                for kw in 0..kernel_w {
+                                    let padded_w = iw * stride + kw * dilation;
+                                    if padded_w < padding {
+                                        continue;
+                                    }
+                                    let ow = padded_w - padding;
+                                    if ow >= output_w {
+                                        continue;
+                                    }
+                                    let kernel_index =
+                                        ((ic * output_channels_per_group + oc_local) * kernel_h
+                                            + kh)
+                                            * kernel_w
+                                            + kw;
+                                    let output_index = ((n * output_channels + oc) * output_h + oh)
+                                        * output_w
+                                        + ow;
+                                    output[output_index] +=
+                                        input_value * kernel_values[kernel_index];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Self::from_f64_values(
+            output,
+            &[batch, output_channels, output_h, output_w],
+            promote_float_dtype(self.dtype(), kernel.dtype()),
+        )
+    }
+
     pub fn max_pool2d_with_stride(
         &self,
         kernel_size: (usize, usize),
@@ -1147,6 +1327,90 @@ impl CpuStorage {
             source_positions.push(ravel_index_with_strides(&coords, &input_strides));
         }
         self.take_positions(&source_positions, &output_shape)
+    }
+
+    pub fn scatter_add(&self, indexes: &Self, source: &Self, dim: usize) -> CpuResult<Self> {
+        if indexes.dtype() != CpuDType::I64 {
+            return Err(CpuBackendError::DTypeMismatch {
+                expected: CpuDType::I64,
+                found: indexes.dtype(),
+            });
+        }
+        if self.dtype() != source.dtype() {
+            return Err(CpuBackendError::DTypeMismatch {
+                expected: self.dtype(),
+                found: source.dtype(),
+            });
+        }
+        if dim >= self.shape.len()
+            || indexes.shape != source.shape
+            || source.shape.len() != self.shape.len()
+            || source
+                .shape
+                .iter()
+                .enumerate()
+                .any(|(axis, size)| axis != dim && *size > self.shape[axis])
+        {
+            return Err(CpuBackendError::InvalidOperation(format!(
+                "scatter_add dim={dim} requires indexes/source with matching shapes compatible with {:?}, got {:?} and {:?}",
+                self.shape, indexes.shape, source.shape
+            )));
+        }
+
+        let index_values = indexes.to_i64_vec("scatter_add")?;
+        let source_values = source.to_f64_vec()?;
+        let mut output = self.to_f64_vec()?;
+        let output_strides = strides(&self.shape);
+        for source_index in 0..source_values.len() {
+            let mut coords = unravel_index(source_index, &source.shape);
+            coords[dim] =
+                checked_index(index_values[source_index], self.shape[dim], "scatter_add")?;
+            let output_index = ravel_index_with_strides(&coords, &output_strides);
+            output[output_index] += source_values[source_index];
+        }
+        Self::from_f64_values(output, &self.shape, self.dtype())
+    }
+
+    pub fn index_add(&self, indexes: &Self, source: &Self, dim: usize) -> CpuResult<Self> {
+        if indexes.dtype() != CpuDType::I64 {
+            return Err(CpuBackendError::DTypeMismatch {
+                expected: CpuDType::I64,
+                found: indexes.dtype(),
+            });
+        }
+        if self.dtype() != source.dtype() {
+            return Err(CpuBackendError::DTypeMismatch {
+                expected: self.dtype(),
+                found: source.dtype(),
+            });
+        }
+        if dim >= self.shape.len()
+            || indexes.shape.len() != 1
+            || source.shape.len() != self.shape.len()
+            || source.shape[dim] != indexes.shape[0]
+            || source
+                .shape
+                .iter()
+                .enumerate()
+                .any(|(axis, size)| axis != dim && *size != self.shape[axis])
+        {
+            return Err(CpuBackendError::InvalidOperation(format!(
+                "index_add dim={dim} requires rank-1 indexes and source compatible with {:?}, got {:?} and {:?}",
+                self.shape, indexes.shape, source.shape
+            )));
+        }
+
+        let index_values = indexes.to_i64_vec("index_add")?;
+        let source_values = source.to_f64_vec()?;
+        let mut output = self.to_f64_vec()?;
+        let output_strides = strides(&self.shape);
+        for (source_index, source_value) in source_values.iter().enumerate() {
+            let mut coords = unravel_index(source_index, &source.shape);
+            coords[dim] = checked_index(index_values[coords[dim]], self.shape[dim], "index_add")?;
+            let output_index = ravel_index_with_strides(&coords, &output_strides);
+            output[output_index] += source_value;
+        }
+        Self::from_f64_values(output, &self.shape, self.dtype())
     }
 
     pub fn index_select(&self, indexes: &Self, dim: usize) -> CpuResult<Self> {
@@ -1642,6 +1906,30 @@ fn conv_output_size(
         )));
     }
     Ok((padded_input - effective_kernel) / stride + 1)
+}
+
+fn conv_transpose_output_size(
+    input: usize,
+    kernel: usize,
+    padding: usize,
+    output_padding: usize,
+    stride: usize,
+    dilation: usize,
+    operation: &str,
+) -> CpuResult<usize> {
+    if input == 0 || kernel == 0 || stride == 0 || dilation == 0 || output_padding >= stride {
+        return Err(CpuBackendError::InvalidOperation(format!(
+            "{operation} requires non-zero input/kernel/stride/dilation and output_padding < stride"
+        )));
+    }
+    let padded = (input - 1)
+        .checked_mul(stride)
+        .and_then(|value| value.checked_add(dilation * (kernel - 1)))
+        .and_then(|value| value.checked_add(output_padding + 1))
+        .ok_or_else(|| CpuBackendError::InvalidOperation(format!("{operation} size overflow")))?;
+    padded.checked_sub(2 * padding).ok_or_else(|| {
+        CpuBackendError::InvalidOperation(format!("{operation} padding is too large"))
+    })
 }
 
 fn variance(values: &[f64]) -> f64 {

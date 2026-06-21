@@ -1,3 +1,5 @@
+#[cfg(feature = "native")]
+use super::Backend;
 use super::{BackendError, BackendKind, BackendStorage, TensorBuffer, TensorPayload};
 use crate::{
     DType, Device, Shape,
@@ -583,16 +585,70 @@ impl super::Backend for CandleStorage {
             .map_err(backend_error)
     }
 
-    // -- indexing (3) --
+    // -- indexing (5) --
     fn gather(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
         self.inner()
             .gather(indexes.inner(), dim)
             .map(Self::new)
             .map_err(backend_error)
     }
+    fn conv_transpose1d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError> {
+        self.inner()
+            .conv_transpose1d(
+                kernel.inner(),
+                padding,
+                output_padding,
+                stride,
+                dilation,
+                groups,
+            )
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn conv_transpose2d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: (usize, usize),
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError> {
+        self.inner()
+            .conv_transpose2d(
+                kernel.inner(),
+                padding,
+                output_padding,
+                stride,
+                dilation,
+                groups,
+            )
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn scatter_add(&self, indexes: &Self, source: &Self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .scatter_add(indexes.inner(), source.inner(), dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
     fn index_select(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
         self.inner()
             .index_select(indexes.inner(), dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+    fn index_add(&self, indexes: &Self, source: &Self, dim: usize) -> Result<Self, BackendError> {
+        self.inner()
+            .index_add(indexes.inner(), source.inner(), dim)
             .map(Self::new)
             .map_err(backend_error)
     }

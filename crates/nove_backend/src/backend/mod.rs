@@ -674,7 +674,7 @@ pub(crate) trait Backend: Clone + std::fmt::Debug + Sized {
     fn argmin(&self, dim: usize) -> Result<Self, BackendError>;
     fn argmin_keepdim(&self, dim: usize) -> Result<Self, BackendError>;
 
-    // -- convolution (2) --
+    // -- convolution (4) --
     fn conv1d(
         &self,
         kernel: &Self,
@@ -687,6 +687,24 @@ pub(crate) trait Backend: Clone + std::fmt::Debug + Sized {
         &self,
         kernel: &Self,
         padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError>;
+    fn conv_transpose1d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError>;
+    fn conv_transpose2d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: (usize, usize),
         stride: usize,
         dilation: usize,
         groups: usize,
@@ -704,9 +722,11 @@ pub(crate) trait Backend: Clone + std::fmt::Debug + Sized {
         stride: (usize, usize),
     ) -> Result<Self, BackendError>;
 
-    // -- indexing (3) --
+    // -- indexing (5) --
     fn gather(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError>;
+    fn scatter_add(&self, indexes: &Self, source: &Self, dim: usize) -> Result<Self, BackendError>;
     fn index_select(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError>;
+    fn index_add(&self, indexes: &Self, source: &Self, dim: usize) -> Result<Self, BackendError>;
     fn where_cond(
         condition: &Self,
         true_value: &Self,
@@ -1340,6 +1360,88 @@ impl BackendStorage {
         }
     }
 
+    pub fn conv_transpose1d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError> {
+        match (self, kernel) {
+            #[cfg(feature = "candle")]
+            (Self::Candle(lhs), Self::Candle(rhs)) => Ok(Self::Candle(lhs.conv_transpose1d(
+                rhs,
+                padding,
+                output_padding,
+                stride,
+                dilation,
+                groups,
+            )?)),
+            #[cfg(feature = "native")]
+            (Self::Native(lhs), Self::Native(rhs)) => Ok(Self::Native(lhs.conv_transpose1d(
+                rhs,
+                padding,
+                output_padding,
+                stride,
+                dilation,
+                groups,
+            )?)),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Candle(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Candle,
+                found: other.backend_kind().unwrap_or(BackendKind::Candle),
+            }),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Native(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Native,
+                found: other.backend_kind().unwrap_or(BackendKind::Native),
+            }),
+        }
+    }
+
+    pub fn conv_transpose2d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: (usize, usize),
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError> {
+        match (self, kernel) {
+            #[cfg(feature = "candle")]
+            (Self::Candle(lhs), Self::Candle(rhs)) => Ok(Self::Candle(lhs.conv_transpose2d(
+                rhs,
+                padding,
+                output_padding,
+                stride,
+                dilation,
+                groups,
+            )?)),
+            #[cfg(feature = "native")]
+            (Self::Native(lhs), Self::Native(rhs)) => Ok(Self::Native(lhs.conv_transpose2d(
+                rhs,
+                padding,
+                output_padding,
+                stride,
+                dilation,
+                groups,
+            )?)),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Candle(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Candle,
+                found: other.backend_kind().unwrap_or(BackendKind::Candle),
+            }),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Native(_), other) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Native,
+                found: other.backend_kind().unwrap_or(BackendKind::Native),
+            }),
+        }
+    }
+
     pub fn max_pool2d_with_stride(
         &self,
         kernel_size: (usize, usize),
@@ -1393,6 +1495,34 @@ impl BackendStorage {
         }
     }
 
+    pub fn scatter_add(
+        &self,
+        indexes: &Self,
+        source: &Self,
+        dim: usize,
+    ) -> Result<Self, BackendError> {
+        match (self, indexes, source) {
+            #[cfg(feature = "candle")]
+            (Self::Candle(init), Self::Candle(indexes), Self::Candle(source)) => {
+                Ok(Self::Candle(init.scatter_add(indexes, source, dim)?))
+            }
+            #[cfg(feature = "native")]
+            (Self::Native(init), Self::Native(indexes), Self::Native(source)) => {
+                Ok(Self::Native(init.scatter_add(indexes, source, dim)?))
+            }
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Candle(_), _, _) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Candle,
+                found: BackendKind::Native,
+            }),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Native(_), _, _) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Native,
+                found: BackendKind::Candle,
+            }),
+        }
+    }
+
     pub fn index_select(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
         match (self, indexes) {
             #[cfg(feature = "candle")]
@@ -1408,6 +1538,34 @@ impl BackendStorage {
             (Self::Native(_), other) => Err(BackendError::BackendMismatch {
                 expected: BackendKind::Native,
                 found: other.backend_kind().unwrap_or(BackendKind::Native),
+            }),
+        }
+    }
+
+    pub fn index_add(
+        &self,
+        indexes: &Self,
+        source: &Self,
+        dim: usize,
+    ) -> Result<Self, BackendError> {
+        match (self, indexes, source) {
+            #[cfg(feature = "candle")]
+            (Self::Candle(init), Self::Candle(indexes), Self::Candle(source)) => {
+                Ok(Self::Candle(init.index_add(indexes, source, dim)?))
+            }
+            #[cfg(feature = "native")]
+            (Self::Native(init), Self::Native(indexes), Self::Native(source)) => {
+                Ok(Self::Native(init.index_add(indexes, source, dim)?))
+            }
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Candle(_), _, _) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Candle,
+                found: BackendKind::Native,
+            }),
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (Self::Native(_), _, _) => Err(BackendError::BackendMismatch {
+                expected: BackendKind::Native,
+                found: BackendKind::Candle,
             }),
         }
     }

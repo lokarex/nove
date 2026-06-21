@@ -400,6 +400,36 @@ impl super::Backend for NativeStorage {
             .map_err(backend_error)
     }
 
+    fn conv_transpose1d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError> {
+        self.0
+            .conv_transpose1d(&kernel.0, padding, output_padding, stride, dilation, groups)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+
+    fn conv_transpose2d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: (usize, usize),
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> Result<Self, BackendError> {
+        self.0
+            .conv_transpose2d(&kernel.0, padding, output_padding, stride, dilation, groups)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+
     fn max_pool2d_with_stride(
         &self,
         kernel_size: (usize, usize),
@@ -429,9 +459,23 @@ impl super::Backend for NativeStorage {
             .map_err(backend_error)
     }
 
+    fn scatter_add(&self, indexes: &Self, source: &Self, dim: usize) -> Result<Self, BackendError> {
+        self.0
+            .scatter_add(&indexes.0, &source.0, dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+
     fn index_select(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
         self.0
             .index_select(&indexes.0, dim)
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+
+    fn index_add(&self, indexes: &Self, source: &Self, dim: usize) -> Result<Self, BackendError> {
+        self.0
+            .index_add(&indexes.0, &source.0, dim)
             .map(Self::new)
             .map_err(backend_error)
     }

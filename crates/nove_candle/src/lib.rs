@@ -395,6 +395,73 @@ impl CandleStorage {
         ))
     }
 
+    pub fn conv_transpose1d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: usize,
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> CandleResult<Self> {
+        Ok(Self(
+            self.as_tensor()
+                .conv_transpose1d(
+                    kernel.as_tensor(),
+                    padding,
+                    output_padding,
+                    stride,
+                    dilation,
+                    groups,
+                )?
+                .detach(),
+        ))
+    }
+
+    pub fn conv_transpose2d(
+        &self,
+        kernel: &Self,
+        padding: usize,
+        output_padding: (usize, usize),
+        stride: usize,
+        dilation: usize,
+        groups: usize,
+    ) -> CandleResult<Self> {
+        if groups == 0 {
+            return Err(CandleBackendError {
+                message: "conv_transpose2d groups must be non-zero".to_string(),
+            });
+        }
+        let input_channels = self.as_tensor().dim(1)?;
+        let kernel_channels = kernel.as_tensor().dim(0)?;
+        if input_channels != kernel_channels || input_channels % groups != 0 {
+            return Err(CandleBackendError {
+                message: format!(
+                    "conv_transpose2d expected matching input/kernel channels divisible by groups={groups}, got {input_channels} and {kernel_channels}"
+                ),
+            });
+        }
+
+        let inputs = self.as_tensor().chunk(groups, 1)?;
+        let kernels = kernel.as_tensor().chunk(groups, 0)?;
+        let mut outputs = Vec::with_capacity(groups);
+        for (input, kernel) in inputs.iter().zip(kernels.iter()) {
+            let (_, _, input_h, input_w) = input.dims4()?;
+            let (_, _, kernel_h, kernel_w) = kernel.dims4()?;
+            let common_output_padding = output_padding.0.max(output_padding.1);
+            let output =
+                input.conv_transpose2d(kernel, padding, common_output_padding, stride, dilation)?;
+            let expected_h =
+                (input_h - 1) * stride + dilation * (kernel_h - 1) + 1 + output_padding.0
+                    - 2 * padding;
+            let expected_w =
+                (input_w - 1) * stride + dilation * (kernel_w - 1) + 1 + output_padding.1
+                    - 2 * padding;
+            outputs.push(output.narrow(2, 0, expected_h)?.narrow(3, 0, expected_w)?);
+        }
+        Ok(Self(candle_core::Tensor::cat(&outputs, 1)?.detach()))
+    }
+
     pub fn max_pool2d_with_stride(
         &self,
         kernel_size: (usize, usize),
@@ -430,6 +497,32 @@ impl CandleStorage {
     pub fn gather(&self, indexes: &Self, dim: usize) -> CandleResult<Self> {
         Ok(Self(
             self.as_tensor().gather(indexes.as_tensor(), dim)?.detach(),
+        ))
+    }
+
+    pub fn scatter_add(&self, indexes: &Self, source: &Self, dim: usize) -> CandleResult<Self> {
+        Ok(Self(
+            self.as_tensor()
+                .contiguous()?
+                .scatter_add(
+                    &indexes.as_tensor().contiguous()?,
+                    &source.as_tensor().contiguous()?,
+                    dim,
+                )?
+                .detach(),
+        ))
+    }
+
+    pub fn index_add(&self, indexes: &Self, source: &Self, dim: usize) -> CandleResult<Self> {
+        Ok(Self(
+            self.as_tensor()
+                .contiguous()?
+                .index_add(
+                    &indexes.as_tensor().contiguous()?,
+                    &source.as_tensor().contiguous()?,
+                    dim,
+                )?
+                .detach(),
         ))
     }
 

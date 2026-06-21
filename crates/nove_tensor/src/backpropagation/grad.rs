@@ -534,7 +534,14 @@ impl Tensor {
                 stride,
                 input_shape,
             } => unary_parent_grad(parents, grad_output, |input, grad| {
-                max_pool1d_backward_grad(input, grad, &input_shape, kernel_size, stride)
+                max_pool1d_backward_grad(
+                    &self.detach()?,
+                    input,
+                    grad,
+                    &input_shape,
+                    kernel_size,
+                    stride,
+                )
             }),
             OpKind::AvgPool1d {
                 kernel_size,
@@ -548,7 +555,14 @@ impl Tensor {
                 stride,
                 input_shape,
             } => unary_parent_grad(parents, grad_output, |input, grad| {
-                max_pool2d_backward_grad(input, grad, &input_shape, kernel_size, stride)
+                max_pool2d_backward_grad(
+                    &self.detach()?,
+                    input,
+                    grad,
+                    &input_shape,
+                    kernel_size,
+                    stride,
+                )
             }),
             OpKind::AvgPool2d {
                 kernel_size,
@@ -831,31 +845,32 @@ fn narrow_backward_grad(
         )));
     }
 
-    match grad.dtype()? {
-        DType::F32 => {
-            let values = scatter_narrow_values(
-                &grad.to_vec::<f32>()?,
-                source_shape.dims(),
-                input_shape.dims(),
-                dim,
-                start,
-            );
-            Tensor::from_slice(&values, input_shape, &grad.device()?, false)
-        }
-        DType::F64 => {
-            let values = scatter_narrow_values(
-                &grad.to_vec::<f64>()?,
-                source_shape.dims(),
-                input_shape.dims(),
-                dim,
-                start,
-            );
-            Tensor::from_slice(&values, input_shape, &grad.device()?, false)
-        }
-        dtype => Err(TensorError::InvalidOperation(format!(
-            "narrow autograd supports floating gradients only, got {dtype}"
-        ))),
+    let mut pieces = Vec::with_capacity(3);
+    if start > 0 {
+        let mut dims = input_shape.dims().to_vec();
+        dims[dim] = start;
+        let shape = Shape::from_dims(&dims);
+        pieces.push(Tensor::zeros(
+            &shape,
+            &grad.dtype()?,
+            &grad.device()?,
+            false,
+        )?);
     }
+    pieces.push(grad.copy());
+    let end = start + length;
+    if end < input_shape.dims()[dim] {
+        let mut dims = input_shape.dims().to_vec();
+        dims[dim] = input_shape.dims()[dim] - end;
+        let shape = Shape::from_dims(&dims);
+        pieces.push(Tensor::zeros(
+            &shape,
+            &grad.dtype()?,
+            &grad.device()?,
+            false,
+        )?);
+    }
+    Tensor::cat(&pieces, dim as isize)
 }
 
 fn gather_backward_grad(
@@ -864,39 +879,13 @@ fn gather_backward_grad(
     input_shape: &Shape,
     dim: usize,
 ) -> Result<Tensor, TensorError> {
-    let index_shape = indexes.shape()?;
     let indexes = if indexes.dtype()? != DType::I64 {
         indexes.to_dtype(&DType::I64)?
     } else {
         indexes.copy()
     };
-    let index_values = indexes.to_vec::<i64>()?;
-    let input_strides = contiguous_strides(input_shape.dims());
-    match grad.dtype()? {
-        DType::F32 => {
-            let values = scatter_gather_values(
-                &grad.to_vec::<f32>()?,
-                &index_values,
-                index_shape.dims(),
-                input_shape.dims(),
-                dim,
-                &input_strides,
-            )?;
-            Tensor::from_slice(&values, input_shape, &grad.device()?, false)
-        }
-        DType::F64 => {
-            let values = scatter_gather_values(
-                &grad.to_vec::<f64>()?,
-                &index_values,
-                index_shape.dims(),
-                input_shape.dims(),
-                dim,
-                &input_strides,
-            )?;
-            Tensor::from_slice(&values, input_shape, &grad.device()?, false)
-        }
-        dtype => Tensor::zeros(input_shape, &dtype, &grad.device()?, false),
-    }
+    let init = Tensor::zeros(input_shape, &grad.dtype()?, &grad.device()?, false)?;
+    backend_scatter_add(&init, &indexes, grad, dim)
 }
 
 fn index_select_backward_grad(
@@ -910,34 +899,8 @@ fn index_select_backward_grad(
     } else {
         indexes.copy()
     };
-    let index_values = indexes.to_vec::<i64>()?;
-    let grad_shape = grad.shape()?;
-    let input_strides = contiguous_strides(input_shape.dims());
-    match grad.dtype()? {
-        DType::F32 => {
-            let values = scatter_index_select_values(
-                &grad.to_vec::<f32>()?,
-                &index_values,
-                grad_shape.dims(),
-                input_shape.dims(),
-                dim,
-                &input_strides,
-            )?;
-            Tensor::from_slice(&values, input_shape, &grad.device()?, false)
-        }
-        DType::F64 => {
-            let values = scatter_index_select_values(
-                &grad.to_vec::<f64>()?,
-                &index_values,
-                grad_shape.dims(),
-                input_shape.dims(),
-                dim,
-                &input_strides,
-            )?;
-            Tensor::from_slice(&values, input_shape, &grad.device()?, false)
-        }
-        dtype => Tensor::zeros(input_shape, &dtype, &grad.device()?, false),
-    }
+    let init = Tensor::zeros(input_shape, &grad.dtype()?, &grad.device()?, false)?;
+    backend_index_add(&init, &indexes, grad, dim)
 }
 
 fn embedding_backward_grad(
@@ -950,181 +913,54 @@ fn embedding_backward_grad(
     } else {
         indexes.copy()
     };
-    let index_values = indexes.to_vec::<i64>()?;
-    let row_size = table_shape.dims()[1..].iter().product::<usize>();
-    match grad.dtype()? {
-        DType::F32 => {
-            let values = scatter_embedding_values(
-                &grad.to_vec::<f32>()?,
-                &index_values,
-                table_shape.dims(),
-                row_size,
-            )?;
-            Tensor::from_slice(&values, table_shape, &grad.device()?, false)
-        }
-        DType::F64 => {
-            let values = scatter_embedding_values(
-                &grad.to_vec::<f64>()?,
-                &index_values,
-                table_shape.dims(),
-                row_size,
-            )?;
-            Tensor::from_slice(&values, table_shape, &grad.device()?, false)
-        }
-        dtype => Tensor::zeros(table_shape, &dtype, &grad.device()?, false),
-    }
+    let index_count = indexes.shape()?.elem_count();
+    let mut source_dims = Vec::with_capacity(table_shape.rank());
+    source_dims.push(index_count);
+    source_dims.extend_from_slice(&table_shape.dims()[1..]);
+    let source = grad.reshape(&Shape::from_dims(&source_dims))?;
+    let indexes = indexes.reshape(&Shape::from_dims(&[index_count]))?;
+    let init = Tensor::zeros(table_shape, &grad.dtype()?, &grad.device()?, false)?;
+    backend_index_add(&init, &indexes, &source, 0)
 }
 
-fn scatter_narrow_values<T: Copy + Default>(
-    values: &[T],
-    source_shape: &[usize],
-    target_shape: &[usize],
+fn backend_scatter_add(
+    init: &Tensor,
+    indexes: &Tensor,
+    source: &Tensor,
     dim: usize,
-    start: usize,
-) -> Vec<T> {
-    let source_strides = contiguous_strides(source_shape);
-    let target_strides = contiguous_strides(target_shape);
-    let mut result = vec![T::default(); target_shape.iter().product()];
-
-    for (source_index, value) in values.iter().copied().enumerate() {
-        let mut remaining = source_index;
-        let mut target_index = 0;
-        for axis in 0..source_shape.len() {
-            let stride = source_strides[axis];
-            let coord = remaining.checked_div(stride).unwrap_or(0);
-            if stride != 0 {
-                remaining %= stride;
-            }
-            let target_coord = if axis == dim { coord + start } else { coord };
-            target_index += target_coord * target_strides[axis];
-        }
-        result[target_index] = value;
-    }
-
-    result
+) -> Result<Tensor, TensorError> {
+    let storage = init.backend_storage()?.scatter_add(
+        &indexes.backend_storage()?,
+        &source.backend_storage()?,
+        dim,
+    )?;
+    Ok(Tensor::from_backend_storage(
+        storage,
+        init.device()?,
+        false,
+        vec![],
+        OpKind::Gradient,
+    ))
 }
 
-fn scatter_gather_values<T>(
-    values: &[T],
-    indexes: &[i64],
-    index_shape: &[usize],
-    target_shape: &[usize],
+fn backend_index_add(
+    init: &Tensor,
+    indexes: &Tensor,
+    source: &Tensor,
     dim: usize,
-    target_strides: &[usize],
-) -> Result<Vec<T>, TensorError>
-where
-    T: Copy + Default + std::ops::AddAssign,
-{
-    if values.len() != indexes.len() {
-        return Err(TensorError::InvalidOperation(format!(
-            "gather autograd expected {} gradient values, got {}",
-            indexes.len(),
-            values.len()
-        )));
-    }
-
-    let mut result = vec![T::default(); target_shape.iter().product()];
-    for (output_index, value) in values.iter().copied().enumerate() {
-        let mut coords = unravel_index(output_index, index_shape);
-        let selected = checked_tensor_index(indexes[output_index], target_shape[dim], "gather")?;
-        coords[dim] = selected;
-        let target_index = ravel_index_with_strides(&coords, target_strides);
-        result[target_index] += value;
-    }
-    Ok(result)
-}
-
-fn scatter_index_select_values<T>(
-    values: &[T],
-    indexes: &[i64],
-    source_shape: &[usize],
-    target_shape: &[usize],
-    dim: usize,
-    target_strides: &[usize],
-) -> Result<Vec<T>, TensorError>
-where
-    T: Copy + Default + std::ops::AddAssign,
-{
-    let mut result = vec![T::default(); target_shape.iter().product()];
-    for (source_index, value) in values.iter().copied().enumerate() {
-        let mut coords = unravel_index(source_index, source_shape);
-        let selected =
-            checked_tensor_index(indexes[coords[dim]], target_shape[dim], "index_select")?;
-        coords[dim] = selected;
-        let target_index = ravel_index_with_strides(&coords, target_strides);
-        result[target_index] += value;
-    }
-    Ok(result)
-}
-
-fn scatter_embedding_values<T>(
-    values: &[T],
-    indexes: &[i64],
-    table_shape: &[usize],
-    row_size: usize,
-) -> Result<Vec<T>, TensorError>
-where
-    T: Copy + Default + std::ops::AddAssign,
-{
-    let mut result = vec![T::default(); table_shape.iter().product()];
-    if values.len() != indexes.len() * row_size {
-        return Err(TensorError::InvalidOperation(format!(
-            "embedding autograd expected {} gradient values, got {}",
-            indexes.len() * row_size,
-            values.len()
-        )));
-    }
-
-    for (position, row_index) in indexes.iter().copied().enumerate() {
-        let row = checked_tensor_index(row_index, table_shape[0], "embedding")?;
-        let source_start = position * row_size;
-        let target_start = row * row_size;
-        for offset in 0..row_size {
-            result[target_start + offset] += values[source_start + offset];
-        }
-    }
-    Ok(result)
-}
-
-fn contiguous_strides(shape: &[usize]) -> Vec<usize> {
-    if shape.is_empty() {
-        return vec![];
-    }
-    let mut strides = vec![1; shape.len()];
-    for index in (1..shape.len()).rev() {
-        strides[index - 1] = strides[index] * shape[index];
-    }
-    strides
-}
-
-fn unravel_index(mut index: usize, shape: &[usize]) -> Vec<usize> {
-    let mut coords = vec![0; shape.len()];
-    for axis in (0..shape.len()).rev() {
-        coords[axis] = index % shape[axis];
-        index /= shape[axis];
-    }
-    coords
-}
-
-fn ravel_index_with_strides(coords: &[usize], strides: &[usize]) -> usize {
-    coords
-        .iter()
-        .zip(strides.iter())
-        .map(|(coord, stride)| coord * stride)
-        .sum()
-}
-
-fn checked_tensor_index(
-    index: i64,
-    upper_bound: usize,
-    operation: &str,
-) -> Result<usize, TensorError> {
-    if index < 0 || index as usize >= upper_bound {
-        return Err(TensorError::InvalidOperation(format!(
-            "{operation} index {index} is out of bounds for dimension size {upper_bound}"
-        )));
-    }
-    Ok(index as usize)
+) -> Result<Tensor, TensorError> {
+    let storage = init.backend_storage()?.index_add(
+        &indexes.backend_storage()?,
+        &source.backend_storage()?,
+        dim,
+    )?;
+    Ok(Tensor::from_backend_storage(
+        storage,
+        init.device()?,
+        false,
+        vec![],
+        OpKind::Gradient,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1272,46 +1108,65 @@ fn conv1d_backward_grads(
         )));
     }
 
-    let input_values = tensor_float_values(input)?;
-    let kernel_values = tensor_float_values(kernel)?;
-    let grad_values = tensor_float_values(grad)?;
-    let input_strides = contiguous_strides(input_dims);
-    let kernel_strides = contiguous_strides(kernel_dims);
-    let mut input_grad = vec![0.0; input_shape.elem_count()];
-    let mut kernel_grad = vec![0.0; kernel_shape.elem_count()];
+    let output_padding = conv_transpose_output_padding(
+        input_length,
+        output_length,
+        kernel_size,
+        padding,
+        stride,
+        dilation,
+        "conv1d",
+    )?;
+    let mut input_grads = Vec::with_capacity(groups);
+    let mut kernel_grads = Vec::with_capacity(groups);
+    for group in 0..groups {
+        let input_group = input.narrow(
+            1,
+            (group * input_channels_per_group) as isize,
+            input_channels_per_group,
+        )?;
+        let kernel_group = kernel.narrow(
+            0,
+            (group * output_channels_per_group) as isize,
+            output_channels_per_group,
+        )?;
+        let grad_group = grad.narrow(
+            1,
+            (group * output_channels_per_group) as isize,
+            output_channels_per_group,
+        )?;
 
-    for n in 0..batch {
-        for oc in 0..output_channels {
-            let group = oc / output_channels_per_group;
-            let input_channel_start = group * input_channels_per_group;
-            for out_pos in 0..output_length {
-                let grad_index = (n * output_channels + oc) * output_length + out_pos;
-                let grad_value = grad_values[grad_index];
-                for ic_local in 0..kernel_channels {
-                    let ic = input_channel_start + ic_local;
-                    for k in 0..kernel_size {
-                        let padded_pos = out_pos * stride + k * dilation;
-                        if padded_pos < padding {
-                            continue;
-                        }
-                        let input_pos = padded_pos - padding;
-                        if input_pos >= input_length {
-                            continue;
-                        }
-                        let input_index = n * input_strides[0] + ic * input_strides[1] + input_pos;
-                        let kernel_index =
-                            oc * kernel_strides[0] + ic_local * kernel_strides[1] + k;
-                        input_grad[input_index] += grad_value * kernel_values[kernel_index];
-                        kernel_grad[kernel_index] += grad_value * input_values[input_index];
-                    }
-                }
-            }
+        input_grads.push(backend_conv_transpose1d(
+            &grad_group,
+            &kernel_group,
+            padding,
+            output_padding,
+            stride,
+            dilation,
+        )?);
+        let raw_kernel_grad = input_group
+            .transpose(0, 1)?
+            .contiguous()?
+            .conv1d(
+                &grad_group.transpose(0, 1)?.contiguous()?,
+                padding,
+                dilation,
+                stride,
+                1,
+            )?
+            .transpose(0, 1)?;
+        if raw_kernel_grad.shape()?.dims()[2] < kernel_size {
+            return Err(TensorError::InvalidOperation(format!(
+                "conv1d autograd produced kernel gradient shape {:?} for kernel {kernel_shape:?}",
+                raw_kernel_grad.shape()?
+            )));
         }
+        kernel_grads.push(raw_kernel_grad.narrow(2, 0, kernel_size)?);
     }
 
     Ok((
-        tensor_from_float_values(input_grad, input_shape, input)?,
-        tensor_from_float_values(kernel_grad, kernel_shape, kernel)?,
+        Tensor::cat(&input_grads, 1)?,
+        Tensor::cat(&kernel_grads, 0)?,
     ))
 }
 
@@ -1367,63 +1222,130 @@ fn conv2d_backward_grads(
         )));
     }
 
-    let input_values = tensor_float_values(input)?;
-    let kernel_values = tensor_float_values(kernel)?;
-    let grad_values = tensor_float_values(grad)?;
-    let input_strides = contiguous_strides(input_dims);
-    let kernel_strides = contiguous_strides(kernel_dims);
-    let mut input_grad = vec![0.0; input_shape.elem_count()];
-    let mut kernel_grad = vec![0.0; kernel_shape.elem_count()];
+    let output_padding = (
+        conv_transpose_output_padding(
+            input_h,
+            output_h,
+            kernel_h,
+            padding,
+            stride,
+            dilation,
+            "conv2d height",
+        )?,
+        conv_transpose_output_padding(
+            input_w,
+            output_w,
+            kernel_w,
+            padding,
+            stride,
+            dilation,
+            "conv2d width",
+        )?,
+    );
+    let mut input_grads = Vec::with_capacity(groups);
+    let mut kernel_grads = Vec::with_capacity(groups);
+    for group in 0..groups {
+        let input_group = input.narrow(
+            1,
+            (group * input_channels_per_group) as isize,
+            input_channels_per_group,
+        )?;
+        let kernel_group = kernel.narrow(
+            0,
+            (group * output_channels_per_group) as isize,
+            output_channels_per_group,
+        )?;
+        let grad_group = grad.narrow(
+            1,
+            (group * output_channels_per_group) as isize,
+            output_channels_per_group,
+        )?;
 
-    for n in 0..batch {
-        for oc in 0..output_channels {
-            let group = oc / output_channels_per_group;
-            let input_channel_start = group * input_channels_per_group;
-            for oh in 0..output_h {
-                for ow in 0..output_w {
-                    let grad_index = ((n * output_channels + oc) * output_h + oh) * output_w + ow;
-                    let grad_value = grad_values[grad_index];
-                    for ic_local in 0..kernel_channels {
-                        let ic = input_channel_start + ic_local;
-                        for kh in 0..kernel_h {
-                            let padded_h = oh * stride + kh * dilation;
-                            if padded_h < padding {
-                                continue;
-                            }
-                            let ih = padded_h - padding;
-                            if ih >= input_h {
-                                continue;
-                            }
-                            for kw in 0..kernel_w {
-                                let padded_w = ow * stride + kw * dilation;
-                                if padded_w < padding {
-                                    continue;
-                                }
-                                let iw = padded_w - padding;
-                                if iw >= input_w {
-                                    continue;
-                                }
-                                let input_index = n * input_strides[0]
-                                    + ic * input_strides[1]
-                                    + ih * input_strides[2]
-                                    + iw;
-                                let kernel_index = oc * kernel_strides[0]
-                                    + ic_local * kernel_strides[1]
-                                    + kh * kernel_strides[2]
-                                    + kw;
-                                input_grad[input_index] += grad_value * kernel_values[kernel_index];
-                                kernel_grad[kernel_index] += grad_value * input_values[input_index];
-                            }
-                        }
-                    }
-                }
-            }
+        input_grads.push(backend_conv_transpose2d(
+            &grad_group,
+            &kernel_group,
+            padding,
+            output_padding,
+            stride,
+            dilation,
+        )?);
+        let raw_kernel_grad = input_group
+            .transpose(0, 1)?
+            .contiguous()?
+            .conv2d(
+                &grad_group.transpose(0, 1)?.contiguous()?,
+                padding,
+                dilation,
+                stride,
+                1,
+            )?
+            .transpose(0, 1)?;
+        let raw_shape = raw_kernel_grad.shape()?;
+        if raw_shape.dims()[2] < kernel_h || raw_shape.dims()[3] < kernel_w {
+            return Err(TensorError::InvalidOperation(format!(
+                "conv2d autograd produced kernel gradient shape {raw_shape:?} for kernel {kernel_shape:?}"
+            )));
         }
+        kernel_grads.push(
+            raw_kernel_grad
+                .narrow(2, 0, kernel_h)?
+                .narrow(3, 0, kernel_w)?,
+        );
     }
 
     Ok((
-        tensor_from_float_values(input_grad, input_shape, input)?,
-        tensor_from_float_values(kernel_grad, kernel_shape, kernel)?,
+        Tensor::cat(&input_grads, 1)?,
+        Tensor::cat(&kernel_grads, 0)?,
+    ))
+}
+
+fn backend_conv_transpose1d(
+    input: &Tensor,
+    kernel: &Tensor,
+    padding: usize,
+    output_padding: usize,
+    stride: usize,
+    dilation: usize,
+) -> Result<Tensor, TensorError> {
+    let storage = input.backend_storage()?.conv_transpose1d(
+        &kernel.backend_storage()?,
+        padding,
+        output_padding,
+        stride,
+        dilation,
+        1,
+    )?;
+    Ok(Tensor::from_backend_storage(
+        storage,
+        input.device()?,
+        false,
+        vec![],
+        OpKind::Gradient,
+    ))
+}
+
+fn backend_conv_transpose2d(
+    input: &Tensor,
+    kernel: &Tensor,
+    padding: usize,
+    output_padding: (usize, usize),
+    stride: usize,
+    dilation: usize,
+) -> Result<Tensor, TensorError> {
+    let storage = input.backend_storage()?.conv_transpose2d(
+        &kernel.backend_storage()?,
+        padding,
+        output_padding,
+        stride,
+        dilation,
+        1,
+    )?;
+    Ok(Tensor::from_backend_storage(
+        storage,
+        input.device()?,
+        false,
+        vec![],
+        OpKind::Gradient,
     ))
 }
 
@@ -1434,33 +1356,23 @@ fn avg_pool1d_backward_grad(
     stride: usize,
 ) -> Result<Tensor, TensorError> {
     ensure_pool_rank(input_shape, 3, "avg_pool1d")?;
-    let dims = input_shape.dims();
-    let [batch, channels, length] = [dims[0], dims[1], dims[2]];
-    let output_length = (length - kernel_size) / stride + 1;
-    let grad_values = tensor_float_values(grad)?;
-    let mut result = vec![0.0; input_shape.elem_count()];
-    let input_strides = contiguous_strides(dims);
-    let share = 1.0 / kernel_size as f64;
-
-    for n in 0..batch {
-        for c in 0..channels {
-            for out_pos in 0..output_length {
-                let grad_index = (n * channels + c) * output_length + out_pos;
-                let value = grad_values[grad_index] * share;
-                let start = out_pos * stride;
-                for offset in 0..kernel_size {
-                    let input_index =
-                        n * input_strides[0] + c * input_strides[1] + (start + offset);
-                    result[input_index] += value;
-                }
-            }
-        }
-    }
-
-    tensor_from_float_values(result, input_shape, grad)
+    let input_shape_2d = Shape::from_dims(&[
+        input_shape.dims()[0],
+        input_shape.dims()[1],
+        input_shape.dims()[2],
+        1,
+    ]);
+    avg_pool2d_backward_grad(
+        &grad.unsqueeze(3)?,
+        &input_shape_2d,
+        (kernel_size, 1),
+        (stride, 1),
+    )?
+    .squeeze(Some(3))
 }
 
 fn max_pool1d_backward_grad(
+    output: &Tensor,
     input: &Tensor,
     grad: &Tensor,
     input_shape: &Shape,
@@ -1468,48 +1380,21 @@ fn max_pool1d_backward_grad(
     stride: usize,
 ) -> Result<Tensor, TensorError> {
     ensure_pool_rank(input_shape, 3, "max_pool1d")?;
-    let dims = input_shape.dims();
-    let [batch, channels, length] = [dims[0], dims[1], dims[2]];
-    let output_length = (length - kernel_size) / stride + 1;
-    let input_values = tensor_float_values(input)?;
-    let grad_values = tensor_float_values(grad)?;
-    let input_strides = contiguous_strides(dims);
-    let mut result = vec![0.0; input_shape.elem_count()];
-
-    for n in 0..batch {
-        for c in 0..channels {
-            for out_pos in 0..output_length {
-                let start = out_pos * stride;
-                let mut max_value = f64::NEG_INFINITY;
-                for offset in 0..kernel_size {
-                    let input_index =
-                        n * input_strides[0] + c * input_strides[1] + (start + offset);
-                    max_value = max_value.max(input_values[input_index]);
-                }
-
-                let mut ties = 0;
-                for offset in 0..kernel_size {
-                    let input_index =
-                        n * input_strides[0] + c * input_strides[1] + (start + offset);
-                    if input_values[input_index] == max_value {
-                        ties += 1;
-                    }
-                }
-
-                let grad_index = (n * channels + c) * output_length + out_pos;
-                let value = grad_values[grad_index] / ties as f64;
-                for offset in 0..kernel_size {
-                    let input_index =
-                        n * input_strides[0] + c * input_strides[1] + (start + offset);
-                    if input_values[input_index] == max_value {
-                        result[input_index] += value;
-                    }
-                }
-            }
-        }
-    }
-
-    tensor_from_float_values(result, input_shape, grad)
+    let input_shape_2d = Shape::from_dims(&[
+        input_shape.dims()[0],
+        input_shape.dims()[1],
+        input_shape.dims()[2],
+        1,
+    ]);
+    max_pool2d_backward_grad(
+        &output.unsqueeze(3)?,
+        &input.unsqueeze(3)?,
+        &grad.unsqueeze(3)?,
+        &input_shape_2d,
+        (kernel_size, 1),
+        (stride, 1),
+    )?
+    .squeeze(Some(3))
 }
 
 fn avg_pool2d_backward_grad(
@@ -1519,43 +1404,11 @@ fn avg_pool2d_backward_grad(
     stride: (usize, usize),
 ) -> Result<Tensor, TensorError> {
     ensure_pool_rank(input_shape, 4, "avg_pool2d")?;
-    let dims = input_shape.dims();
-    let [batch, channels, height, width] = [dims[0], dims[1], dims[2], dims[3]];
-    let (kernel_h, kernel_w) = kernel_size;
-    let (stride_h, stride_w) = stride;
-    let output_h = (height - kernel_h) / stride_h + 1;
-    let output_w = (width - kernel_w) / stride_w + 1;
-    let grad_values = tensor_float_values(grad)?;
-    let input_strides = contiguous_strides(dims);
-    let mut result = vec![0.0; input_shape.elem_count()];
-    let share = 1.0 / (kernel_h * kernel_w) as f64;
-
-    for n in 0..batch {
-        for c in 0..channels {
-            for oh in 0..output_h {
-                for ow in 0..output_w {
-                    let grad_index = ((n * channels + c) * output_h + oh) * output_w + ow;
-                    let value = grad_values[grad_index] * share;
-                    let h_start = oh * stride_h;
-                    let w_start = ow * stride_w;
-                    for kh in 0..kernel_h {
-                        for kw in 0..kernel_w {
-                            let input_index = n * input_strides[0]
-                                + c * input_strides[1]
-                                + (h_start + kh) * input_strides[2]
-                                + (w_start + kw) * input_strides[3];
-                            result[input_index] += value;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    tensor_from_float_values(result, input_shape, grad)
+    pool2d_backward_grad(None, None, grad, input_shape, kernel_size, stride)
 }
 
 fn max_pool2d_backward_grad(
+    output: &Tensor,
     input: &Tensor,
     grad: &Tensor,
     input_shape: &Shape,
@@ -1563,66 +1416,84 @@ fn max_pool2d_backward_grad(
     stride: (usize, usize),
 ) -> Result<Tensor, TensorError> {
     ensure_pool_rank(input_shape, 4, "max_pool2d")?;
+    pool2d_backward_grad(
+        Some(output),
+        Some(input),
+        grad,
+        input_shape,
+        kernel_size,
+        stride,
+    )
+}
+
+fn pool2d_backward_grad(
+    output: Option<&Tensor>,
+    input: Option<&Tensor>,
+    grad: &Tensor,
+    input_shape: &Shape,
+    kernel_size: (usize, usize),
+    stride: (usize, usize),
+) -> Result<Tensor, TensorError> {
     let dims = input_shape.dims();
     let [batch, channels, height, width] = [dims[0], dims[1], dims[2], dims[3]];
     let (kernel_h, kernel_w) = kernel_size;
     let (stride_h, stride_w) = stride;
     let output_h = (height - kernel_h) / stride_h + 1;
     let output_w = (width - kernel_w) / stride_w + 1;
-    let input_values = tensor_float_values(input)?;
-    let grad_values = tensor_float_values(grad)?;
-    let input_strides = contiguous_strides(dims);
-    let mut result = vec![0.0; input_shape.elem_count()];
+    let device = grad.device()?;
+    let dtype = grad.dtype()?;
+    let mut windows = Vec::with_capacity(kernel_h * kernel_w);
+    let mut tie_count = Tensor::zeros(&grad.shape()?, &dtype, &device, false)?;
 
-    for n in 0..batch {
-        for c in 0..channels {
-            for oh in 0..output_h {
-                for ow in 0..output_w {
-                    let h_start = oh * stride_h;
-                    let w_start = ow * stride_w;
-                    let mut max_value = f64::NEG_INFINITY;
-                    for kh in 0..kernel_h {
-                        for kw in 0..kernel_w {
-                            let input_index = n * input_strides[0]
-                                + c * input_strides[1]
-                                + (h_start + kh) * input_strides[2]
-                                + (w_start + kw) * input_strides[3];
-                            max_value = max_value.max(input_values[input_index]);
-                        }
-                    }
-
-                    let mut ties = 0;
-                    for kh in 0..kernel_h {
-                        for kw in 0..kernel_w {
-                            let input_index = n * input_strides[0]
-                                + c * input_strides[1]
-                                + (h_start + kh) * input_strides[2]
-                                + (w_start + kw) * input_strides[3];
-                            if input_values[input_index] == max_value {
-                                ties += 1;
-                            }
-                        }
-                    }
-
-                    let grad_index = ((n * channels + c) * output_h + oh) * output_w + ow;
-                    let value = grad_values[grad_index] / ties as f64;
-                    for kh in 0..kernel_h {
-                        for kw in 0..kernel_w {
-                            let input_index = n * input_strides[0]
-                                + c * input_strides[1]
-                                + (h_start + kh) * input_strides[2]
-                                + (w_start + kw) * input_strides[3];
-                            if input_values[input_index] == max_value {
-                                result[input_index] += value;
-                            }
-                        }
-                    }
+    for kh in 0..kernel_h {
+        let h_values = (0..output_h)
+            .map(|position| (position * stride_h + kh) as i64)
+            .collect::<Vec<_>>();
+        let h_indexes =
+            Tensor::from_slice(&h_values, &Shape::from_dims(&[output_h]), &device, false)?;
+        for kw in 0..kernel_w {
+            let w_values = (0..output_w)
+                .map(|position| (position * stride_w + kw) as i64)
+                .collect::<Vec<_>>();
+            let w_indexes =
+                Tensor::from_slice(&w_values, &Shape::from_dims(&[output_w]), &device, false)?;
+            let mask = match (input, output) {
+                (Some(input), Some(output)) => input
+                    .index_select(&h_indexes, 2)?
+                    .index_select(&w_indexes, 3)?
+                    .eq(output)?
+                    .to_dtype(&dtype)?,
+                (None, None) => Tensor::ones(&grad.shape()?, &dtype, &device, false)?,
+                _ => {
+                    return Err(TensorError::InvalidOperation(
+                        "pool autograd requires both input and output for max pooling".to_string(),
+                    ));
                 }
-            }
+            };
+            tie_count = tie_count.add(&mask)?;
+            windows.push((h_indexes.copy(), w_indexes, mask));
         }
     }
 
-    tensor_from_float_values(result, input_shape, grad)
+    let scaled_grad = if input.is_some() {
+        grad.div(&tie_count)?
+    } else {
+        grad.affine(1.0 / (kernel_h * kernel_w) as f64, 0.0)?
+    };
+    let mut result = Tensor::zeros(input_shape, &dtype, &device, false)?;
+    for (h_indexes, w_indexes, mask) in windows {
+        let contribution = scaled_grad.mul(&mask)?;
+        let row_init = Tensor::zeros(
+            &Shape::from_dims(&[batch, channels, output_h, width]),
+            &dtype,
+            &device,
+            false,
+        )?;
+        let rows = backend_index_add(&row_init, &w_indexes, &contribution, 3)?;
+        let window_grad = backend_index_add(&result.zeros_like()?, &h_indexes, &rows, 2)?;
+        result = result.add(&window_grad)?;
+    }
+    Ok(result)
 }
 
 fn ensure_pool_rank(shape: &Shape, rank: usize, operation: &str) -> Result<(), TensorError> {
@@ -1680,38 +1551,36 @@ fn conv_output_size(
     Ok((padded_input - effective_kernel) / stride + 1)
 }
 
-fn tensor_float_values(tensor: &Tensor) -> Result<Vec<f64>, TensorError> {
-    match tensor.dtype()? {
-        DType::F32 => Ok(tensor
-            .to_vec::<f32>()?
-            .into_iter()
-            .map(|value| value as f64)
-            .collect()),
-        DType::F64 => tensor.to_vec::<f64>(),
-        dtype => Err(TensorError::InvalidOperation(format!(
-            "native autograd supports floating tensors only, got {dtype}"
-        ))),
+fn conv_transpose_output_padding(
+    input_size: usize,
+    grad_size: usize,
+    kernel_size: usize,
+    padding: usize,
+    stride: usize,
+    dilation: usize,
+    operation: &str,
+) -> Result<usize, TensorError> {
+    let base_size = (grad_size - 1)
+        .checked_mul(stride)
+        .and_then(|value| value.checked_add(dilation * (kernel_size - 1)))
+        .and_then(|value| value.checked_add(1))
+        .and_then(|value| value.checked_sub(2 * padding))
+        .ok_or_else(|| {
+            TensorError::InvalidOperation(format!(
+                "{operation} autograd transposed-convolution size overflowed"
+            ))
+        })?;
+    let output_padding = input_size.checked_sub(base_size).ok_or_else(|| {
+        TensorError::InvalidOperation(format!(
+            "{operation} autograd cannot recover input size {input_size} from base size {base_size}"
+        ))
+    })?;
+    if output_padding >= stride {
+        return Err(TensorError::InvalidOperation(format!(
+            "{operation} autograd output padding {output_padding} must be smaller than stride {stride}"
+        )));
     }
-}
-
-fn tensor_from_float_values(
-    values: Vec<f64>,
-    shape: &Shape,
-    reference: &Tensor,
-) -> Result<Tensor, TensorError> {
-    match reference.dtype()? {
-        DType::F32 => {
-            let values = values
-                .into_iter()
-                .map(|value| value as f32)
-                .collect::<Vec<_>>();
-            Tensor::from_slice(&values, shape, &reference.device()?, false)
-        }
-        DType::F64 => Tensor::from_slice(&values, shape, &reference.device()?, false),
-        dtype => Err(TensorError::InvalidOperation(format!(
-            "native autograd supports floating tensors only, got {dtype}"
-        ))),
-    }
+    Ok(output_padding)
 }
 
 fn var_parent_grad(
