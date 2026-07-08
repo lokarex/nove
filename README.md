@@ -70,17 +70,17 @@ opt.zero_grad()?;
 ### Training Loop
 
 The `Learner` trait unifies training, validation, and testing. `EpochLearner`
-gives you fine-grained control; `ImageClassificationLearner` works out of
-the box for classification tasks.
+lets advanced users provide custom step closures; `ImageClassificationLearner`
+works out of the box for classification tasks.
 
 ```rust
 let mut learner = ImageClassificationLearnerBuilder::new()
     .train_dataloader(train_dl)
-    .validate_dataloader(val_dl)
+    .validation_dataloader(val_dl)
     .model(model)
     .optimizer(opt)
-    .lossfn(loss)
-    .epoch(5)
+    .loss_fn(loss)
+    .num_epochs(5)
     .build()?;
 learner.train()?;
 ```

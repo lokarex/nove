@@ -101,7 +101,7 @@ pub fn dataloader(
         .buffer_size(buffer_size)
         .build()?;
 
-    let validate_dataloader = ImageClassificationDataloaderBuilder::default()
+    let validation_dataloader = ImageClassificationDataloaderBuilder::default()
         .dataset(cifar10.test()?)
         .batch_size(batch_size)
         .resize(32, 32)
@@ -109,8 +109,8 @@ pub fn dataloader(
         .shuffle_seed(None)
         .use_normalization(normalization_mean, normalization_std)
         .build()?;
-    let validate_dataloader = PrefetchDataloaderBuilder::default()
-        .dataloader(validate_dataloader)
+    let validation_dataloader = PrefetchDataloaderBuilder::default()
+        .dataloader(validation_dataloader)
         .buffer_size(buffer_size)
         .build()?;
 
@@ -127,10 +127,10 @@ pub fn dataloader(
         .buffer_size(buffer_size)
         .build()?;
 
-    Ok((train_dataloader, validate_dataloader, test_dataloader))
+    Ok((train_dataloader, validation_dataloader, test_dataloader))
 }
 
-pub fn lossfn() -> CrossEntropyLoss {
+pub fn loss_fn() -> CrossEntropyLoss {
     CrossEntropyLoss::new()
 }
 

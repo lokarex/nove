@@ -30,9 +30,9 @@ pub enum LearnerError {
     #[error(transparent)]
     ModelError(#[from] ModelError),
 
-    /// Lossfn errors from the `nove_lossfn` crate.
+    /// Loss function errors from the `nove_lossfn` crate.
     #[error(transparent)]
-    LossfnError(#[from] LossFnError),
+    LossFnError(#[from] LossFnError),
 
     /// Metric errors from the `nove_metric` crate.
     #[error(transparent)]

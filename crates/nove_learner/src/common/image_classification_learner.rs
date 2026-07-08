@@ -16,9 +16,6 @@ use crate::{Learner, LearnerError};
 ///
 /// # Notes
 /// * The `ImageClassificationLearner` can only be created by the [`ImageClassificationLearnerBuilder`].
-///
-/// # Fields
-/// * `epoch_learner` - The underlying epoch learner handling training/evaluation loops.
 pub struct ImageClassificationLearner<D, M, L, O>
 where
     D: Dataloader<Output = (Tensor, Tensor)>,
@@ -68,12 +65,12 @@ where
         self.epoch_learner.metrics_mut()
     }
 
-    /// Get epoch count.
+    /// Get number of epochs.
     ///
     /// # Returns
     /// * `usize` - The number of epochs.
-    pub fn epoch_count(&self) -> usize {
-        self.epoch_learner.epoch_count()
+    pub fn num_epochs(&self) -> usize {
+        self.epoch_learner.num_epochs()
     }
 
     /// Get log interval.
@@ -92,12 +89,12 @@ where
         self.epoch_learner.train_dataloader_mut()
     }
 
-    /// Get mutable validate dataloader reference.
+    /// Get mutable validation dataloader reference.
     ///
     /// # Returns
-    /// * `Option<&mut D>` - The mutable validate dataloader reference if set.
-    pub fn validate_dataloader_mut(&mut self) -> Option<&mut D> {
-        self.epoch_learner.validate_dataloader_mut()
+    /// * `Option<&mut D>` - The mutable validation dataloader reference if set.
+    pub fn validation_dataloader_mut(&mut self) -> Option<&mut D> {
+        self.epoch_learner.validation_dataloader_mut()
     }
 
     /// Get mutable test dataloader reference.
@@ -108,12 +105,12 @@ where
         self.epoch_learner.test_dataloader_mut()
     }
 
-    /// Get lossfn reference.
+    /// Get loss function reference.
     ///
     /// # Returns
-    /// * `Option<&L>` - The lossfn reference if set.
-    pub fn lossfn(&self) -> Option<&L> {
-        self.epoch_learner.lossfn()
+    /// * `Option<&L>` - The loss function reference if set.
+    pub fn loss_fn(&self) -> Option<&L> {
+        self.epoch_learner.loss_fn()
     }
 
     /// Get mutable optimizer reference.
@@ -169,31 +166,27 @@ where
 /// * The `ImageClassificationLearnerBuilder` implements the `Default` trait, so you can use
 ///   `ImageClassificationLearnerBuilder::default()` to create a builder with default values.
 /// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::new()`].
-/// * `LossMetric` is automatically added when [`Self::lossfn()`] is called.
+/// * `LossMetric` is automatically added when [`Self::loss_fn()`] is called.
 /// * Argument validation is deferred to the actual method calls (`train`/`validate`/`test`).
 ///
 /// # Required Arguments
 /// * `model` - The model to train/evaluate. Required for all operations.
 ///
 /// # Conditional Required Arguments by Method
-/// * `train()` requires: `train_dataloader`, `validate_dataloader`, `lossfn`, `optimizer`, `epoch` > 0, `log_interval` > 0
-/// * `validate()` requires: `validate_dataloader`
+/// * `train()` requires: `train_dataloader`, `validation_dataloader`, `loss_fn`, `optimizer`, `num_epochs` > 0, `log_interval` > 0, `output_dir`
+/// * `validate()` requires: `validation_dataloader`
 /// * `test()` requires: `test_dataloader`
 ///
 /// # Optional Arguments
 /// * `train_dataloader` - Dataloader for training. Required only for `train()`.
-/// * `validate_dataloader` - Dataloader for validation. Required for `train()` and `validate()`.
+/// * `validation_dataloader` - Dataloader for validation. Required for `train()` and `validate()`.
 /// * `test_dataloader` - Dataloader for testing. Required only for `test()`.
-/// * `lossfn` - Loss function. Required only for `train()`.
+/// * `loss_fn` - Loss function. Required only for `train()`.
 /// * `optimizer` - Optimizer. Required only for `train()`.
-/// * `epoch` - Number of training epochs. Default is 10.
+/// * `num_epochs` - Number of training epochs. Default is 10.
 /// * `log_interval` - Logging frequency during training. Default is 10.
 /// * `metrics` - Custom metrics to track.
-/// * `result_dir` - Directory to save checkpoints. Default is current directory.
-///
-/// # Fields
-/// * `inner` - The underlying EpochLearnerBuilder handling construction.
-/// * `lossfn` - The loss function for training.
+/// * `output_dir` - Directory to save learner output.
 pub struct ImageClassificationLearnerBuilder<D, M, L, O>
 where
     D: Dataloader<Output = (Tensor, Tensor)>,
@@ -202,7 +195,7 @@ where
     O: Optimizer<StepOutput = ()>,
 {
     inner: EpochLearnerBuilder<D, M, L, O>,
-    lossfn: Option<L>,
+    loss_fn: Option<L>,
 }
 
 impl<D, M, L, O> Default for ImageClassificationLearnerBuilder<D, M, L, O>
@@ -236,7 +229,7 @@ where
         inner.metric(AnyMetric::AccuracyMetric(AccuracyMetric::new()));
         Self {
             inner,
-            lossfn: None,
+            loss_fn: None,
         }
     }
 
@@ -259,8 +252,8 @@ where
     ///
     /// # Returns
     /// * `&mut Self` - The builder itself.
-    pub fn validate_dataloader(&mut self, dataloader: D) -> &mut Self {
-        self.inner.validate_dataloader(dataloader);
+    pub fn validation_dataloader(&mut self, dataloader: D) -> &mut Self {
+        self.inner.validation_dataloader(dataloader);
         self
     }
 
@@ -294,12 +287,12 @@ where
     /// * Setting the loss function will also automatically add a [`LossMetric`] to track the loss.
     ///
     /// # Arguments
-    /// * `lossfn` - The loss function.
+    /// * `loss_fn` - The loss function.
     ///
     /// # Returns
     /// * `&mut Self` - The builder itself.
-    pub fn lossfn(&mut self, lossfn: L) -> &mut Self {
-        self.lossfn = Some(lossfn);
+    pub fn loss_fn(&mut self, loss_fn: L) -> &mut Self {
+        self.loss_fn = Some(loss_fn);
         self
     }
 
@@ -318,12 +311,12 @@ where
     /// Sets the number of training epochs.
     ///
     /// # Arguments
-    /// * `epoch` - The number of epochs. Default is 10.
+    /// * `num_epochs` - The number of epochs. Default is 10.
     ///
     /// # Returns
     /// * `&mut Self` - The builder itself.
-    pub fn epoch(&mut self, epoch: usize) -> &mut Self {
-        self.inner.epoch(epoch);
+    pub fn num_epochs(&mut self, num_epochs: usize) -> &mut Self {
+        self.inner.num_epochs(num_epochs);
         self
     }
 
@@ -331,7 +324,7 @@ where
     ///
     /// # Notes
     /// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::new()`].
-    /// * `LossMetric` is automatically added when [`Self::lossfn()`] is called.
+    /// * `LossMetric` is automatically added when [`Self::loss_fn()`] is called.
     /// * Do not manually add these two metrics.
     ///
     /// # Arguments
@@ -348,7 +341,7 @@ where
     ///
     /// # Notes
     /// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::new()`].
-    /// * `LossMetric` is automatically added when [`Self::lossfn()`] is called.
+    /// * `LossMetric` is automatically added when [`Self::loss_fn()`] is called.
     /// * Do not manually add these two metrics.
     ///
     /// # Arguments
@@ -373,15 +366,15 @@ where
         self
     }
 
-    /// Sets the result directory.
+    /// Sets the output directory.
     ///
     /// # Arguments
-    /// * `result_dir` - The directory to save checkpoints.
+    /// * `output_dir` - The directory to save learner output.
     ///
     /// # Returns
     /// * `&mut Self` - The builder itself.
-    pub fn result_dir(&mut self, result_dir: &str) -> &mut Self {
-        self.inner.result_dir(result_dir);
+    pub fn output_dir(&mut self, output_dir: &str) -> &mut Self {
+        self.inner.output_dir(output_dir);
         self
     }
 
@@ -394,10 +387,10 @@ where
     /// * `Ok(ImageClassificationLearner)` - The built learner.
     /// * `Err(LearnerError)` - If required arguments are missing or invalid.
     pub fn build(&mut self) -> Result<ImageClassificationLearner<D, M, L, O>, LearnerError> {
-        // Predefined train_step_fn for image classification
+        // Predefined training step closure for image classification
         let train_step_fn = move |batch: (Tensor, Tensor),
                                   model: &mut M,
-                                  lossfn: &mut L,
+                                  loss_fn: &mut L,
                                   optimizer: &mut O,
                                   metrics: &mut [AnyMetric]|
               -> Result<(), LearnerError> {
@@ -412,7 +405,7 @@ where
                 };
             }
 
-            let loss = lossfn.loss((outputs, targets))?;
+            let loss = loss_fn.loss((outputs, targets))?;
             optimizer.zero_grad()?;
             loss.backward()?;
             drop(loss);
@@ -421,10 +414,10 @@ where
             Ok(())
         };
 
-        // Predefined eval_step_fn for image classification
-        let eval_step_fn = move |batch: (Tensor, Tensor),
-                                 model: &mut M,
-                                 metrics: &mut [AnyMetric]|
+        // Predefined validation/test step closure for image classification
+        let validation_step_fn = move |batch: (Tensor, Tensor),
+                                       model: &mut M,
+                                       metrics: &mut [AnyMetric]|
               -> Result<(), LearnerError> {
             let (inputs, targets) = batch;
             let outputs = model.forward(inputs)?;
@@ -440,9 +433,9 @@ where
             Ok(())
         };
 
-        if let Some(lossfn) = &self.lossfn {
-            self.inner.lossfn(lossfn.clone());
-            self.inner.metric(LossMetric::new(lossfn.clone()));
+        if let Some(loss_fn) = &self.loss_fn {
+            self.inner.loss_fn(loss_fn.clone());
+            self.inner.metric(LossMetric::new(loss_fn.clone()));
         }
 
         // Predefined is_best_model: compares accuracy (first metric)
@@ -471,8 +464,8 @@ where
         let inner = std::mem::take(&mut self.inner);
         let epoch_learner = inner
             .train_step_fn(train_step_fn)
-            .eval_step_fn(eval_step_fn)
-            .test_step_fn(eval_step_fn)
+            .validation_step_fn(validation_step_fn)
+            .test_step_fn(validation_step_fn)
             .is_best_model(is_best_model_fn)
             .build()?;
 
