@@ -284,7 +284,8 @@ where
     /// Sets the loss function.
     ///
     /// # Notes
-    /// * Setting the loss function will also automatically add a [`LossMetric`] to track the loss.
+    /// * If a loss function has been set, [`Self::build()`] also adds a [`LossMetric`]
+    ///   to track the loss.
     ///
     /// # Arguments
     /// * `loss_fn` - The loss function.
@@ -320,7 +321,7 @@ where
         self
     }
 
-    /// Sets additional metrics to track.
+    /// Adds additional metrics to track.
     ///
     /// # Notes
     /// * `AccuracyMetric` is already added during [`ImageClassificationLearnerBuilder::new()`].
@@ -438,8 +439,8 @@ where
             self.inner.metric(LossMetric::new(loss_fn.clone()));
         }
 
-        // Predefined is_best_model: compares accuracy (first metric)
-        let is_best_model_fn =
+        // Predefined best_model_criterion: compares accuracy (first metric)
+        let best_model_criterion =
             move |best_metrics: Vec<AnyMetric>, current_metrics: Vec<AnyMetric>| -> bool {
                 let best_first = best_metrics
                     .first()
@@ -466,7 +467,7 @@ where
             .train_step_fn(train_step_fn)
             .validation_step_fn(validation_step_fn)
             .test_step_fn(validation_step_fn)
-            .is_best_model(is_best_model_fn)
+            .best_model_criterion(best_model_criterion)
             .build()?;
 
         Ok(ImageClassificationLearner { epoch_learner })

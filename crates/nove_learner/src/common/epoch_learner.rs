@@ -72,7 +72,8 @@ where
     model_name: Option<String>,
     output_dir: Option<PathBuf>,
     save_every_epoch: bool,
-    is_best_model: Option<Box<dyn Fn(Vec<AnyMetric>, Vec<AnyMetric>) -> bool + Send + 'static>>,
+    best_model_criterion:
+        Option<Box<dyn Fn(Vec<AnyMetric>, Vec<AnyMetric>) -> bool + Send + 'static>>,
     best_model_metrics: Option<Vec<AnyMetric>>,
 }
 
@@ -120,6 +121,11 @@ where
         if self.train_step_fn.is_none() {
             return Err(LearnerError::MissingArgument(
                 "train_step_fn is required for training".to_string(),
+            ));
+        }
+        if self.validation_step_fn.is_none() {
+            return Err(LearnerError::MissingArgument(
+                "validation_step_fn is required for training".to_string(),
             ));
         }
         Ok(())
@@ -309,9 +315,9 @@ where
     }
 
     fn check_and_update_best_model(&mut self) -> Result<bool, LearnerError> {
-        if let Some(is_best_model_fn) = &self.is_best_model {
+        if let Some(best_model_criterion) = &self.best_model_criterion {
             let current_metrics = self.metrics.clone();
-            let is_best = is_best_model_fn(
+            let is_best = best_model_criterion(
                 self.best_model_metrics.clone().unwrap_or_default(),
                 current_metrics.clone(),
             );
@@ -532,7 +538,7 @@ where
 /// * `output_dir` - Directory to save learner output.
 /// * `model_name` - Name of the model for checkpointing.
 /// * `save_every_epoch` - Whether to save checkpoint every epoch. Default is true.
-/// * `is_best_model` - Function to determine best model.
+/// * `best_model_criterion` - Criterion function to determine the best model.
 /// * `train_step_fn` - Step closures for training.
 /// * `validation_step_fn` - Step closures for validation.
 /// * `test_step_fn` - Step closure for testing.
@@ -587,7 +593,8 @@ where
     model_name: Option<String>,
     output_dir: Option<PathBuf>,
     save_every_epoch: bool,
-    is_best_model: Option<Box<dyn Fn(Vec<AnyMetric>, Vec<AnyMetric>) -> bool + Send + 'static>>,
+    best_model_criterion:
+        Option<Box<dyn Fn(Vec<AnyMetric>, Vec<AnyMetric>) -> bool + Send + 'static>>,
 }
 
 impl<D, M, L, O> Default for EpochLearnerBuilder<D, M, L, O>
@@ -626,7 +633,7 @@ where
             model_name: None,
             output_dir: None,
             save_every_epoch: true,
-            is_best_model: None,
+            best_model_criterion: None,
         }
     }
 
@@ -667,6 +674,10 @@ where
     }
 
     /// Sets the model.
+    ///
+    /// # Notes
+    /// * This also derives the model name from model type.
+    /// * If you needd a custom model name, call [`Self::model_name()`] after this method.
     ///
     /// # Arguments
     /// * `model` - The model to train/evaluate.
@@ -792,7 +803,7 @@ where
         self
     }
 
-    /// Sets the metrics to track.
+    /// Adds the metrics to track.
     ///
     /// # Arguments
     /// * `metrics` - A vector of metrics to track.
@@ -817,6 +828,11 @@ where
     }
 
     /// Sets the model name.
+    ///
+    /// # Notes
+    /// * [`Self::model()`] derives the model name from the model type and
+    ///   overwrites any previously configured model name.
+    /// * Call [`Self::model()`] before this method when using both.
     ///
     /// # Arguments
     /// * `name` - The name of the model for checkpointing.
@@ -852,18 +868,20 @@ where
         self
     }
 
-    /// Sets the best model determination function.
+    /// Sets the criterion used to decide whether the current validation metrics
+    /// should replace the best model.
     ///
     /// # Arguments
-    /// * `f` - The function with signature `Fn(Vec<AnyMetric>, Vec<AnyMetric>) -> bool`.
+    /// * `f` - Called as `f(best_metrics, current_metrics)`. Return `true` to
+    ///   save the current model as the new best.
     ///
     /// # Returns
     /// * `Self` - The builder itself.
-    pub fn is_best_model<PredicateFn>(mut self, f: PredicateFn) -> Self
+    pub fn best_model_criterion<CriterionFn>(mut self, f: CriterionFn) -> Self
     where
-        PredicateFn: Fn(Vec<AnyMetric>, Vec<AnyMetric>) -> bool + Send + 'static,
+        CriterionFn: Fn(Vec<AnyMetric>, Vec<AnyMetric>) -> bool + Send + 'static,
     {
-        self.is_best_model = Some(Box::new(f));
+        self.best_model_criterion = Some(Box::new(f));
         self
     }
 
@@ -905,7 +923,7 @@ where
             model_name: self.model_name.take(),
             output_dir,
             save_every_epoch: self.save_every_epoch,
-            is_best_model: self.is_best_model.take(),
+            best_model_criterion: self.best_model_criterion.take(),
             best_model_metrics: None,
         })
     }
