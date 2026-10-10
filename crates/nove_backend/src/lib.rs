@@ -42,8 +42,15 @@ pub use dtype::DType;
 mod shape;
 pub use shape::Shape;
 
-pub mod backend;
-pub use backend::{
-    BackendError, BackendKind, FloatTensorElement, IntoTensorPayload, TensorBuffer, TensorElement,
-    TensorPayload,
+mod kind;
+pub use kind::BackendKind;
+
+mod error;
+pub use error::BackendError;
+
+mod payload;
+pub use payload::{
+    FloatTensorElement, IntoTensorPayload, TensorBuffer, TensorElement, TensorPayload,
 };
+
+pub mod backend;

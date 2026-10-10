@@ -50,17 +50,11 @@ fn test_batched_dataloader() {
         }
         let batch = batch.unwrap();
 
-        batch
-            .to_vec::<i64>()
-            .unwrap()
-            .chunks_exact(1)
-            .for_each(|chunk| {
-                let data = chunk[0];
-
-                // Check the correspondence data.
-                assert_eq!(data, dataset.get(indices[counter]).unwrap() as i64);
-                counter += 1;
-            });
+        batch.to_vec::<i64>().unwrap().into_iter().for_each(|data| {
+            // Check the correspondence data.
+            assert_eq!(data, dataset.get(indices[counter]).unwrap() as i64);
+            counter += 1;
+        });
     }
 
     // Check the number of datas.
