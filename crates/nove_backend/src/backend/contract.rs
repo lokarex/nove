@@ -17,7 +17,7 @@ pub(crate) trait Backend: Clone + std::fmt::Debug + Sized {
     fn zero_set(&mut self) -> Result<(), BackendError>;
 
     // -- factories --
-    fn from_payload(payload: &TensorPayload, device: &Device) -> Result<Self, BackendError>;
+    fn from_payload(payload: TensorPayload, device: &Device) -> Result<Self, BackendError>;
     fn zeros(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError>;
     fn ones(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError>;
     fn rand(

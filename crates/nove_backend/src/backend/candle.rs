@@ -134,13 +134,14 @@ impl super::Backend for CandleStorage {
     }
 
     // -- factories --
-    fn from_payload(payload: &TensorPayload, device: &Device) -> Result<Self, BackendError> {
-        match payload.buffer() {
-            TensorBuffer::U8(data) => Self::from_slice(data, payload.shape(), device),
-            TensorBuffer::U32(data) => Self::from_slice(data, payload.shape(), device),
-            TensorBuffer::I64(data) => Self::from_slice(data, payload.shape(), device),
-            TensorBuffer::F32(data) => Self::from_slice(data, payload.shape(), device),
-            TensorBuffer::F64(data) => Self::from_slice(data, payload.shape(), device),
+    fn from_payload(payload: TensorPayload, device: &Device) -> Result<Self, BackendError> {
+        let (buffer, shape) = payload.into_parts();
+        match buffer {
+            TensorBuffer::U8(data) => Self::from_vec(data, &shape, device),
+            TensorBuffer::U32(data) => Self::from_vec(data, &shape, device),
+            TensorBuffer::I64(data) => Self::from_vec(data, &shape, device),
+            TensorBuffer::F32(data) => Self::from_vec(data, &shape, device),
+            TensorBuffer::F64(data) => Self::from_vec(data, &shape, device),
         }
     }
 
@@ -668,12 +669,12 @@ impl super::Backend for CandleStorage {
 // -- Private helpers (generic over Candle types) ---
 
 impl CandleStorage {
-    fn from_slice<D>(data: &[D], shape: &Shape, device: &Device) -> Result<Self, BackendError>
+    fn from_vec<D>(data: Vec<D>, shape: &Shape, device: &Device) -> Result<Self, BackendError>
     where
         D: nove_candle::CandleWithDType,
     {
         let device = to_candle_device(device)?;
-        nove_candle::CandleStorage::from_slice(data, shape.dims(), &device)
+        nove_candle::CandleStorage::from_vec(data, shape.dims(), &device)
             .map(Self::new)
             .map_err(backend_error)
     }
@@ -757,7 +758,7 @@ pub(crate) fn save_safetensors(
                 let handle = create_candle_device(DeviceKind::Cpu, 0)?;
                 let device =
                     Device::from_handle(BackendDeviceHandle::Candle(handle), DeviceKind::Cpu, 0);
-                let storage = CandleStorage::from_payload(&payload, &device)?;
+                let storage = CandleStorage::from_payload(payload, &device)?;
                 Ok((name, storage.into_inner()))
             }
         })
@@ -857,7 +858,7 @@ pub fn storage_to_candle_tensor(
             let handle = create_candle_device(DeviceKind::Cpu, 0)?;
             let device =
                 Device::from_handle(BackendDeviceHandle::Candle(handle), DeviceKind::Cpu, 0);
-            CandleStorage::from_payload(&payload, &device)?.to_candle_tensor()
+            CandleStorage::from_payload(payload, &device)?.to_candle_tensor()
         }
     }
 }

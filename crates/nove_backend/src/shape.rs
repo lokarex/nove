@@ -1,3 +1,5 @@
+use crate::BackendError;
+
 /// Tensor shape represented as an ordered list of dimensions.
 ///
 /// # Notes
@@ -73,6 +75,11 @@ impl Shape {
 
     /// Returns the number of elements described by the shape.
     ///
+    /// # Notes
+    /// This method does not check for overflow. Multiplication may panic when
+    /// overflow checks are enabled or wrap when they are disabled. Use
+    /// [`Self::checked_elem_count`] to validate dimensions before creating storage.
+    ///
     /// # Returns
     /// * `usize` - The product of all dimensions. Scalar shapes contain one element.
     ///
@@ -85,6 +92,38 @@ impl Shape {
     /// ```
     pub fn elem_count(&self) -> usize {
         self.0.iter().product()
+    }
+
+    /// Returns the element count, rejecting multiplication overflow.
+    ///
+    /// Scalar shapes contain one element. Any zero dimension makes the count
+    /// zero, even if multiplying the other dimensions would overflow.
+    ///
+    /// # Errors
+    /// Returns [`BackendError::InvalidOperation`] if a nonzero shape's element
+    /// count cannot be represented as a `usize`.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove_backend::Shape;
+    ///
+    /// assert_eq!(Shape::from(()).checked_elem_count().unwrap(), 1);
+    /// assert_eq!(Shape::from((2, 3)).checked_elem_count().unwrap(), 6);
+    /// assert_eq!(Shape::from_dims(&[usize::MAX, 2, 0]).checked_elem_count().unwrap(), 0);
+    /// assert!(Shape::from_dims(&[usize::MAX, 2]).checked_elem_count().is_err());
+    /// ```
+    pub fn checked_elem_count(&self) -> Result<usize, BackendError> {
+        if self.0.contains(&0) {
+            return Ok(0);
+        }
+        self.0.iter().try_fold(1usize, |count, &dim| {
+            count.checked_mul(dim).ok_or_else(|| {
+                BackendError::InvalidOperation(format!(
+                    "element count overflows usize for shape {:?}",
+                    self
+                ))
+            })
+        })
     }
 }
 

@@ -47,13 +47,13 @@ fn from_cpu_dtype(dtype: nove_native::cpu::CpuDType) -> DType {
     }
 }
 
-fn to_cpu_buffer(buffer: &TensorBuffer) -> nove_native::cpu::CpuBuffer {
+fn to_cpu_buffer(buffer: TensorBuffer) -> nove_native::cpu::CpuBuffer {
     match buffer {
-        TensorBuffer::U8(data) => nove_native::cpu::CpuBuffer::U8(data.clone()),
-        TensorBuffer::U32(data) => nove_native::cpu::CpuBuffer::U32(data.clone()),
-        TensorBuffer::I64(data) => nove_native::cpu::CpuBuffer::I64(data.clone()),
-        TensorBuffer::F32(data) => nove_native::cpu::CpuBuffer::F32(data.clone()),
-        TensorBuffer::F64(data) => nove_native::cpu::CpuBuffer::F64(data.clone()),
+        TensorBuffer::U8(data) => nove_native::cpu::CpuBuffer::U8(data),
+        TensorBuffer::U32(data) => nove_native::cpu::CpuBuffer::U32(data),
+        TensorBuffer::I64(data) => nove_native::cpu::CpuBuffer::I64(data),
+        TensorBuffer::F32(data) => nove_native::cpu::CpuBuffer::F32(data),
+        TensorBuffer::F64(data) => nove_native::cpu::CpuBuffer::F64(data),
     }
 }
 
@@ -136,13 +136,11 @@ impl super::Backend for NativeStorage {
         broadcast_pow,
         embedding,
     );
-    fn from_payload(payload: &TensorPayload, _device: &Device) -> Result<Self, BackendError> {
-        nove_native::cpu::CpuStorage::from_buffer(
-            to_cpu_buffer(payload.buffer()),
-            payload.shape().dims(),
-        )
-        .map(Self::new)
-        .map_err(backend_error)
+    fn from_payload(payload: TensorPayload, _device: &Device) -> Result<Self, BackendError> {
+        let (buffer, shape) = payload.into_parts();
+        nove_native::cpu::CpuStorage::from_buffer(to_cpu_buffer(buffer), shape.dims())
+            .map(Self::new)
+            .map_err(backend_error)
     }
 
     fn rand(
@@ -497,7 +495,7 @@ impl super::Backend for NativeStorage {
 
 impl NativeStorage {
     fn rand_impl(dtype: DType, low: f64, high: f64, shape: &Shape) -> Result<Self, BackendError> {
-        let count = shape.elem_count();
+        let count = shape.checked_elem_count()?;
         let mut state = 0x1234_5678_9abc_def0u64 ^ count as u64;
         let span = high - low;
         let values = (0..count)
@@ -513,7 +511,7 @@ impl NativeStorage {
     }
 
     fn randn_impl(dtype: DType, mean: f64, std: f64, shape: &Shape) -> Result<Self, BackendError> {
-        let count = shape.elem_count();
+        let count = shape.checked_elem_count()?;
         let mut state = 0x0fed_cba9_8765_4321u64 ^ count as u64;
         let mut values = Vec::with_capacity(count);
         while values.len() < count {
@@ -535,4 +533,31 @@ impl NativeStorage {
 /// Currently a no-op for the CPU-only native backend.
 pub(crate) fn synchronize_device(_device: &Device) -> Result<(), BackendError> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Shape, backend::BackendStorage, device};
+
+    #[test]
+    fn owned_payload_moves_native_buffer() {
+        let data = vec![1.0f32, 2.0];
+        let original_ptr = data.as_ptr();
+        let device = device::native::cpu().unwrap();
+        let storage = BackendStorage::from_vec(data, &Shape::from_dims(&[2]), &device).unwrap();
+        match storage {
+            BackendStorage::Native(storage) => {
+                match storage.0.buffer() {
+                    nove_native::cpu::CpuBuffer::F32(values) => {
+                        assert_eq!(values.as_ptr(), original_ptr);
+                        assert_eq!(values, &[1.0, 2.0]);
+                    }
+                    other => panic!("expected F32 buffer, got {other:?}"),
+                }
+                assert_eq!(storage.0.shape(), &[2]);
+            }
+            #[cfg(feature = "candle")]
+            other => panic!("expected Native storage, got {other:?}"),
+        }
+    }
 }

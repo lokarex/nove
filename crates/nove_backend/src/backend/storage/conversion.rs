@@ -57,14 +57,14 @@ impl BackendStorage {
             (Self::Native(storage), BackendKind::Candle) => {
                 let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
                 Ok(Self::Candle(candle::CandleStorage::from_payload(
-                    &payload, device,
+                    payload, device,
                 )?))
             }
             #[cfg(all(feature = "candle", feature = "native"))]
             (Self::Candle(storage), BackendKind::Native) if device.kind() == DeviceKind::Cpu => {
                 let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
                 Ok(Self::Native(native::NativeStorage::from_payload(
-                    &payload, device,
+                    payload, device,
                 )?))
             }
             (_, backend) => Err(BackendError::UnsupportedBackend(backend)),

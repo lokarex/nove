@@ -42,7 +42,8 @@ impl TensorPayload {
     ///
     /// # Returns
     /// * `Ok(TensorPayload)` - The payload when the buffer length matches the shape.
-    /// * `Err(BackendError)` - The error when the payload is inconsistent.
+    /// * `Err(BackendError)` - The error when the element count overflows or the
+    ///   payload is inconsistent.
     ///
     /// # Examples
     /// ```
@@ -58,7 +59,7 @@ impl TensorPayload {
     /// assert!(TensorPayload::new(TensorBuffer::F32(vec![1.0]), Shape::from_dims(&[2])).is_err());
     /// ```
     pub fn new(buffer: TensorBuffer, shape: Shape) -> Result<Self, BackendError> {
-        if buffer.len() != shape.elem_count() {
+        if buffer.len() != shape.checked_elem_count()? {
             return Err(BackendError::InvalidOperation(format!(
                 "data length {} does not match shape {:?}",
                 buffer.len(),
@@ -100,6 +101,26 @@ impl TensorPayload {
     /// ```
     pub fn shape(&self) -> &Shape {
         &self.shape
+    }
+
+    /// Consumes the payload, moving out its typed buffer and shape.
+    ///
+    /// Neither the element data nor the shape dimensions are copied.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove_backend::{Shape, TensorBuffer, TensorPayload};
+    ///
+    /// let payload = TensorPayload::new(
+    ///     TensorBuffer::I64(vec![42]),
+    ///     Shape::from_dims(&[1]),
+    /// ).unwrap();
+    /// let (buffer, shape) = payload.into_parts();
+    /// assert_eq!(buffer, TensorBuffer::I64(vec![42]));
+    /// assert_eq!(shape.dims(), &[1]);
+    /// ```
+    pub fn into_parts(self) -> (TensorBuffer, Shape) {
+        (self.buffer, self.shape)
     }
 }
 

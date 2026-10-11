@@ -25,7 +25,7 @@ impl BackendStorage {
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::from_payload(
-                &payload, device,
+                payload, device,
             )?)),
             #[cfg(feature = "native")]
             BackendKind::Native => {
@@ -33,7 +33,7 @@ impl BackendStorage {
                     return Err(BackendError::UnsupportedDevice(device.kind()));
                 }
                 Ok(Self::Native(native::NativeStorage::from_payload(
-                    &payload, device,
+                    payload, device,
                 )?))
             }
             #[cfg(not(all(feature = "candle", feature = "native")))]
@@ -55,6 +55,7 @@ impl BackendStorage {
     where
         D: TensorElement,
     {
+        shape.checked_elem_count()?;
         Self::from_vec(data.to_vec(), shape, device)
     }
 
@@ -62,6 +63,7 @@ impl BackendStorage {
     where
         T: FloatTensorElement,
     {
+        shape.checked_elem_count()?;
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::rand(
@@ -88,6 +90,7 @@ impl BackendStorage {
     where
         T: FloatTensorElement,
     {
+        shape.checked_elem_count()?;
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::randn(
@@ -111,6 +114,7 @@ impl BackendStorage {
     }
 
     pub fn zeros(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError> {
+        shape.checked_elem_count()?;
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::zeros(
@@ -126,6 +130,7 @@ impl BackendStorage {
     }
 
     pub fn ones(shape: &Shape, dtype: DType, device: &Device) -> Result<Self, BackendError> {
+        shape.checked_elem_count()?;
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::ones(
