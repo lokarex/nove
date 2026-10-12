@@ -3,6 +3,50 @@ use nove::model::nn::BatchNorm2dBuilder;
 use nove::tensor::{DType, Device, Shape, Tensor};
 
 #[test]
+fn running_statistics_update_preserves_metadata_on_each_backend()
+-> Result<(), Box<dyn std::error::Error>> {
+    let devices = [
+        #[cfg(feature = "candle-cpu")]
+        nove::device::candle::cpu()?,
+        #[cfg(feature = "native-cpu")]
+        nove::device::native::cpu()?,
+    ];
+    for device in devices {
+        let mut model = BatchNorm2dBuilder::new(2)
+            .device(device.clone())
+            .dtype(DType::F32)
+            .momentum(0.1)
+            .training(true)
+            .build()?;
+        let mean = model.running_mean();
+        let variance = model.running_var();
+        let ids = [mean.graph_id()?, variance.graph_id()?];
+        let initial_mean = mean.to_vec::<f32>()?;
+        let input = Tensor::from_slice(
+            &[1.0f32, 2.0, 3.0, 4.0],
+            &Shape::from_dims(&[2, 2, 1, 1]),
+            &device,
+            false,
+        )?;
+        for _ in 0..2 {
+            model.forward(input.copy())?;
+            for (index, statistic) in [model.running_mean(), model.running_var()]
+                .into_iter()
+                .enumerate()
+            {
+                assert_eq!(statistic.graph_id()?, ids[index]);
+                assert_eq!(statistic.shape()?.dims(), &[2, 1, 1]);
+                assert_eq!(statistic.dtype()?, DType::F32);
+                assert_eq!(statistic.device()?, device);
+                assert!(!statistic.grad_enabled()?);
+            }
+            assert_ne!(mean.to_vec::<f32>()?, initial_mean);
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn test_batch_norm2d_basic_forward() {
     let mut bn = BatchNorm2dBuilder::new(2)
         .epsilon(1e-5)

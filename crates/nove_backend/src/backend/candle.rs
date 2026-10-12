@@ -68,9 +68,10 @@ impl CandleStorage {
         device: &Device,
     ) -> Result<Self, BackendError> {
         let device = to_candle_device(device)?;
-        nove_candle::CandleStorage::from_candle_tensor(tensor, &device)
+        let storage = nove_candle::CandleStorage::from_candle_tensor(tensor, &device)
             .map(Self::new)
-            .map_err(backend_error)
+            .map_err(backend_error)?;
+        <Self as super::Backend>::try_clone(&storage)
     }
 
     pub(crate) fn to_candle_tensor(&self) -> Result<nove_candle::CandleTensor, BackendError> {
@@ -129,6 +130,20 @@ impl super::Backend for CandleStorage {
     }
 
     // -- lifecycle --
+    fn try_clone(&self) -> Result<Self, BackendError> {
+        let tensor = self.to_candle_tensor()?;
+        nove_candle::CandleStorage::from_candle_tensor(tensor, self.inner().as_tensor().device())
+            .map(Self::new)
+            .map_err(backend_error)
+    }
+
+    fn same_device(&self, other: &Self) -> bool {
+        self.inner()
+            .as_tensor()
+            .device()
+            .same_device(other.inner().as_tensor().device())
+    }
+
     fn zero_set(&mut self) -> Result<(), BackendError> {
         self.0.zero_set().map_err(backend_error)
     }
@@ -781,19 +796,19 @@ pub(crate) fn load_safetensors(
         .map_err(backend_error)
 }
 
-/// Creates backend storage from a detached Candle tensor.
+/// Create backend storage from a Candle tensor.
 ///
 /// # Notes
-/// This is the lower-level Candle interoperability boundary used by
-/// `nove_tensor`. The returned storage participates in Nove graph metadata, not
-/// Candle autograd state.
+/// * The data is copied to the target device and detached from Candle autograd.
+/// * The storage has an independent buffer, including when the tensor is already
+///   on the target device.
 ///
 /// # Arguments
 /// * `tensor` - Candle tensor to copy into backend storage.
 /// * `device` - Target Nove device descriptor.
 ///
 /// # Returns
-/// * `Ok(BackendStorage)` - Candle-backed storage wrapping a detached Candle tensor.
+/// * `Ok(BackendStorage)` - The created storage if successful.
 /// * `Err(BackendError)` - The error returned by Candle conversion.
 ///
 /// # Examples
@@ -821,12 +836,12 @@ pub fn storage_from_candle_tensor(
     )?))
 }
 
-/// Converts backend storage into a detached Candle tensor.
+/// Convert backend storage into a Candle tensor.
 ///
 /// # Notes
-/// Native CPU storage is materialized through a backend-independent payload
-/// before the Candle tensor is created. No Candle variable or gradient store is
-/// produced.
+/// * The converted tensor has an independent data buffer and is detached from Candle autograd.
+/// * Native CPU storage is converted through a backend-independent payload.
+/// * No Candle variable or gradient store is created.
 ///
 /// # Arguments
 /// * `storage` - Backend storage to convert.
@@ -887,5 +902,80 @@ impl Device {
     /// ```
     pub fn to_candle_device(&self) -> Result<nove_candle::CandleDevice, crate::DeviceError> {
         Ok(to_candle_device(self)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CandleStorage;
+    use crate::{DType, backend::Backend};
+
+    #[test]
+    fn candle_clone_has_independent_buffer() {
+        let device = nove_candle::CandleDevice::Cpu;
+        let raw = nove_candle::CandleTensor::from_slice(&[1.0f32, 2.0], &[2], &device).unwrap();
+        let source = CandleStorage::new(
+            nove_candle::CandleStorage::from_candle_tensor(raw.clone(), &device).unwrap(),
+        );
+        let copy = source.try_clone().unwrap();
+        raw.zero_set().unwrap();
+        assert_eq!(
+            source.inner().as_tensor().to_vec1::<f32>().unwrap(),
+            [0.0, 0.0]
+        );
+        assert_eq!(
+            copy.inner().as_tensor().to_vec1::<f32>().unwrap(),
+            [1.0, 2.0]
+        );
+        assert!(copy.same_device(&source));
+    }
+
+    #[test]
+    fn clone_preserves_noncontiguous_values() {
+        let device = nove_candle::CandleDevice::Cpu;
+        let raw = nove_candle::CandleTensor::from_slice(&[1.0f32, 2.0, 3.0, 4.0], &[2, 2], &device)
+            .unwrap()
+            .transpose(0, 1)
+            .unwrap();
+        assert!(!raw.is_contiguous());
+        let source = CandleStorage::new(
+            nove_candle::CandleStorage::from_candle_tensor(raw.clone(), &device).unwrap(),
+        );
+        let copy = source.try_clone().unwrap();
+        raw.zero_set().unwrap();
+        assert_eq!(
+            copy.inner().as_tensor().to_vec2::<f32>().unwrap(),
+            vec![vec![1.0, 3.0], vec![2.0, 4.0]]
+        );
+        assert_eq!(copy.shape().dims(), &[2, 2]);
+        assert!(copy.same_device(&source));
+    }
+
+    #[test]
+    fn clone_preserves_half_dtype_and_independence() {
+        let device = nove_candle::CandleDevice::Cpu;
+        for dtype in [DType::F16, DType::BF16] {
+            let raw = nove_candle::CandleTensor::from_slice(&[1.0f32, 2.0], &[2], &device)
+                .unwrap()
+                .to_dtype(dtype.into())
+                .unwrap();
+            let source = CandleStorage::new(
+                nove_candle::CandleStorage::from_candle_tensor(raw.clone(), &device).unwrap(),
+            );
+            let copy = source.try_clone().unwrap();
+            raw.zero_set().unwrap();
+            assert_eq!(copy.dtype(), dtype);
+            assert_eq!(copy.shape().dims(), &[2]);
+            assert!(copy.same_device(&source));
+            assert_eq!(
+                copy.inner()
+                    .as_tensor()
+                    .to_dtype(nove_candle::CandleDType::F32)
+                    .unwrap()
+                    .to_vec1::<f32>()
+                    .unwrap(),
+                [1.0, 2.0]
+            );
+        }
     }
 }

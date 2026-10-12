@@ -369,14 +369,16 @@ impl Tensor {
 
     /// Detach the tensor from the computational graph.
     ///
-    /// This creates a new tensor that shares the same data but is disconnected
-    /// from the computational graph. The detached tensor will:
+    /// This creates a new tensor with the same values and no connection to
+    /// the computational graph. The detached tensor will:
     /// - Have no parent tensors
     /// - Disconnect from the computational graph
     ///
     /// # Notes
     /// Detaching does not copy values into Candle autograd storage. Gradients
     /// stay represented by Nove graph metadata and Nove tensor values.
+    /// The data buffer may be shared. Use [`Tensor::try_clone`] to create an
+    /// independent copy of the values and gradients.
     ///
     /// # Returns
     /// * `Ok(Tensor)` - A new tensor detached from the computational graph.
@@ -395,7 +397,7 @@ impl Tensor {
     /// ```
     pub fn detach(&self) -> Result<Tensor, TensorError> {
         let data = self.data.read()?;
-        let storage = data.storage.detach()?;
+        let storage = data.storage.clone();
         let device = data.device.clone();
         let grad = match &data.grad {
             Some(grad) => Some(grad.detach()?),

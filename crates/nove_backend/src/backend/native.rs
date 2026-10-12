@@ -101,6 +101,14 @@ macro_rules! cpu_binary_methods {
 }
 
 impl super::Backend for NativeStorage {
+    fn try_clone(&self) -> Result<Self, BackendError> {
+        Ok(self.clone())
+    }
+
+    fn same_device(&self, _other: &Self) -> bool {
+        true
+    }
+
     cpu_unary_methods!(
         zeros_like,
         ones_like,
@@ -537,6 +545,8 @@ pub(crate) fn synchronize_device(_device: &Device) -> Result<(), BackendError> {
 
 #[cfg(test)]
 mod tests {
+    use super::NativeStorage;
+    use crate::backend::Backend;
     use crate::{Shape, backend::BackendStorage, device};
 
     #[test]
@@ -558,6 +568,26 @@ mod tests {
             }
             #[cfg(feature = "candle")]
             other => panic!("expected Native storage, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn native_clone_has_independent_typed_buffer() {
+        let values = vec![9_007_199_254_740_993i64, -9_007_199_254_740_993];
+        let source = NativeStorage::new(
+            nove_native::cpu::CpuStorage::from_buffer(
+                nove_native::cpu::CpuBuffer::I64(values.clone()),
+                &[2],
+            )
+            .unwrap(),
+        );
+        let copy = source.try_clone().unwrap();
+        match (source.0.buffer(), copy.0.buffer()) {
+            (nove_native::cpu::CpuBuffer::I64(a), nove_native::cpu::CpuBuffer::I64(b)) => {
+                assert_ne!(a.as_ptr(), b.as_ptr());
+                assert_eq!(b.as_slice(), values.as_slice());
+            }
+            other => panic!("expected I64 buffers, got {other:?}"),
         }
     }
 }

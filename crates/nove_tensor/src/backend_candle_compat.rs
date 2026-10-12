@@ -6,7 +6,8 @@ impl Tensor {
     /// # Notes
     /// The Candle tensor is copied to the target Nove device and detached from
     /// Candle autograd. Gradient tracking is represented only by Nove tensor
-    /// metadata and Nove's computation graph.
+    /// metadata and Nove's computation graph. The created tensor has an independent
+    /// data buffer.
     ///
     /// # Arguments
     /// * `tensor` - The Candle tensor to create the tensor from.
@@ -62,7 +63,8 @@ impl Tensor {
     ///
     /// # Notes
     /// This is an interoperability boundary for raw Candle tensors only. Nove
-    /// does not expose Candle autograd state or Candle gradient stores.
+    /// does not expose Candle autograd state or Candle gradient stores. The
+    /// converted tensor has an independent data buffer.
     ///
     /// # Returns
     /// * `Ok(candle_core::Tensor)` - The Candle tensor if successful.

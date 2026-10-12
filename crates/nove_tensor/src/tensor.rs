@@ -254,7 +254,7 @@ impl Tensor {
     pub fn try_clone(&self) -> Result<Self, TensorError> {
         let data = self.data.read()?;
         Ok(Tensor::from_backend_parts(
-            data.storage.clone(),
+            data.storage.try_clone()?,
             data.device.clone(),
             data.requires_grad,
             vec![],
@@ -289,7 +289,11 @@ impl Tensor {
     ///   without disconnecting it from the computational graph.
     /// * If the tensor does not have enabled gradients, the method will update the tensor's backend storage
     ///   and disconnect it from the computational graph.
-    /// * Always used with [`Tensor::detach`].
+    /// * The source must have the same backend, actual device, dtype and shape.
+    /// * The tensor's identity, name, device and gradient setting are preserved.
+    ///   The source's name, gradient setting and computational graph are not copied.
+    /// * If the metadata does not match, the tensor remains unchanged.
+    /// * This method does not check whether the existing graph contains stale forward values.
     ///
     /// # Arguments
     /// * `other` - The tensor to update the backend storage from.
@@ -298,13 +302,134 @@ impl Tensor {
     /// * `Ok(())` - The tensor's backend storage is successfully updated.
     /// * `Err(TensorError)` - The error when updating the tensor's backend storage.
     pub fn update_from_tensor(&self, other: &Tensor) -> Result<(), TensorError> {
-        let other_storage = other.backend_storage()?;
+        // Release the source read lock before acquiring the target write lock.
+        let (other_storage, other_device) = {
+            let other_data = other.data.read()?;
+            (other_data.storage.clone(), other_data.device.clone())
+        };
         let mut self_data = self.data.write()?;
+        let expected = self_data.storage.backend_kind()?;
+        let found = other_storage.backend_kind()?;
+        if expected != found {
+            return Err(BackendError::BackendMismatch { expected, found }.into());
+        }
+        if self_data.device != other_device || !self_data.storage.same_device(&other_storage) {
+            return Err(TensorError::DeviceMismatch(
+                Box::new(self_data.device.clone()),
+                Box::new(other_device),
+            ));
+        }
+        let expected = self_data.storage.dtype()?;
+        let found = other_storage.dtype()?;
+        if expected != found {
+            return Err(TensorError::DTypeMismatch(expected, found));
+        }
+        let expected = self_data.storage.shape()?;
+        let found = other_storage.shape()?;
+        if expected != found {
+            return Err(TensorError::ShapeMismatch(expected, found));
+        }
         let requires_grad = self_data.requires_grad;
-        self_data.storage.assign_from(&other_storage)?;
+        self_data.storage = other_storage;
         if !requires_grad {
             self_data.grad = None;
             self_data.graph.clear_parents();
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::backpropagation::graph::TensorId;
+
+    fn enabled_cpu_devices() -> Vec<Device> {
+        vec![
+            #[cfg(feature = "candle-cpu")]
+            crate::device::candle::cpu().unwrap(),
+            #[cfg(feature = "native-cpu")]
+            crate::device::native::cpu().unwrap(),
+        ]
+    }
+
+    #[test]
+    fn try_clone_copies_value_and_gradient_buffers() -> Result<(), TensorError> {
+        for device in enabled_cpu_devices() {
+            let original =
+                Tensor::from_data(vec![1.0f32, 2.0], &device, true)?.require_name("x")?;
+            original.sum(None)?.backward()?;
+            let copy = original.try_clone()?;
+            original.data.write()?.storage.zero_set()?;
+            original.grad()?.unwrap().data.write()?.storage.zero_set()?;
+            assert_eq!(original.to_vec::<f32>()?, vec![0.0, 0.0]);
+            assert_eq!(copy.to_vec::<f32>()?, vec![1.0, 2.0]);
+            assert_eq!(copy.grad()?.unwrap().to_vec::<f32>()?, vec![1.0, 1.0]);
+            assert_eq!(copy.name()?, Some("x".into()));
+            assert_eq!(copy.dtype()?, original.dtype()?);
+            assert_eq!(copy.shape()?, original.shape()?);
+            assert_eq!(copy.device()?, device);
+            assert!(copy.grad_enabled()?);
+            assert_ne!(copy.graph_id()?, original.graph_id()?);
+            assert!(copy.data.read()?.graph.parents.is_empty());
+        }
+        Ok(())
+    }
+
+    type GraphState = (TensorId, OpKind, Vec<TensorId>, Option<TensorId>);
+
+    fn graph_state(tensor: &Tensor) -> Result<GraphState, TensorError> {
+        let data = tensor.data.read()?;
+        Ok((
+            data.graph.id,
+            data.graph.op.clone(),
+            data.graph
+                .parents
+                .iter()
+                .map(Tensor::graph_id)
+                .collect::<Result<_, _>>()?,
+            data.grad.as_ref().map(Tensor::graph_id).transpose()?,
+        ))
+    }
+
+    #[test]
+    fn update_failure_preserves_graph_and_gradient_state() -> Result<(), TensorError> {
+        for device in enabled_cpu_devices() {
+            for requires_grad in [false, true] {
+                let leaf = Tensor::from_data(vec![1.0f32, 2.0], &device, true)?;
+                leaf.sum(None)?.backward()?;
+                let target = leaf.affine(2.0, 0.0)?;
+                {
+                    let mut data = target.data.write()?;
+                    data.requires_grad = requires_grad;
+                    data.grad = leaf.grad()?;
+                    data.name = Some("target".into());
+                }
+                let before = graph_state(&target)?;
+                let bad = Tensor::from_data(vec![7.0f32], &device, false)?;
+                assert!(matches!(
+                    target.update_from_tensor(&bad),
+                    Err(TensorError::ShapeMismatch(..))
+                ));
+                assert_eq!(graph_state(&target)?, before);
+                assert_eq!(target.to_vec::<f32>()?, vec![2.0, 4.0]);
+                assert_eq!(target.grad()?.unwrap().to_vec::<f32>()?, vec![1.0, 1.0]);
+                let good = Tensor::from_data(vec![7.0f32, 8.0], &device, false)?;
+                target.update_from_tensor(&good)?;
+                assert_eq!(target.to_vec::<f32>()?, vec![7.0, 8.0]);
+                assert_eq!(target.name()?, Some("target".into()));
+                assert_eq!(target.device()?, device);
+                assert_eq!(target.grad_enabled()?, requires_grad);
+                if requires_grad {
+                    assert_eq!(graph_state(&target)?, before);
+                } else {
+                    let after = graph_state(&target)?;
+                    assert_eq!(after.0, before.0);
+                    assert_eq!(after.1, before.1);
+                    assert!(after.2.is_empty());
+                    assert!(after.3.is_none());
+                }
+            }
         }
         Ok(())
     }

@@ -156,9 +156,15 @@ pub trait Model: Display {
 
     /// Load the model parameters from a file.
     ///
+    /// # Notes
+    /// * The loaded parameters must match the model's backend, actual device, dtype and shape.
+    /// * Existing parameter identities and gradient settings are preserved.
+    /// * Parameters are not converted or moved when loading.
+    /// * If a parameter cannot be updated, earlier parameter updates are not rolled back.
+    ///
     /// # Arguments
     /// * `file_path` - The path to the file.
-    /// * `device` - The device to load the model parameters to.
+    /// * `device` - The device on which file data is loaded; it must match the model parameters.
     ///
     /// # Returns
     /// * `Ok(())` - If successful.

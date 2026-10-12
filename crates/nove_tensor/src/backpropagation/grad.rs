@@ -304,14 +304,13 @@ impl Tensor {
         match &data.grad {
             Some(existing) => {
                 let mut existing = existing.data.write()?;
-                existing.storage = existing
-                    .storage
-                    .broadcast_add(&grad.backend_storage()?)?
-                    .detach()?;
+                existing.storage = existing.storage.broadcast_add(&grad.backend_storage()?)?;
             }
             None => {
+                // Clone the data so different leaves have independent gradients.
+                let storage = grad.data.read()?.storage.try_clone()?;
                 data.grad = Some(Tensor::from_backend_storage(
-                    grad.backend_storage()?.detach()?,
+                    storage,
                     data.device.clone(),
                     false,
                     vec![],

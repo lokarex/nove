@@ -14,6 +14,8 @@ pub(crate) trait Backend: Clone + std::fmt::Debug + Sized {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
 
     // -- lifecycle --
+    fn try_clone(&self) -> Result<Self, BackendError>;
+    fn same_device(&self, other: &Self) -> bool;
     fn zero_set(&mut self) -> Result<(), BackendError>;
 
     // -- factories --
