@@ -5,6 +5,7 @@ use super::super::Backend;
 use super::super::candle;
 #[cfg(feature = "native")]
 use super::super::native;
+use super::super::validation;
 use super::BackendStorage;
 #[cfg(feature = "native")]
 use crate::device::DeviceKind;
@@ -64,6 +65,7 @@ impl BackendStorage {
         T: FloatTensorElement,
     {
         shape.checked_elem_count()?;
+        validation::validate_uniform(low.to_f64(), high.to_f64())?;
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::rand(
@@ -91,6 +93,7 @@ impl BackendStorage {
         T: FloatTensorElement,
     {
         shape.checked_elem_count()?;
+        validation::validate_normal(mean.to_f64(), std.to_f64())?;
         match device.backend() {
             #[cfg(feature = "candle")]
             BackendKind::Candle => Ok(Self::Candle(candle::CandleStorage::randn(

@@ -1,33 +1,15 @@
 //! Indexing, indexed accumulation and conditional selection.
 
-use super::super::Backend;
-#[cfg(feature = "candle")]
-use super::super::candle;
-#[cfg(feature = "native")]
-use super::super::native;
-use super::BackendStorage;
+use super::super::{Backend, validation};
+use super::dispatch::{dispatch_binary, dispatch_ternary};
+use super::{BackendStorage, ensure_compatible_devices};
 use crate::BackendError;
-#[cfg(all(feature = "candle", feature = "native"))]
-use crate::BackendKind;
 
 impl BackendStorage {
     pub fn gather(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
-        match (self, indexes) {
-            #[cfg(feature = "candle")]
-            (Self::Candle(lhs), Self::Candle(rhs)) => Ok(Self::Candle(lhs.gather(rhs, dim)?)),
-            #[cfg(feature = "native")]
-            (Self::Native(lhs), Self::Native(rhs)) => Ok(Self::Native(lhs.gather(rhs, dim)?)),
-            #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Candle(_), other) => Err(BackendError::BackendMismatch {
-                expected: BackendKind::Candle,
-                found: other.backend_kind().unwrap_or(BackendKind::Candle),
-            }),
-            #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Native(_), other) => Err(BackendError::BackendMismatch {
-                expected: BackendKind::Native,
-                found: other.backend_kind().unwrap_or(BackendKind::Native),
-            }),
-        }
+        ensure_compatible_devices("gather", &[self, indexes])?;
+        validation::validate_gather(&self.shape()?, &indexes.shape()?, indexes.dtype()?, dim)?;
+        dispatch_binary!(self, indexes, gather, dim)
     }
 
     pub fn scatter_add(
@@ -36,45 +18,28 @@ impl BackendStorage {
         source: &Self,
         dim: usize,
     ) -> Result<Self, BackendError> {
-        match (self, indexes, source) {
-            #[cfg(feature = "candle")]
-            (Self::Candle(init), Self::Candle(indexes), Self::Candle(source)) => {
-                Ok(Self::Candle(init.scatter_add(indexes, source, dim)?))
-            }
-            #[cfg(feature = "native")]
-            (Self::Native(init), Self::Native(indexes), Self::Native(source)) => {
-                Ok(Self::Native(init.scatter_add(indexes, source, dim)?))
-            }
-            #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Candle(_), _, _) => Err(BackendError::BackendMismatch {
-                expected: BackendKind::Candle,
-                found: BackendKind::Native,
-            }),
-            #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Native(_), _, _) => Err(BackendError::BackendMismatch {
-                expected: BackendKind::Native,
-                found: BackendKind::Candle,
-            }),
-        }
+        ensure_compatible_devices("scatter_add", &[self, indexes, source])?;
+        validation::validate_scatter_add(
+            &self.shape()?,
+            self.dtype()?,
+            &indexes.shape()?,
+            indexes.dtype()?,
+            &source.shape()?,
+            source.dtype()?,
+            dim,
+        )?;
+        dispatch_ternary!(self, indexes, source, scatter_add, dim)
     }
 
     pub fn index_select(&self, indexes: &Self, dim: usize) -> Result<Self, BackendError> {
-        match (self, indexes) {
-            #[cfg(feature = "candle")]
-            (Self::Candle(lhs), Self::Candle(rhs)) => Ok(Self::Candle(lhs.index_select(rhs, dim)?)),
-            #[cfg(feature = "native")]
-            (Self::Native(lhs), Self::Native(rhs)) => Ok(Self::Native(lhs.index_select(rhs, dim)?)),
-            #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Candle(_), other) => Err(BackendError::BackendMismatch {
-                expected: BackendKind::Candle,
-                found: other.backend_kind().unwrap_or(BackendKind::Candle),
-            }),
-            #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Native(_), other) => Err(BackendError::BackendMismatch {
-                expected: BackendKind::Native,
-                found: other.backend_kind().unwrap_or(BackendKind::Native),
-            }),
-        }
+        ensure_compatible_devices("index_select", &[self, indexes])?;
+        validation::validate_index_select(
+            &self.shape()?,
+            &indexes.shape()?,
+            indexes.dtype()?,
+            dim,
+        )?;
+        dispatch_binary!(self, indexes, index_select, dim)
     }
 
     pub fn index_add(
@@ -83,26 +48,17 @@ impl BackendStorage {
         source: &Self,
         dim: usize,
     ) -> Result<Self, BackendError> {
-        match (self, indexes, source) {
-            #[cfg(feature = "candle")]
-            (Self::Candle(init), Self::Candle(indexes), Self::Candle(source)) => {
-                Ok(Self::Candle(init.index_add(indexes, source, dim)?))
-            }
-            #[cfg(feature = "native")]
-            (Self::Native(init), Self::Native(indexes), Self::Native(source)) => {
-                Ok(Self::Native(init.index_add(indexes, source, dim)?))
-            }
-            #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Candle(_), _, _) => Err(BackendError::BackendMismatch {
-                expected: BackendKind::Candle,
-                found: BackendKind::Native,
-            }),
-            #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Native(_), _, _) => Err(BackendError::BackendMismatch {
-                expected: BackendKind::Native,
-                found: BackendKind::Candle,
-            }),
-        }
+        ensure_compatible_devices("index_add", &[self, indexes, source])?;
+        validation::validate_index_add(
+            &self.shape()?,
+            self.dtype()?,
+            &indexes.shape()?,
+            indexes.dtype()?,
+            &source.shape()?,
+            source.dtype()?,
+            dim,
+        )?;
+        dispatch_ternary!(self, indexes, source, index_add, dim)
     }
 
     pub fn where_cond(
@@ -110,33 +66,17 @@ impl BackendStorage {
         true_value: &Self,
         false_value: &Self,
     ) -> Result<Self, BackendError> {
-        match (condition, true_value, false_value) {
-            #[cfg(feature = "candle")]
-            (Self::Candle(condition), Self::Candle(true_value), Self::Candle(false_value)) => {
-                Ok(Self::Candle(candle::CandleStorage::where_cond(
-                    condition,
-                    true_value,
-                    false_value,
-                )?))
-            }
-            #[cfg(feature = "native")]
-            (Self::Native(condition), Self::Native(true_value), Self::Native(false_value)) => {
-                Ok(Self::Native(native::NativeStorage::where_cond(
-                    condition,
-                    true_value,
-                    false_value,
-                )?))
-            }
-            #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Candle(_), _, _) => Err(BackendError::BackendMismatch {
-                expected: BackendKind::Candle,
-                found: BackendKind::Native,
-            }),
-            #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Native(_), _, _) => Err(BackendError::BackendMismatch {
-                expected: BackendKind::Native,
-                found: BackendKind::Candle,
-            }),
-        }
+        ensure_compatible_devices("where_cond", &[condition, true_value, false_value])?;
+        validation::validate_where(
+            condition.dtype()?,
+            true_value.dtype()?,
+            false_value.dtype()?,
+        )?;
+        validation::validate_where_shapes(
+            &condition.shape()?,
+            &true_value.shape()?,
+            &false_value.shape()?,
+        )?;
+        dispatch_ternary!(condition, true_value, false_value, where_cond)
     }
 }

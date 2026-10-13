@@ -36,6 +36,7 @@ pub mod native;
 mod contract;
 mod serialization;
 mod storage;
+mod validation;
 
 pub use crate::{
     BackendError, BackendKind, FloatTensorElement, IntoTensorPayload, TensorBuffer, TensorElement,
