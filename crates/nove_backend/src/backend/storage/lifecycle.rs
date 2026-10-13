@@ -40,6 +40,7 @@ impl BackendStorage {
     /// # Notes
     /// * Equal device indexes do not guarantee the same Candle device handle.
     /// * Native storage currently supports only the CPU device.
+    /// * Device identity follows the same rules as [`crate::Device`] equality.
     ///
     /// # Arguments
     /// * `other` - The storage to compare devices with.

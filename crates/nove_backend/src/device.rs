@@ -49,18 +49,51 @@ pub enum DeviceKind {
     Metal,
 }
 
+/// Backend-qualified hardware location of a device.
+///
+/// # Notes
+/// Devices at the same location may use different GPU instances. Compare
+/// [`Device`] values to check device identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct DeviceLocation {
+    backend: BackendKind,
+    kind: DeviceKind,
+    index: usize,
+}
+
+impl DeviceLocation {
+    /// Returns the backend at this location.
+    pub fn backend(&self) -> BackendKind {
+        self.backend
+    }
+
+    /// Returns the hardware kind at this location.
+    pub fn kind(&self) -> DeviceKind {
+        self.kind
+    }
+
+    /// Returns the device index passed to the constructor, or `0` for CPU.
+    pub fn index(&self) -> usize {
+        self.index
+    }
+}
+
 /// Backend-qualified device descriptor used by tensors and backend storage.
 ///
 /// # Notes
 /// A device is constructed through explicit backend-specific helpers in [`candle`] or [`native`].
 /// For tests and common cases use [`Device::default()`] which selects the
 /// highest-priority enabled backend.
+/// Device equality compares backend device identity, as does
+/// [`crate::backend::BackendStorage::same_device`]. Independent CPU devices
+/// from the same backend are equal. Independent Candle GPU instances are
+/// unequal even when their indexes match; cloning preserves device identity.
+/// Use [`Device::location`] to compare backend, hardware kind and index.
 #[derive(Debug, Clone)]
 pub struct Device {
     backend: BackendKind,
     kind: DeviceKind,
     index: usize,
-    #[allow(dead_code)]
     handle: BackendDeviceHandle,
 }
 
@@ -93,7 +126,6 @@ impl Device {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn handle(&self) -> &BackendDeviceHandle {
         &self.handle
     }
@@ -163,6 +195,31 @@ impl Device {
     /// ```
     pub fn index(&self) -> usize {
         self.index
+    }
+
+    /// Returns the backend, hardware kind and index of this device.
+    ///
+    /// # Notes
+    /// Equal locations do not guarantee the same GPU instance.
+    ///
+    /// # Examples
+    /// ```
+    /// use nove_backend::{DeviceKind, device};
+    ///
+    /// #[cfg(feature = "candle-cpu")]
+    /// {
+    ///     let cpu = device::candle::cpu().unwrap();
+    ///     assert_eq!(cpu.location().backend(), cpu.backend());
+    ///     assert_eq!(cpu.location().kind(), DeviceKind::Cpu);
+    ///     assert_eq!(cpu.location().index(), 0);
+    /// }
+    /// ```
+    pub fn location(&self) -> DeviceLocation {
+        DeviceLocation {
+            backend: self.backend,
+            kind: self.kind,
+            index: self.index,
+        }
     }
 
     /// Returns true when this device uses CPU execution.
@@ -536,7 +593,15 @@ pub mod native {
 
 impl PartialEq for Device {
     fn eq(&self, other: &Self) -> bool {
-        self.backend == other.backend && self.kind == other.kind && self.index == other.index
+        match (self.handle(), other.handle()) {
+            #[cfg(feature = "candle")]
+            (BackendDeviceHandle::Candle(a), BackendDeviceHandle::Candle(b)) => a.same_device(b),
+            #[cfg(feature = "native")]
+            (BackendDeviceHandle::Native, BackendDeviceHandle::Native) => true,
+            #[cfg(all(feature = "candle", feature = "native"))]
+            (BackendDeviceHandle::Candle(_), BackendDeviceHandle::Native)
+            | (BackendDeviceHandle::Native, BackendDeviceHandle::Candle(_)) => false,
+        }
     }
 }
 

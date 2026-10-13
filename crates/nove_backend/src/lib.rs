@@ -34,7 +34,7 @@ compile_error!(
 );
 
 pub mod device;
-pub use device::{Device, DeviceError, DeviceKind};
+pub use device::{Device, DeviceError, DeviceKind, DeviceLocation};
 
 mod dtype;
 pub use dtype::DType;

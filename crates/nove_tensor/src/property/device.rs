@@ -3,6 +3,11 @@ use crate::{Device, Tensor, TensorError, backpropagation::graph::OpKind};
 impl Tensor {
     /// Create a new tensor like the current tensor, but on the specified device.
     ///
+    /// # Notes
+    /// * Equal device identities return a shallow copy sharing the tensor data.
+    /// * Equal locations with different GPU instances use the backend transfer path.
+    /// * Unsupported transfers return the backend error.
+    ///
     /// # Arguments
     /// * `device` - The device to move the tensor to.
     ///

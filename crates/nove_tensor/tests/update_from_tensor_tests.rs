@@ -145,7 +145,8 @@ fn explicit_conversion_allows_compatible_update() -> TestResult {
 
 #[cfg(any(feature = "candle-cuda", feature = "candle-metal"))]
 fn check_distinct_gpu_handles(first: Device, second: Device) -> TestResult {
-    assert_eq!(first, second);
+    assert_ne!(first, second);
+    assert_eq!(first.location(), second.location());
     assert!(
         !first
             .to_candle_device()?
