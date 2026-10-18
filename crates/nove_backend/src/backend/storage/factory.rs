@@ -7,8 +7,6 @@ use super::super::candle;
 use super::super::native;
 use super::super::validation;
 use super::BackendStorage;
-#[cfg(feature = "native")]
-use crate::device::DeviceKind;
 use crate::{
     BackendError, BackendKind, DType, Device, FloatTensorElement, IntoTensorPayload, Shape,
     TensorElement, TensorPayload,
@@ -29,14 +27,9 @@ impl BackendStorage {
                 payload, device,
             )?)),
             #[cfg(feature = "native")]
-            BackendKind::Native => {
-                if device.kind() != DeviceKind::Cpu {
-                    return Err(BackendError::UnsupportedDevice(device.kind()));
-                }
-                Ok(Self::Native(native::NativeStorage::from_payload(
-                    payload, device,
-                )?))
-            }
+            BackendKind::Native => Ok(Self::Native(native::NativeStorage::from_payload(
+                payload, device,
+            )?)),
             #[cfg(not(all(feature = "candle", feature = "native")))]
             backend => Err(BackendError::UnsupportedBackend(backend)),
         }

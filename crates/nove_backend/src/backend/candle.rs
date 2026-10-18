@@ -41,7 +41,7 @@ pub(crate) fn to_candle_device(device: &Device) -> Result<nove_candle::CandleDev
     match device.handle() {
         BackendDeviceHandle::Candle(device) => Ok(device.clone()),
         #[cfg(feature = "native")]
-        BackendDeviceHandle::Native => Err(BackendError::UnsupportedBackend(device.backend())),
+        BackendDeviceHandle::Native(_) => Err(BackendError::UnsupportedBackend(device.backend())),
     }
 }
 

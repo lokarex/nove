@@ -102,7 +102,31 @@ pub(crate) enum BackendDeviceHandle {
     #[cfg(feature = "candle")]
     Candle(nove_candle::CandleDevice),
     #[cfg(feature = "native")]
-    Native,
+    Native(NativeDeviceHandle),
+}
+
+#[cfg(feature = "native")]
+#[derive(Debug, Clone)]
+pub(crate) enum NativeDeviceHandle {
+    #[cfg(feature = "native-cpu")]
+    Cpu,
+}
+
+#[cfg(feature = "native")]
+impl From<NativeDeviceHandle> for BackendDeviceHandle {
+    fn from(handle: NativeDeviceHandle) -> Self {
+        Self::Native(handle)
+    }
+}
+
+#[cfg(feature = "native")]
+impl NativeDeviceHandle {
+    fn same_device(&self, _other: &Self) -> bool {
+        match *self {
+            #[cfg(feature = "native-cpu")]
+            Self::Cpu => matches!(_other, Self::Cpu),
+        }
+    }
 }
 
 impl BackendDeviceHandle {
@@ -111,7 +135,7 @@ impl BackendDeviceHandle {
             #[cfg(feature = "candle")]
             Self::Candle(_) => BackendKind::Candle,
             #[cfg(feature = "native")]
-            Self::Native => BackendKind::Native,
+            Self::Native(_) => BackendKind::Native,
         }
     }
 }
@@ -277,7 +301,7 @@ impl Device {
     /// #[cfg(feature = "candle-metal")]
     /// {
     ///     let device = device::candle::metal(0).unwrap();
-    ///     assert!(device.is_cuda());
+    ///     assert!(device.is_metal());
     /// }
     /// ```
     pub fn is_metal(&self) -> bool {
@@ -414,7 +438,8 @@ pub mod candle {
     ///
     /// # Returns
     /// * `Ok(Device)` - A Candle CUDA device, or Candle CPU if CUDA is unavailable.
-    /// * `Err(DeviceError)` - A feature error when `candle-cuda` is disabled.
+    /// * `Err(DeviceError)` - A feature error when `candle-cuda` is disabled,
+    ///   or the error returned by the Candle CPU fallback.
     ///
     /// # Examples
     /// ```
@@ -449,6 +474,9 @@ pub mod candle {
     /// # Returns
     /// * `Ok(Device)` - A Candle Metal device when available.
     /// * `Err(DeviceError)` - A feature or backend validation error.
+    ///
+    /// # Panics
+    /// * May panic when the underlying Metal constructor receives an out-of-range index.
     ///
     /// # Examples
     /// ```
@@ -488,7 +516,11 @@ pub mod candle {
     ///
     /// # Returns
     /// * `Ok(Device)` - A Candle Metal device, or Candle CPU if Metal is unavailable.
-    /// * `Err(DeviceError)` - A feature error when `candle-metal` is disabled.
+    /// * `Err(DeviceError)` - A feature error when `candle-metal` is disabled,
+    ///   or the error returned by the Candle CPU fallback.
+    ///
+    /// # Panics
+    /// * A panic from the underlying Metal constructor is not handled by the fallback.
     ///
     /// # Examples
     /// ```
@@ -496,7 +528,7 @@ pub mod candle {
     ///
     /// #[cfg(feature = "candle-metal")]
     /// {
-    ///     let device = candle::metal_if_available(0).unwrap();
+    ///     let device = device::candle::metal_if_available(0).unwrap();
     ///     assert_eq!(device.backend(), BackendKind::Candle);
     /// }
     /// ```
@@ -517,7 +549,7 @@ pub mod candle {
 }
 
 impl Default for Device {
-    /// Creates the default CPU device using the highest-priority enabled backend.
+    /// Creates the default device using the highest-priority enabled capability.
     ///
     /// # Notes
     /// Priority: `candle-cuda` > `candle-metal` > `candle-cpu` > `native-cpu`.
@@ -550,9 +582,9 @@ impl Default for Device {
 
 /// Nove native device constructors.
 pub mod native {
-    #[cfg(feature = "native-cpu")]
-    use super::{BackendDeviceHandle, DeviceKind};
     use super::{Device, DeviceError};
+    #[cfg(feature = "native-cpu")]
+    use super::{DeviceKind, NativeDeviceHandle};
 
     /// Creates a native Nove CPU device.
     ///
@@ -576,7 +608,7 @@ pub mod native {
         #[cfg(feature = "native-cpu")]
         {
             Ok(Device::from_handle(
-                BackendDeviceHandle::Native,
+                NativeDeviceHandle::Cpu.into(),
                 DeviceKind::Cpu,
                 0,
             ))
@@ -597,10 +629,10 @@ impl PartialEq for Device {
             #[cfg(feature = "candle")]
             (BackendDeviceHandle::Candle(a), BackendDeviceHandle::Candle(b)) => a.same_device(b),
             #[cfg(feature = "native")]
-            (BackendDeviceHandle::Native, BackendDeviceHandle::Native) => true,
+            (BackendDeviceHandle::Native(a), BackendDeviceHandle::Native(b)) => a.same_device(b),
             #[cfg(all(feature = "candle", feature = "native"))]
-            (BackendDeviceHandle::Candle(_), BackendDeviceHandle::Native)
-            | (BackendDeviceHandle::Native, BackendDeviceHandle::Candle(_)) => false,
+            (BackendDeviceHandle::Candle(_), BackendDeviceHandle::Native(_))
+            | (BackendDeviceHandle::Native(_), BackendDeviceHandle::Candle(_)) => false,
         }
     }
 }

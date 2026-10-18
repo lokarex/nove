@@ -7,8 +7,6 @@ use super::BackendStorage;
 use super::dispatch::dispatch;
 #[cfg(all(feature = "candle", feature = "native"))]
 use crate::TensorPayload;
-#[cfg(feature = "native")]
-use crate::device::DeviceKind;
 use crate::{BackendError, BackendKind, DType, Device, TensorBuffer, TensorElement};
 
 impl BackendStorage {
@@ -50,8 +48,8 @@ impl BackendStorage {
                 Ok(Self::Candle(storage.to_device(device)?))
             }
             #[cfg(feature = "native")]
-            (Self::Native(storage), BackendKind::Native) if device.kind() == DeviceKind::Cpu => {
-                Ok(Self::Native(storage.clone()))
+            (Self::Native(storage), BackendKind::Native) => {
+                Ok(Self::Native(storage.to_device(device)?))
             }
             #[cfg(all(feature = "candle", feature = "native"))]
             (Self::Native(storage), BackendKind::Candle) => {
@@ -61,12 +59,13 @@ impl BackendStorage {
                 )?))
             }
             #[cfg(all(feature = "candle", feature = "native"))]
-            (Self::Candle(storage), BackendKind::Native) if device.kind() == DeviceKind::Cpu => {
+            (Self::Candle(storage), BackendKind::Native) => {
                 let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
                 Ok(Self::Native(native::NativeStorage::from_payload(
                     payload, device,
                 )?))
             }
+            #[cfg(not(all(feature = "candle", feature = "native")))]
             (_, backend) => Err(BackendError::UnsupportedBackend(backend)),
         }
     }
