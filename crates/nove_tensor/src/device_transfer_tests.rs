@@ -1,15 +1,15 @@
 #[cfg(any(feature = "candle-cuda", feature = "candle-metal"))]
-use nove_tensor::{DType, TensorError};
-use nove_tensor::{Device, DeviceLocation, Tensor};
+use crate::{DType, TensorError};
+use crate::{Device, DeviceLocation, Tensor};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 fn enabled_cpu_devices() -> Vec<Device> {
     vec![
         #[cfg(feature = "candle-cpu")]
-        nove_tensor::device::candle::cpu().unwrap(),
+        crate::device::candle::cpu().unwrap(),
         #[cfg(feature = "native-cpu")]
-        nove_tensor::device::native::cpu().unwrap(),
+        crate::device::native::cpu().unwrap(),
     ]
 }
 
@@ -32,9 +32,12 @@ fn check_same_device_transfer(source_device: &Device, target_device: &Device) ->
     let moved = source.to_device(target_device)?;
     assert_eq!(moved.graph_id()?, source.graph_id()?);
     assert_eq!(moved.device()?, *target_device);
+    assert_actual_device(&source, source_device)?;
+    assert_actual_device(&moved, target_device)?;
     let replacement = Tensor::from_data(vec![3.0f32, 4.0], source_device, false)?;
     source.update_from_tensor(&replacement)?;
     assert_eq!(moved.to_vec::<f32>()?, vec![3.0, 4.0]);
+    assert_actual_device(&moved, target_device)?;
     assert_eq!(moved.name()?, Some("source".into()));
     assert!(moved.grad_enabled()?);
     Ok(())
@@ -53,51 +56,45 @@ fn cpu_same_device_transfer_shares_tensor_data() -> TestResult {
     Ok(())
 }
 
-#[cfg(feature = "candle")]
 fn assert_actual_device(tensor: &Tensor, device: &Device) -> TestResult {
     assert_eq!(tensor.device()?, *device);
-    assert!(
-        tensor
-            .to_candle_tensor()?
-            .device()
-            .same_device(&device.to_candle_device()?)
-    );
+    let reference = crate::backend::BackendStorage::from_data(vec![0.0f32], device)?;
+    assert!(tensor.backend_storage()?.same_device(&reference));
     Ok(())
 }
 
 #[cfg(feature = "candle")]
-fn check_creation_clone_and_interop(device: &Device) -> TestResult {
+fn check_creation_and_clone(device: &Device) -> TestResult {
     let tensor = Tensor::from_data(vec![1.0f32, 2.0], device, true)?;
     assert_actual_device(&tensor, device)?;
-    assert_actual_device(&tensor.try_clone()?, device)?;
-    let imported = Tensor::from_candle_tensor(tensor.to_candle_tensor()?, device, true)?;
-    assert_actual_device(&imported, device)?;
-    assert_eq!(imported.to_vec::<f32>()?, vec![1.0, 2.0]);
-    assert!(imported.grad_enabled()?);
+    let cloned = tensor.try_clone()?;
+    assert_actual_device(&cloned, device)?;
+    assert_eq!(cloned.to_vec::<f32>()?, vec![1.0, 2.0]);
+    assert!(cloned.grad_enabled()?);
     Ok(())
 }
 
 #[cfg(feature = "candle-cpu")]
 #[test]
 fn candle_cpu_metadata_matches_actual_storage() -> TestResult {
-    check_creation_clone_and_interop(&nove_tensor::device::candle::cpu()?)
+    check_creation_and_clone(&crate::device::candle::cpu()?)
 }
 
 #[cfg(feature = "candle-cuda")]
 #[test]
 #[ignore = "requires a CUDA device"]
 fn cuda_same_instance_transfer_shares_tensor_data() -> TestResult {
-    let device = nove_tensor::device::candle::cuda(0)?;
+    let device = crate::device::candle::cuda(0)?;
     check_same_device_transfer(&device, &device.clone())?;
-    check_creation_clone_and_interop(&device)
+    check_creation_and_clone(&device)
 }
 
 #[cfg(feature = "candle-cuda")]
 #[test]
 #[ignore = "requires a CUDA device"]
 fn cuda_transfer_uses_target_instance_and_preserves_metadata() -> TestResult {
-    let source_device = nove_tensor::device::candle::cuda(0)?;
-    let target_device = nove_tensor::device::candle::cuda(0)?;
+    let source_device = crate::device::candle::cuda(0)?;
+    let target_device = crate::device::candle::cuda(0)?;
     let source =
         Tensor::from_data(vec![1.0f32, 2.0], &source_device, true)?.require_name("source")?;
     let moved = source.to_device(&target_device)?;
@@ -114,9 +111,6 @@ fn cuda_transfer_uses_target_instance_and_preserves_metadata() -> TestResult {
     assert_eq!(source.to_vec::<f32>()?, vec![3.0, 4.0]);
     assert_eq!(moved.to_vec::<f32>()?, vec![1.0, 2.0]);
 
-    let imported = Tensor::from_candle_tensor(source.to_candle_tensor()?, &target_device, false)?;
-    assert_actual_device(&imported, &target_device)?;
-    assert_eq!(imported.to_vec::<f32>()?, vec![3.0, 4.0]);
     Ok(())
 }
 
@@ -124,8 +118,8 @@ fn cuda_transfer_uses_target_instance_and_preserves_metadata() -> TestResult {
 #[test]
 #[ignore = "requires a CUDA device"]
 fn cuda_transfer_preserves_large_i64_values_and_independence() -> TestResult {
-    let source_device = nove_tensor::device::candle::cuda(0)?;
-    let target_device = nove_tensor::device::candle::cuda(0)?;
+    let source_device = crate::device::candle::cuda(0)?;
+    let target_device = crate::device::candle::cuda(0)?;
     let source = Tensor::from_data(vec![9007199254740993i64], &source_device, false)?;
     let moved = source.to_device(&target_device)?;
     assert_actual_device(&moved, &target_device)?;
@@ -142,8 +136,8 @@ fn cuda_transfer_preserves_large_i64_values_and_independence() -> TestResult {
 #[test]
 #[ignore = "requires a CUDA device"]
 fn cuda_transfer_backward_returns_gradient_to_source_instance() -> TestResult {
-    let source_device = nove_tensor::device::candle::cuda(0)?;
-    let target_device = nove_tensor::device::candle::cuda(0)?;
+    let source_device = crate::device::candle::cuda(0)?;
+    let target_device = crate::device::candle::cuda(0)?;
     let source = Tensor::from_data(vec![1.0f32, 2.0], &source_device, true)?;
     let moved = source.to_device(&target_device)?;
     assert_actual_device(&moved, &target_device)?;
@@ -158,8 +152,8 @@ fn cuda_transfer_backward_returns_gradient_to_source_instance() -> TestResult {
 #[test]
 #[ignore = "requires a CUDA device"]
 fn cuda_update_requires_transfer_to_target_instance() -> TestResult {
-    let target_device = nove_tensor::device::candle::cuda(0)?;
-    let source_device = nove_tensor::device::candle::cuda(0)?;
+    let target_device = crate::device::candle::cuda(0)?;
+    let source_device = crate::device::candle::cuda(0)?;
     let target =
         Tensor::from_data(vec![1.0f32, 2.0], &target_device, true)?.require_name("target")?;
     let graph_id = target.graph_id()?;
@@ -183,18 +177,18 @@ fn cuda_update_requires_transfer_to_target_instance() -> TestResult {
 #[test]
 #[ignore = "requires a Metal device"]
 fn metal_distinct_instance_transfer_preserves_capability_error() -> TestResult {
-    let source_device = nove_tensor::device::candle::metal(0)?;
-    let target_device = nove_tensor::device::candle::metal(0)?;
+    let source_device = crate::device::candle::metal(0)?;
+    let target_device = crate::device::candle::metal(0)?;
     check_same_device_transfer(&source_device, &source_device.clone())?;
-    check_creation_clone_and_interop(&source_device)?;
+    check_creation_and_clone(&source_device)?;
     let source =
         Tensor::from_data(vec![1.0f32, 2.0], &source_device, true)?.require_name("source")?;
     let graph_id = source.graph_id()?;
     assert!(matches!(
         source.to_device(&target_device),
         Err(TensorError::BackendError(
-            nove_tensor::BackendError::BackendImplementation {
-                backend: nove_tensor::BackendKind::Candle,
+            crate::BackendError::BackendImplementation {
+                backend: crate::BackendKind::Candle,
                 ..
             }
         ))

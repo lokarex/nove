@@ -77,15 +77,3 @@ fn serialization_function_signatures_remain_usable() {
     let _: SaveSafetensors = legacy::save_safetensors;
     let _: LoadSafetensors = legacy::load_safetensors;
 }
-
-#[cfg(feature = "candle-cpu")]
-#[test]
-fn candle_interop_paths_remain_usable() {
-    let device = root::device::candle::cpu().unwrap();
-    let storage = legacy::BackendStorage::from_data(vec![1.0f32, 2.0], &device).unwrap();
-    let raw = legacy::candle::storage_to_candle_tensor(&storage).unwrap();
-    let roundtrip = legacy::candle::storage_from_candle_tensor(raw, &device).unwrap();
-    assert_eq!(roundtrip.dtype().unwrap(), DType::F32);
-    assert_eq!(roundtrip.shape().unwrap().dims(), &[2]);
-    assert_eq!(roundtrip.to_vec::<f32>().unwrap(), vec![1.0, 2.0]);
-}

@@ -75,30 +75,9 @@ fn same_device_uses_backend_and_actual_handle() -> TestResult {
     Ok(())
 }
 
-#[cfg(feature = "candle-cpu")]
-#[test]
-fn candle_import_and_export_have_independent_buffers() -> TestResult {
-    use nove_backend::backend::candle::{storage_from_candle_tensor, storage_to_candle_tensor};
-    let device = nove_backend::device::candle::cpu()?;
-    let raw =
-        nove_candle::CandleTensor::from_slice(&[1.0f32, 2.0], &[2], &device.to_candle_device()?)?;
-    let raw_alias = raw.clone();
-    let mut storage = storage_from_candle_tensor(raw.clone(), &device)?;
-    raw.zero_set()?;
-    assert_eq!(raw_alias.to_vec1::<f32>()?, vec![0.0, 0.0]);
-    assert_eq!(storage.to_vec::<f32>()?, vec![1.0, 2.0]);
-    let exported = storage_to_candle_tensor(&storage)?;
-    let other_export = storage_to_candle_tensor(&storage)?;
-    exported.zero_set()?;
-    assert_eq!(storage.to_vec::<f32>()?, vec![1.0, 2.0]);
-    assert_eq!(other_export.to_vec1::<f32>()?, vec![1.0, 2.0]);
-    storage.zero_set()?;
-    assert_eq!(other_export.to_vec1::<f32>()?, vec![1.0, 2.0]);
-    Ok(())
-}
-
 #[cfg(any(feature = "candle-cuda", feature = "candle-metal"))]
 fn check_gpu_clone(device: Device) -> TestResult {
+    let reference = BackendStorage::from_data(vec![0.0f32], &device)?;
     for dtype in [DType::F32, DType::F16, DType::BF16] {
         let mut source = BackendStorage::from_data(vec![1.0f32, 2.0], &device)?.to_dtype(dtype)?;
         let copy = source.try_clone()?;
@@ -107,34 +86,21 @@ fn check_gpu_clone(device: Device) -> TestResult {
         assert_eq!(copy.shape()?.dims(), &[2]);
         assert!(copy.same_device(&source));
         assert_eq!(copy.to_dtype(DType::F32)?.to_vec::<f32>()?, vec![1.0, 2.0]);
-        let raw = nove_backend::backend::candle::storage_to_candle_tensor(&copy)?;
-        assert!(raw.device().same_device(&device.to_candle_device()?));
+        assert!(copy.same_device(&reference));
     }
     Ok(())
 }
 
 #[cfg(feature = "candle-cuda")]
 #[test]
+#[ignore = "requires a CUDA device"]
 fn gpu_cuda_clone_preserves_values_and_actual_device() -> TestResult {
-    let device = match nove_backend::device::candle::cuda(0) {
-        Ok(device) => device,
-        Err(error) => {
-            eprintln!("skipping CUDA clone test: {error}");
-            return Ok(());
-        }
-    };
-    check_gpu_clone(device)
+    check_gpu_clone(nove_backend::device::candle::cuda(0)?)
 }
 
 #[cfg(feature = "candle-metal")]
 #[test]
+#[ignore = "requires a Metal device"]
 fn gpu_metal_clone_preserves_values_and_actual_device() -> TestResult {
-    let device = match nove_backend::device::candle::metal(0) {
-        Ok(device) => device,
-        Err(error) => {
-            eprintln!("skipping Metal clone test: {error}");
-            return Ok(());
-        }
-    };
-    check_gpu_clone(device)
+    check_gpu_clone(nove_backend::device::candle::metal(0)?)
 }

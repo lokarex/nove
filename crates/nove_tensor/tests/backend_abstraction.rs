@@ -20,16 +20,6 @@ fn dtype_and_shape_are_nove_owned_public_types() {
     assert_eq!(format!("{shape:?}"), "[2, 3, 4]");
 }
 
-#[cfg(feature = "candle-cpu")]
-#[test]
-fn dtype_converts_to_and_from_the_candle_backend() {
-    let candle_dtype: candle_core::DType = DType::F32.into();
-    assert_eq!(candle_dtype, candle_core::DType::F32);
-
-    let nove_dtype = DType::from(candle_core::DType::F64);
-    assert_eq!(nove_dtype, DType::F64);
-}
-
 #[cfg(feature = "native-cpu")]
 #[test]
 fn explicit_nove_cpu_device_uses_native_cpu_backend() -> TestResult {

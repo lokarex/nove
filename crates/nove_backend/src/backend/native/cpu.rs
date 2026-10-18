@@ -17,6 +17,9 @@ pub(super) fn backend_error(error: nove_native::cpu::CpuBackendError) -> Backend
                 operation,
             }
         }
+        nove_native::cpu::CpuBackendError::InvalidOperation(message) => {
+            BackendError::InvalidOperation(message)
+        }
         other => BackendError::BackendImplementation {
             backend: BackendKind::Native,
             message: other.to_string(),
@@ -118,4 +121,36 @@ pub(super) fn randn(
         values.push(mean + std * z0);
     }
     CpuStorage::from_f64_values(values, shape.dims(), to_cpu_dtype(dtype)?).map_err(backend_error)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nove_native::cpu::{CpuBackendError, CpuDType};
+
+    #[test]
+    fn shape_and_dtype_errors_keep_backend_context() {
+        for (error, expected, found) in [
+            (
+                CpuBackendError::ShapeMismatch {
+                    expected: vec![6],
+                    found: vec![5],
+                },
+                "[6]",
+                "[5]",
+            ),
+            (
+                CpuBackendError::DTypeMismatch {
+                    expected: CpuDType::I64,
+                    found: CpuDType::F32,
+                },
+                "I64",
+                "F32",
+            ),
+        ] {
+            assert!(matches!(backend_error(error),
+                BackendError::BackendImplementation { backend: BackendKind::Native, message }
+                if message.contains(expected) && message.contains(found)));
+        }
+    }
 }

@@ -215,26 +215,3 @@ fn cross_backend_transfer_preserves_i64() {
         assert_eq!(source.to_vec::<i64>().unwrap(), values);
     }
 }
-
-#[cfg(all(feature = "candle-cpu", feature = "native-cpu"))]
-#[test]
-fn native_candle_interop_preserves_i64() {
-    let native = nove_backend::device::native::cpu().unwrap();
-    let candle = nove_backend::device::candle::cpu().unwrap();
-    let storage = BackendStorage::from_vec(
-        vec![9_007_199_254_740_993i64, -9_007_199_254_740_993],
-        &Shape::from_dims(&[2]),
-        &native,
-    )
-    .unwrap();
-    let tensor = nove_backend::backend::candle::storage_to_candle_tensor(&storage).unwrap();
-    let imported =
-        nove_backend::backend::candle::storage_from_candle_tensor(tensor, &candle).unwrap();
-    assert_eq!(imported.backend_kind().unwrap(), candle.backend());
-    assert_eq!(imported.dtype().unwrap(), DType::I64);
-    assert_eq!(imported.shape().unwrap().dims(), &[2]);
-    assert_eq!(
-        imported.to_vec::<i64>().unwrap(),
-        vec![9_007_199_254_740_993, -9_007_199_254_740_993],
-    );
-}

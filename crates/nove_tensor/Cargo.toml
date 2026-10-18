@@ -9,7 +9,6 @@ repository.workspace = true
 
 [dependencies]
 nove_backend = { path = "../nove_backend", default-features = false }
-candle-core = { workspace = true, optional = true }
 crossbeam = { workspace = true }
 dashmap = { workspace = true }
 thiserror = { workspace = true }
@@ -22,18 +21,16 @@ rand = { workspace = true }
 
 [features]
 default = ["candle-cpu"]
-candle = ["nove_backend/candle", "dep:candle-core", "nove/candle"]
+candle = ["nove_backend/candle", "nove/candle"]
 candle-cpu = ["candle", "nove_backend/candle-cpu"]
 candle-cuda = [
     "candle",
     "nove_backend/candle-cuda",
-    "candle-core/cuda",
     "nove/candle-cuda",
 ]
 candle-metal = [
     "candle",
     "nove_backend/candle-metal",
-    "candle-core/metal",
     "nove/candle-metal",
 ]
 native = ["nove_backend/native", "nove/native"]

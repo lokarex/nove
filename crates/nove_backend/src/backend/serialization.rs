@@ -8,8 +8,9 @@ use std::collections::HashMap;
 ///
 /// # Notes
 /// This helper is part of the backend dispatch boundary used by
-/// `nove_tensor::safetensor`. Native CPU safetensors support is intentionally
-/// reported as unsupported until that backend implements serialization.
+/// `nove_tensor::safetensor`. When Candle is enabled, Native storage values
+/// are saved through temporary Candle CPU storage. Without Candle, saving
+/// is reported as unsupported for Native.
 ///
 /// # Arguments
 /// * `file_path` - Destination path for the safetensors file.
@@ -37,7 +38,7 @@ pub fn save_safetensors(
     #[cfg(not(feature = "candle"))]
     {
         Err(BackendError::UnsupportedOperation {
-            backend: BackendKind::Candle,
+            backend: BackendKind::Native,
             operation: "save_safetensors".to_string(),
         })
     }
@@ -47,6 +48,7 @@ pub fn save_safetensors(
 ///
 /// # Notes
 /// Loaded storage is created on the backend selected by `device`.
+/// Loading into Native is reported as unsupported before reading the file.
 ///
 /// # Arguments
 /// * `file_path` - Source safetensors file path.

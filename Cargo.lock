@@ -1914,7 +1914,6 @@ dependencies = [
 name = "nove_tensor"
 version = "0.1.2"
 dependencies = [
- "candle-core",
  "crossbeam",
  "dashmap",
  "nove",

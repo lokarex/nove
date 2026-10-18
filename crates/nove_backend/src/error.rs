@@ -197,7 +197,7 @@ pub enum BackendError {
         spatial: (usize, usize),
     },
 
-    /// The operation request is invalid before reaching a backend kernel.
+    /// The operation request is invalid for the provided inputs or parameters.
     #[error("Invalid backend operation: {0}")]
     InvalidOperation(String),
 }

@@ -13,8 +13,8 @@ mod creation;
 mod op;
 mod property;
 
-#[cfg(feature = "candle")]
-mod backend_candle_compat;
+#[cfg(test)]
+mod device_transfer_tests;
 
 mod format;
 pub use format::safetensor;

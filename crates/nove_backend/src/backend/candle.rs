@@ -22,11 +22,27 @@ fn candle_op_error(error: impl std::fmt::Display) -> BackendError {
 }
 
 fn to_candle_dtype(dtype: DType) -> nove_candle::CandleDType {
-    dtype.into()
+    match dtype {
+        DType::U8 => nove_candle::CandleDType::U8,
+        DType::U32 => nove_candle::CandleDType::U32,
+        DType::I64 => nove_candle::CandleDType::I64,
+        DType::BF16 => nove_candle::CandleDType::BF16,
+        DType::F16 => nove_candle::CandleDType::F16,
+        DType::F32 => nove_candle::CandleDType::F32,
+        DType::F64 => nove_candle::CandleDType::F64,
+    }
 }
 
 fn from_candle_dtype(dtype: nove_candle::CandleDType) -> DType {
-    dtype.into()
+    match dtype {
+        nove_candle::CandleDType::U8 => DType::U8,
+        nove_candle::CandleDType::U32 => DType::U32,
+        nove_candle::CandleDType::I64 => DType::I64,
+        nove_candle::CandleDType::BF16 => DType::BF16,
+        nove_candle::CandleDType::F16 => DType::F16,
+        nove_candle::CandleDType::F32 => DType::F32,
+        nove_candle::CandleDType::F64 => DType::F64,
+    }
 }
 
 fn to_candle_device_kind(kind: DeviceKind) -> nove_candle::CandleDeviceKind {
@@ -61,17 +77,6 @@ impl CandleStorage {
 
     pub(crate) fn into_inner(self) -> nove_candle::CandleStorage {
         self.0
-    }
-
-    pub(crate) fn from_candle_tensor(
-        tensor: nove_candle::CandleTensor,
-        device: &Device,
-    ) -> Result<Self, BackendError> {
-        let device = to_candle_device(device)?;
-        let storage = nove_candle::CandleStorage::from_candle_tensor(tensor, &device)
-            .map(Self::new)
-            .map_err(backend_error)?;
-        <Self as super::Backend>::try_clone(&storage)
     }
 
     pub(crate) fn to_candle_tensor(&self) -> Result<nove_candle::CandleTensor, BackendError> {
@@ -715,34 +720,6 @@ impl CandleStorage {
     }
 }
 
-impl From<DType> for nove_candle::CandleDType {
-    fn from(dtype: DType) -> Self {
-        match dtype {
-            DType::U8 => Self::U8,
-            DType::U32 => Self::U32,
-            DType::I64 => Self::I64,
-            DType::BF16 => Self::BF16,
-            DType::F16 => Self::F16,
-            DType::F32 => Self::F32,
-            DType::F64 => Self::F64,
-        }
-    }
-}
-
-impl From<nove_candle::CandleDType> for DType {
-    fn from(dtype: nove_candle::CandleDType) -> Self {
-        match dtype {
-            nove_candle::CandleDType::U8 => Self::U8,
-            nove_candle::CandleDType::U32 => Self::U32,
-            nove_candle::CandleDType::I64 => Self::I64,
-            nove_candle::CandleDType::BF16 => Self::BF16,
-            nove_candle::CandleDType::F16 => Self::F16,
-            nove_candle::CandleDType::F32 => Self::F32,
-            nove_candle::CandleDType::F64 => Self::F64,
-        }
-    }
-}
-
 pub(crate) fn validate_device(kind: DeviceKind, index: usize) -> Result<(), BackendError> {
     nove_candle::validate_device(to_candle_device_kind(kind), index).map_err(backend_error)
 }
@@ -796,119 +773,100 @@ pub(crate) fn load_safetensors(
         .map_err(backend_error)
 }
 
-/// Create backend storage from a Candle tensor.
-///
-/// # Notes
-/// * The data is copied to the target device and detached from Candle autograd.
-/// * The storage has an independent buffer, including when the tensor is already
-///   on the target device.
-///
-/// # Arguments
-/// * `tensor` - Candle tensor to copy into backend storage.
-/// * `device` - Target Nove device descriptor.
-///
-/// # Returns
-/// * `Ok(BackendStorage)` - The created storage if successful.
-/// * `Err(BackendError)` - The error returned by Candle conversion.
-///
-/// # Examples
-/// ```
-/// use nove_backend::{backend::candle, device};
-/// use nove_candle::CandleTensor;
-///
-/// #[cfg(feature = "candle-cpu")] {
-///     let device = device::candle::cpu().unwrap();
-///     let candle_device = device.to_candle_device().unwrap();
-///     let tensor = CandleTensor::from_slice(&[1.0f32, 2.0], &[2], &candle_device).unwrap();
-///
-///     let storage = candle::storage_from_candle_tensor(tensor, &device).unwrap();
-///     let roundtrip = candle::storage_to_candle_tensor(&storage).unwrap();
-///
-///     assert_eq!(roundtrip.dims(), &[2]);
-/// }
-/// ```
-pub fn storage_from_candle_tensor(
-    tensor: nove_candle::CandleTensor,
-    device: &Device,
-) -> Result<BackendStorage, BackendError> {
-    Ok(BackendStorage::Candle(CandleStorage::from_candle_tensor(
-        tensor, device,
-    )?))
-}
-
-/// Convert backend storage into a Candle tensor.
-///
-/// # Notes
-/// * The converted tensor has an independent data buffer and is detached from Candle autograd.
-/// * Native CPU storage is converted through a backend-independent payload.
-/// * No Candle variable or gradient store is created.
-///
-/// # Arguments
-/// * `storage` - Backend storage to convert.
-///
-/// # Returns
-/// * `Ok(CandleTensor)` - A detached Candle tensor.
-/// * `Err(BackendError)` - The error returned by conversion.
-///
-/// # Examples
-/// ```
-/// use nove_backend::{DType, Shape, backend::BackendStorage, device};
-///
-/// #[cfg(feature = "candle-cpu")] {
-///     let device = device::candle::cpu().unwrap();
-///     let storage = BackendStorage::ones(&Shape::from_dims(&[2]), DType::F32, &device).unwrap();
-///     let candle_tensor = nove_backend::backend::candle::storage_to_candle_tensor(&storage).unwrap();
-///
-///     assert_eq!(candle_tensor.dims(), &[2]);
-/// }
-/// ```
-pub fn storage_to_candle_tensor(
-    storage: &BackendStorage,
-) -> Result<nove_candle::CandleTensor, BackendError> {
-    match storage {
-        BackendStorage::Candle(storage) => storage.to_candle_tensor(),
-        #[cfg(feature = "native")]
-        BackendStorage::Native(storage) => {
-            let payload = TensorPayload::new(storage.to_tensor_buffer()?, storage.shape())?;
-            let handle = create_candle_device(DeviceKind::Cpu, 0)?;
-            let device =
-                Device::from_handle(BackendDeviceHandle::Candle(handle), DeviceKind::Cpu, 0);
-            CandleStorage::from_payload(payload, &device)?.to_candle_tensor()
-        }
-    }
-}
-
-impl Device {
-    /// Converts this Nove device descriptor into a Candle device.
-    ///
-    /// # Notes
-    /// This method is available only when the Candle backend feature is
-    /// enabled. It is intended for explicit Candle interoperability.
-    ///
-    /// # Returns
-    /// * `Ok(CandleDevice)` - The Candle device if the selected device is available.
-    /// * `Err(DeviceError)` - The error when this is not a Candle-backed device.
-    ///
-    /// # Examples
-    /// ```
-    /// use nove_backend::device;
-    /// use nove_candle::CandleDevice;
-    ///
-    /// #[cfg(feature = "candle-cpu")] {
-    ///     let device = device::candle::cpu().unwrap();
-    ///     let candle_device = device.to_candle_device().unwrap();
-    ///     assert!(matches!(candle_device, CandleDevice::Cpu));
-    /// }
-    /// ```
-    pub fn to_candle_device(&self) -> Result<nove_candle::CandleDevice, crate::DeviceError> {
-        Ok(to_candle_device(self)?)
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::CandleStorage;
+    use super::{CandleStorage, from_candle_dtype, to_candle_dtype};
     use crate::{DType, backend::Backend};
+
+    #[test]
+    fn dtype_conversions_preserve_all_supported_types() {
+        use nove_candle::CandleDType;
+        for (dtype, candle_dtype) in [
+            (DType::U8, CandleDType::U8),
+            (DType::U32, CandleDType::U32),
+            (DType::I64, CandleDType::I64),
+            (DType::BF16, CandleDType::BF16),
+            (DType::F16, CandleDType::F16),
+            (DType::F32, CandleDType::F32),
+            (DType::F64, CandleDType::F64),
+        ] {
+            assert_eq!(to_candle_dtype(dtype), candle_dtype);
+            assert_eq!(from_candle_dtype(candle_dtype), dtype);
+        }
+    }
+
+    #[cfg(any(
+        feature = "candle-cpu",
+        feature = "candle-cuda",
+        feature = "candle-metal"
+    ))]
+    fn assert_storage_device(
+        storage: &crate::backend::BackendStorage,
+        device: &crate::Device,
+    ) -> Result<(), crate::BackendError> {
+        let expected = super::to_candle_device(device)?;
+        match storage {
+            crate::backend::BackendStorage::Candle(storage) => {
+                assert!(storage.inner().as_tensor().device().same_device(&expected));
+            }
+            #[cfg(feature = "native")]
+            crate::backend::BackendStorage::Native(_) => panic!("expected Candle storage"),
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "candle-cpu")]
+    #[test]
+    fn candle_storage_uses_requested_cpu_device() -> Result<(), Box<dyn std::error::Error>> {
+        let device = crate::device::candle::cpu()?;
+        let source = crate::backend::BackendStorage::from_data(vec![1.0f32, 2.0], &device)?;
+        assert_storage_device(&source, &device)?;
+        assert_storage_device(&source.try_clone()?, &device)?;
+        Ok(())
+    }
+
+    #[cfg(any(feature = "candle-cuda", feature = "candle-metal"))]
+    fn check_gpu_device_handles(
+        first: &crate::Device,
+        second: &crate::Device,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let handle = super::to_candle_device(first)?;
+        assert!(handle.same_device(&super::to_candle_device(first)?));
+        assert!(handle.same_device(&super::to_candle_device(&first.clone())?));
+        assert!(!handle.same_device(&super::to_candle_device(second)?));
+        let source = crate::backend::BackendStorage::from_data(vec![1.0f32, 2.0], first)?;
+        let other = crate::backend::BackendStorage::from_data(vec![3.0f32, 4.0], second)?;
+        assert_storage_device(&source, first)?;
+        assert_storage_device(&source.try_clone()?, first)?;
+        assert_storage_device(&other, second)?;
+        assert!(!source.same_device(&other));
+        Ok(())
+    }
+
+    #[cfg(feature = "candle-cuda")]
+    #[test]
+    #[ignore = "requires a CUDA device"]
+    fn candle_cuda_device_conversions_reuse_the_same_handle()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let first = crate::device::candle::cuda(0)?;
+        let second = crate::device::candle::cuda(0)?;
+        check_gpu_device_handles(&first, &second)?;
+        let source = crate::backend::BackendStorage::from_data(vec![1.0f32, 2.0], &first)?;
+        let moved = source.to_device(&second)?;
+        assert_storage_device(&moved, &second)?;
+        assert_eq!(moved.to_vec::<f32>()?, vec![1.0, 2.0]);
+        Ok(())
+    }
+
+    #[cfg(feature = "candle-metal")]
+    #[test]
+    #[ignore = "requires a Metal device"]
+    fn candle_metal_device_conversions_reuse_the_same_handle()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let first = crate::device::candle::metal(0)?;
+        let second = crate::device::candle::metal(0)?;
+        check_gpu_device_handles(&first, &second)
+    }
 
     #[test]
     fn candle_clone_has_independent_buffer() {
@@ -957,7 +915,7 @@ mod tests {
         for dtype in [DType::F16, DType::BF16] {
             let raw = nove_candle::CandleTensor::from_slice(&[1.0f32, 2.0], &[2], &device)
                 .unwrap()
-                .to_dtype(dtype.into())
+                .to_dtype(to_candle_dtype(dtype))
                 .unwrap();
             let source = CandleStorage::new(
                 nove_candle::CandleStorage::from_candle_tensor(raw.clone(), &device).unwrap(),
