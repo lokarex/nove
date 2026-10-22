@@ -22,7 +22,10 @@ API for building, training, and evaluating neural networks.
 
 Create tensors on CPU, CUDA, or Metal. Every arithmetic, shape, and reduction
 operation is tracked in nove's computational graph for automatic
-differentiation. Save and load tensors in the safetensors format.
+differentiation. Safetensors save/load support depends on the backend and
+features: Candle can save Native tensors through internal CPU staging, while
+Native-only saving and loading into Native are unsupported. See the
+[backend guide](crates/nove_backend/README.md) for contracts and capability limits.
 
 ```rust
 let x = Tensor::randn(0f32, 1.0, &Shape::from_dims(&[2, 3]), &device, true)?;

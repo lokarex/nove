@@ -15,6 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -27,17 +29,39 @@ jobs:
         with:
           workspaces: "."
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Test backend CI guards
+        run: python -B -m unittest discover -s .github/scripts -p test_backend_contracts.py
+
       - name: Check formatting
         run: cargo fmt --all --check
 
       - name: Clippy
-        run: cargo clippy --all-targets --workspace -- -D warnings
+        run: cargo clippy --locked --all-targets --workspace -- -D warnings
 
       - name: Test (candle-cpu)
-        run: cargo test --workspace --verbose
+        run: cargo test --locked --workspace --verbose
 
       - name: Test (native-cpu)
-        run: cargo test --workspace --no-default-features --features native-cpu --verbose
+        run: cargo test --locked --workspace --no-default-features --features native-cpu --verbose
 
       - name: Doc tests
-        run: cargo test --workspace --doc --verbose
+        run: cargo test --locked --workspace --doc --verbose
+
+      - name: Check independent backend libraries
+        run: python -B .github/scripts/check_backend_contracts.py --group libraries
+
+      - name: Test CPU backend contracts and documentation
+        run: python -B .github/scripts/check_backend_contracts.py --group cpu
+
+      - name: Test backend families and internal CPU staging
+        run: python -B .github/scripts/check_backend_contracts.py --group families
+
+      - name: Check feature and dependency isolation
+        run: python -B .github/scripts/check_backend_contracts.py --group isolation
+
+      - name: Test mixed-backend model loading
+        run: python -B .github/scripts/check_backend_contracts.py --group model
